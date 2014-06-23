@@ -17,9 +17,13 @@ python bilayer_perturbations.py --help
 
 Features
 --------
--clustering data for each lipid species detected
--results broken down for each leaflet
--time evolution of clustering behaviour
--clustering statistics
--2D summary of clustering behaviour
--text output parsable by VMD for visualisation
+- calculate evoution of bilayer thickness and lipids tail order parameters
+- calculate radial influence of TM clusters on lipids distribution, bilayer thickness, lipids tails order parameters
+- statistics and graphs broken by species / leaflet
+- automatic detection of protein and TM clusters 
+- output files for visualisation in VMD
+
+To do
+-----
+- cluster groups
+
