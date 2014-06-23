@@ -1,10 +1,9 @@
-#import general python tools
+#generic python modules
 import argparse
 import operator
 from operator import itemgetter
 import sys, os, shutil
 import os.path
-import math, numpy, scipy
 
 ################################################################################################################################################
 # RETRIEVE USER INPUTS
@@ -16,57 +15,108 @@ import math, numpy, scipy
 version_nb="0.1.0"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
-**************************************************
+********************************************************
 v''' + version_nb + '''
 author: Jean Helie
 git: https://github.com/jhelie/bilayer_perturbations.git
-**************************************************
+DOI: 
+********************************************************
 
 [ Description ]
 
-This script computes the second rank order parameter as defined by:
+This script calculates the evolution of a lipid bilayer thickness and of the lipids tails
+order parameters.
 
-P2 = 0.5*(3*<cos**2(theta)> - 1)
+If proteins are present in the system the script can calculate the local perturbation of
+those two metrics induced by transmembrane proteins.
+
+The statistics and graphs on metrics and their perturbations are broken down by leaflet, 
+lipid species and transmembrane protein clusters size.
+
+The perturbations calculated can also be visualised in VMD by loading the text files
+produced by the script (see https://github.com/jhelie/set_users_fields.git).
+
+Visit the DOI for related paper and full information or see below for a summary of how the
+script works.
+
+bilayer thickness
+-----------------
+
+A thickness is associated to each lipids headgroups for each frame. It is calculated as 
+the average geometric distance between the head group and its closest headgroup neighbours
+in the opposite leaflet. This means that the shape of the bilayer does not prevent
+meaningful calculations of its thickness.
+The number of neighbours to take into account in the opposite leaflet can be set with the
+--neighbours option.
+
+lipids tails order parameter
+----------------------------
+
+This script computes the second rank order parameter as defined by:
+ P2 = 0.5*(3*<cos**2(theta)> - 1)
 
 where theta is the angle between the bond and the bilayer normal.
  P2 = 1      perfect alignement with the bilayer normal
  P2 = 0      random orientation
  P2 = -0.5   anti-alignement
 
-The script produces the following outputs:
- - (time evolution of) P2 for each lipid specie in each leaflet 
- - (time evolution of) P2 for each flipflopping lipid (if any, see note 3) 	
+The bilayer normal is considered to be z axis. This means that, unlike for the calculation
+of the thickness, the more your bilayer deforms the further from the actual local normal
+the z axis will be and the less meaningful the calculated order parameters will be.
+
+detection of transmembrane protein clusters
+-------------------------------------------
+
+Two clustering algorithms can be used to identify protein clusters.
+->Connectivity based (relies on networkX module):
+  A protein is considered in a cluster if it is within a distance less than --nx_cutoff
+  from another protein. This means that a single protein can act as a connector between
+  two otherwise disconnected protein clusters.
+  This algorithm can be ran using either the minimum distante between proteins (default, 
+  --algorithm 'min') or the distance between their center of geometry (--algorithm 'cog').
+  The 'min' option scales as the square of the number of proteins and can thus be very
+  slow for large systems.
+
+->Density based (relies on the sklearn module and its implementation of DBSCAN):
+  A protein is considered in a cluster if is surrounded by at least --db_neighbours other
+  proteins within a radius of --db_radius.
+  This density based approach is usually less suited to the detection of protein
+  clusters but as a general rule the more compact the clusters, the smaller --db_radius
+  the higher --db_neighbours can be - for details on this algorithm see its online
+  documentation.
+  This algorithm is selected by setting the --algorithm option to 'density'.
+
+The identified protein clusters are considered to be transmembrane only if the closest
+lipid headgroup neighbours to the cluster particles are all within the same leaflet.
 
 [ Requirements ]
 
-The following python module(s) are needed:
+The following python modules are needed :
  - MDAnalysis
  - matplotlib
- - (networkX)
- - (sklearn)
+ - networkX (if option --radial is used and option --algorithm set to 'min' or 'cog')
+ - sklearn (if option --radial is used and option --algorithm set to 'density')
 
 [ Notes ]
 
-1. It's a good idea to pre-process the xtc first:
-    - use trjconv with the -pbc mol option
-    - only output the relevant lipids (e.g. no water but no cholesterol either)
+1. It's a good idea to pre-process the trajectory first and to only output the relevant
+   particles (e.g. no water and no cholesterol).
 
-2. By default leaflets are identified using the MDAnalysis LeafletFinder routine and the routine
-   will try to find the optimum cutoff to identify 2 lipids groups.
-   This optimisation process can take time in large systems and you can specify your own cutoff
-   value to skip this step. For instance to use a 15 Angstrom cutoff value:
+2. By default leaflets are identified using the MDAnalysis LeafletFinder routine and the
+   the optimum cutoff to identify 2 lipids groups is determined using the optimize_cutoff
+   routine.
+   This optimisation process can take time in large systems and you can specify your own
+   cutoff value to skip this step. For instance to use a 15 Angstrom cutoff value:
     --leaflet_cutoff 15
-   In very large systems (more then ~50,000 phospholipids) LeafletFinder can fail, to avoid this
+   
+   In very large systems (more then ~50,000 phospholipids) LeafletFinder can fail (or
+   rather networkX, that it relies on) can fail , to avoid this
    you can choose not to use this routine:
     --leaflet_cutoff large
    In this case lipids whose headgroups z value is above the average lipids z value will be
    considered to make up the upper leaflet and those whos headgroups z value is below the average
    will be considered to make the lower leaflet. This means that your bilayer should be as flat as
    possible in the gro file that you supply in order to get a meaningful outcome.
-
-2. The z axis is considered to be the bilayer normal. The more your system deforms, the further from
-   the actual bilayer normal the z axis will be and the noisier the less meaning full the calculated
-   order parameters will be.
 
 3. In case lipids flipflop during the trajectory, a file listing them can be supplied via the -i flag.
    This file can be the output of the ff_detect script and should follow the format:
@@ -115,7 +165,7 @@ Lipids identification
 -----------------------------------------------------
 --flipflops		: input file with flipflopping lipids, see note 3
 --forcefield		: forcefield options, see note 3
---no-opt		: do not attempt to optimise leaflet identification (useful for huge system)
+--leaflet_cutoff	: leaflet identification technique, see note 2
 
 radial perturbations and protein clusters identification
 -----------------------------------------------------
@@ -221,25 +271,55 @@ if args.cutoff_leaflet != "large" and args.cutoff_leaflet != "optimise":
 #=======================================================================
 # import modules (doing it now otherwise might crash before we can display the help menu!)
 #=======================================================================
-import matplotlib as mpl
-mpl.use('Agg')
-import pylab as plt
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm				#colours library
-import matplotlib.ticker
-from matplotlib.ticker import MaxNLocator
-from matplotlib.font_manager import FontProperties
-fontP=FontProperties()
-#import MDAnalysis
-import MDAnalysis
-from MDAnalysis import *
-import MDAnalysis.analysis
-import MDAnalysis.analysis.leaflet
-import MDAnalysis.analysis.distances
-#set MDAnalysis to use periodic boundary conditions
-MDAnalysis.core.flags['use_periodic_selections'] = True
-MDAnalysis.core.flags['use_KDTree_routines'] = False
-MDAnalysis.core.flags['use_KDTree_routines'] = False
+
+#generic science modules
+try:
+	import math
+except:
+	print "Error: you need to install the maths module."
+	sys.exit(1)
+try:
+	import numpy
+except:
+	print "Error: you need to install the numpy module."
+	sys.exit(1)
+try:
+	import scipy
+except:
+	print "Error: you need to install the scipy module."
+	sys.exit(1)
+try:
+	import matplotlib as mpl
+	mpl.use('Agg')
+	import matplotlib.colors as mcolors
+	import matplotlib.cm as cm				#colours library
+	import matplotlib.ticker
+	from matplotlib.ticker import MaxNLocator
+	from matplotlib.font_manager import FontProperties
+	fontP=FontProperties()
+except:
+	print "Error: you need to install the matplotlib module."
+	sys.exit(1)
+try:
+	import pylab as plt
+except:
+	print "Error: you need to install the pylab module."
+	sys.exit(1)
+
+#MDAnalysis module
+try:
+	import MDAnalysis
+	from MDAnalysis import *
+	import MDAnalysis.analysis
+	import MDAnalysis.analysis.leaflet
+	import MDAnalysis.analysis.distances
+	#set MDAnalysis to use periodic boundary conditions
+	MDAnalysis.core.flags['use_periodic_selections'] = True
+	MDAnalysis.core.flags['use_KDTree_routines'] = False
+	MDAnalysis.core.flags['use_KDTree_routines'] = False
+except:
+	print "Error: you need to install the MDAnalysis module first. See http://mdanalysis.googlecode.com"
+	sys.exit(1)
 
 #=======================================================================
 # sanity check
@@ -273,11 +353,11 @@ elif not os.path.isfile(args.xtcfilename):
 #=======================================================================
 # create folders and log file
 #=======================================================================
-if args.output_folder=="no":
-	if args.xtcfilename=="no":
-		args.output_folder="order_param_" + args.grofilename[:-4]
+if args.output_folder == "no":
+	if args.xtcfilename == "no":
+		args.output_folder = "bilayer_perturbations_" + args.grofilename[:-4]
 	else:
-		args.output_folder="order_param_" + args.xtcfilename[:-4]
+		args.output_folder = "bilayer_perturbations_" + args.xtcfilename[:-4]
 if os.path.isdir(args.output_folder):
 	print "Error: folder " + str(args.output_folder) + " already exists, choose a different output name via -o."
 	sys.exit(1)
@@ -839,6 +919,22 @@ def identify_species():
 			op_bonds[s]=[]
 			for bond_name in bond_names[s].split():
 				op_bonds[s].append(bond_name.split("-"))
+
+		#check that all the necessary lipids tails particles are present in order to calculate order parameter
+		for l in ["lower","upper"]:
+			for s in op_lipids_handled[l]:
+				tail_A_start = tail_boundaries[s][0]
+				for bond in op_bonds[s][tail_A_start:]:
+					tmp_sele_b0 = leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[0]))
+					tmp_sele_b1 = leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[1]))
+					if tmp_sele_b0.numberOfAtoms() == 0:
+						print "Error: missing particles " + str(bond[0]) + " in " + str(s) + " lipids in the " + str(l) + " leaflet."
+						print "->cannot calculate tail order parameters."
+						sys.exit(1)
+					if tmp_sele_b1.numberOfAtoms() == 0:
+						print "Error: missing particles " + str(bond[1]) + " in " + str(s) + " lipids in the " + str(l) + " leaflet."
+						print "->cannot calculate tail order parameters, choose a different --perturb option or use different inputs."
+						sys.exit(1)
 
 	#create list of residues for each lipid specie		
 	for l in ["lower","upper"]:
@@ -3347,8 +3443,8 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 		if s in leaflet_species["upper"]:
 			for c_size in radial_sizes[f_nb]:
 				p_upper[c_size]=plt.plot(loc_radial_bins, tmp_radial["upper"][c_size], color=colours_sizes[c_size], linewidth=3.0, label=str(c_size))
-		fontP.set_size("small")
-		ax1.legend(prop=fontP)
+			fontP.set_size("small")
+			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
 		plt.ylabel('lipids density', fontsize="small")
@@ -3359,8 +3455,8 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 		if s in leaflet_species["lower"]:
 			for c_size in radial_sizes[f_nb]:
 				p_lower[c_size]=plt.plot(loc_radial_bins, tmp_radial["lower"][c_size], color=colours_sizes[c_size], linewidth=3.0, label=str(c_size))
-		fontP.set_size("small")
-		ax2.legend(prop=fontP)
+			fontP.set_size("small")
+			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
 		plt.ylabel('lipids density', fontsize="small")
@@ -3604,7 +3700,7 @@ def radial_thick_frame_xvg_write(f_nb, f_time):
 	
 	return
 def radial_thick_frame_xvg_graph(f_nb, f_time):
-	
+
 	global radial_step
 	
 	#species: summary of sizes influence for each specie
@@ -3972,8 +4068,8 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 			for c_size in radial_sizes[f_nb]:
 				p_upper[c_size]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][c_size], color=colours_sizes[c_size], linewidth=3.0, label=str(c_size))
 				p_upper[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][c_size]-tmp_op_std["upper"][c_size], tmp_op_avg["upper"][c_size]+tmp_op_std["upper"][c_size], color=colours_sizes[c_size], alpha=0.2)
-		fontP.set_size("small")
-		ax1.legend(prop=fontP)
+			fontP.set_size("small")
+			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
 		plt.xlabel('distance from cluster ($\AA$)', fontsize="small")
 		plt.ylabel('order parameter', fontsize="small")
@@ -3985,8 +4081,8 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 			for c_size in radial_sizes[f_nb]:
 				p_lower[c_size]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][c_size], color=colours_sizes[c_size], linewidth=3.0, label=str(c_size))
 				p_lower[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][c_size]-tmp_op_std["lower"][c_size], tmp_op_avg["lower"][c_size]+tmp_op_std["lower"][c_size], color=colours_sizes[c_size], alpha=0.2)
-		fontP.set_size("small")
-		ax2.legend(prop=fontP)
+			fontP.set_size("small")
+			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
 		plt.xlabel('distance from cluster ($\AA$)', fontsize="small")
 		plt.ylabel('order parameter', fontsize="small")
@@ -4059,8 +4155,9 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 		for s in op_lipids_handled["upper"]:
 			p_upper[s]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
 			p_upper[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color=colours_lipids[s], alpha=0.2)
-		fontP.set_size("small")
-		ax1.legend(prop=fontP)
+		if len(op_lipids_handled["upper"]) > 0:
+			fontP.set_size("small")
+			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
 		plt.ylabel('order parameter', fontsize="small")
@@ -4071,8 +4168,9 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 		for s in op_lipids_handled["lower"]:
 			p_lower[s]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
 			p_lower[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color=colours_lipids[s], alpha=0.2)
-		fontP.set_size("small")
-		ax2.legend(prop=fontP)
+		if len(op_lipids_handled["lower"]) > 0:
+			fontP.set_size("small")
+			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
 		plt.ylabel('order parameter', fontsize="small")
@@ -4207,18 +4305,21 @@ if args.xtcfilename == "no":
 
 	#radials plots
 	if args.radial:
-		print " -writing radials perturbations..."
-		radial_density_frame_xvg_write("all frames", 0)
-		radial_density_frame_xvg_graph("all frames", 0)
-		if args.perturb == 1 or args.perturb == 3:
-			radial_thick_frame_xvg_write("all frames", 0)
-			radial_thick_frame_xvg_graph("all frames", 0)
-		if args.perturb == 2 or args.perturb == 3:
-			radial_op_frame_xvg_write("all frames", 0)
-			radial_op_frame_xvg_graph("all frames", 0)
-		if len(radial_sizes["all frames"]) == 1:
-			print 
-			print "Warning: a single TM cluster size (", str(radial_sizes["all frames"][0]), ") was detected. Check the cluster detection options (see bilayer_perturbations -h)."
+		if len(radial_sizes["all frames"]) == 0:
+			print "Warning: no TM cluster dected."
+		else:
+			print " -writing radials perturbations..."
+			radial_density_frame_xvg_write("all frames", 0)
+			radial_density_frame_xvg_graph("all frames", 0)
+			if args.perturb == 1 or args.perturb == 3:
+				radial_thick_frame_xvg_write("all frames", 0)
+				radial_thick_frame_xvg_graph("all frames", 0)
+			if args.perturb == 2 or args.perturb == 3:
+				radial_op_frame_xvg_write("all frames", 0)
+				radial_op_frame_xvg_graph("all frames", 0)
+			if len(radial_sizes["all frames"]) == 1:
+				print 
+				print "Warning: a single TM cluster size (", str(radial_sizes["all frames"][0]), ") was detected. Check the cluster detection options (see bilayer_perturbations -h)."
 
 #case: xtc file
 #--------------
@@ -4265,18 +4366,21 @@ else:
 	
 	#radials plots
 	if args.radial:
-		print " -writing radials perturbations..."
-		radial_density_frame_xvg_write("all frames", 0)
-		radial_density_frame_xvg_graph("all frames", 0)
-		if args.perturb == 1 or args.perturb == 3:
-			radial_thick_frame_xvg_write("all frames", 0)
-			radial_thick_frame_xvg_graph("all frames", 0)
-		if args.perturb == 2 or args.perturb == 3:
-			radial_op_frame_xvg_write("all frames", 0)
-			radial_op_frame_xvg_graph("all frames", 0)
-		if len(radial_sizes["all frames"]) == 1:
-			print 
-			print "Warning: a single TM cluster size (", str(radial_sizes["all frames"][0]), ") was detected. Check the cluster detection options (see bilayer_perturbations -h)."
+		if len(radial_sizes["all frames"]) == 0:
+			print "Warning: no TM cluster dected."
+		else:
+			print " -writing radials perturbations..."
+			radial_density_frame_xvg_write("all frames", 0)
+			radial_density_frame_xvg_graph("all frames", 0)
+			if args.perturb == 1 or args.perturb == 3:
+				radial_thick_frame_xvg_write("all frames", 0)
+				radial_thick_frame_xvg_graph("all frames", 0)
+			if args.perturb == 2 or args.perturb == 3:
+				radial_op_frame_xvg_write("all frames", 0)
+				radial_op_frame_xvg_graph("all frames", 0)
+			if len(radial_sizes["all frames"]) == 1:
+				print 
+				print "Warning: a single TM cluster size (", str(radial_sizes["all frames"][0]), ") was detected. Check the cluster detection options (see bilayer_perturbations -h)."
 					
 #=======================================================================
 # exit
