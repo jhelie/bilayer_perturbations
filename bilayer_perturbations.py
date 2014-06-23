@@ -12,7 +12,7 @@ import os.path
 #=======================================================================
 # create parser
 #=======================================================================
-version_nb="0.1.0"
+version_nb="0.1.1"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ********************************************************
@@ -27,11 +27,17 @@ DOI:
 This script calculates the evolution of a lipid bilayer thickness and of the lipids tails
 order parameters.
 
-If proteins are present in the system the script can calculate the local perturbation of
-those two metrics induced by transmembrane proteins.
+If proteins are present in the system and the option --radial is specified the local
+perturbations of those two metrics induced by transmembrane proteins will be calculated as
+well as the distribution of lipids type around the clusters (it is also possible to only
+calculate lipids distribution by setting the --perturb option to 0).
 
 The statistics and graphs on metrics and their perturbations are broken down by leaflet, 
 lipid species and transmembrane protein clusters size.
+
+The metrics can be calculated for a single frame or for an entire trajectory - and in case
+a trajectory is supplied the data for individual frame snapshots can also be produced at a
+frequency specified by the option -w.
 
 The perturbations calculated can also be visualised in VMD by loading the text files
 produced by the script (see https://github.com/jhelie/set_users_fields.git).
@@ -41,7 +47,6 @@ script works.
 
 bilayer thickness
 -----------------
-
 A thickness is associated to each lipids headgroups for each frame. It is calculated as 
 the average geometric distance between the head group and its closest headgroup neighbours
 in the opposite leaflet. This means that the shape of the bilayer does not prevent
@@ -51,7 +56,6 @@ The number of neighbours to take into account in the opposite leaflet can be set
 
 lipids tails order parameter
 ----------------------------
-
 This script computes the second rank order parameter as defined by:
  P2 = 0.5*(3*<cos**2(theta)> - 1)
 
@@ -66,7 +70,6 @@ the z axis will be and the less meaningful the calculated order parameters will 
 
 detection of transmembrane protein clusters
 -------------------------------------------
-
 Two clustering algorithms can be used to identify protein clusters.
 ->Connectivity based (relies on networkX module):
   A protein is considered in a cluster if it is within a distance less than --nx_cutoff
@@ -88,6 +91,22 @@ Two clustering algorithms can be used to identify protein clusters.
 
 The identified protein clusters are considered to be transmembrane only if the closest
 lipid headgroup neighbours to the cluster particles are all within the same leaflet.
+In addition to the sizes identified, size groups can be defined - see note 6.
+
+VMD visualisation
+-----------------
+The perturbation calculated can be visualised with VMD either for a single frame or an
+entire trajectory. Note that in the case of a trajectory only the processed frame will be
+annotated (every 10 by defaults) - you might want to pre-process your trajectory to remove
+frames and then set the -t option to 1 when running the script.
+ ->frame:
+   The thickness or order parameter info is stored in the beta factor column. Just open
+   the PDB file with VMD and choose Draw Style > Coloring Method > Beta.
+
+ ->trajectory:
+   The thickness or order parameter info is stored in a .txt file in folders '/3_VMD/'.
+   To load it into your trajectory opened with VMD use the appropriate routine of the
+   script 'set_user_fields.tcl' - e.g. set_order_param script_output.txt.
 
 [ Requirements ]
 
@@ -96,6 +115,7 @@ The following python modules are needed :
  - matplotlib
  - networkX (if option --radial is used and option --algorithm set to 'min' or 'cog')
  - sklearn (if option --radial is used and option --algorithm set to 'density')
+
 
 [ Notes ]
 
@@ -107,56 +127,90 @@ The following python modules are needed :
    routine.
    This optimisation process can take time in large systems and you can specify your own
    cutoff value to skip this step. For instance to use a 15 Angstrom cutoff value:
-    --leaflet_cutoff 15
+    -> '--leaflet 15'
    
-   In very large systems (more then ~50,000 phospholipids) LeafletFinder can fail (or
-   rather networkX, that it relies on) can fail , to avoid this
-   you can choose not to use this routine:
-    --leaflet_cutoff large
-   In this case lipids whose headgroups z value is above the average lipids z value will be
-   considered to make up the upper leaflet and those whos headgroups z value is below the average
-   will be considered to make the lower leaflet. This means that your bilayer should be as flat as
-   possible in the gro file that you supply in order to get a meaningful outcome.
+   In very large systems (more then ~50,000 phospholipids) LeafletFinder (or rather the
+   networkX module that it relies on) can fail. To  avoid this you can choose not to use
+   this routine by specifying:
+    -> '--leaflet large'
+   In this case lipids whose headgroups z value is above the average lipids z value will
+   be considered to make up the upper leaflet and those whose headgroups z value is below
+   the average will be considered to be in the lower leaflet.
+   This means that the bilayer should be as flat as possible in the gro file supplied in
+   order to get a meaningful outcome.
 
-3. In case lipids flipflop during the trajectory, a file listing them can be supplied via the -i flag.
-   This file can be the output of the ff_detect script and should follow the format:
-   'resname,resid,starting_leaflet' format on each line e.g. 'POPC,145,lower'
-   If flipflopping lipids are not identified they may add some significant noise to the results
+3. In case lipids flipflop during the trajectory, a file listing them can be supplied with
+   the --flipflops option. Each line of this file should follow the format:
+    -> 'resname,resid,starting_leaflet'
+   where starting_leaflet is either 'upper' or 'lower' - e.g. 'POPC,145,lower'
+   If flipflopping lipids are not specified they may add significant noise to the results.
 
-4. The code can easily be updated to add more lipids, for now the following tails can be dealt with:
-    - Martini: DHPC,DHPE,DLPC,DLPE,DAPC,DUPC,DPPC,DPPE,DPPS,DPPG,DSPC,DSPE,POPC,POPE,POPS,POPG,PPCS,PIP2,PIP3,GM3
+4. The code can easily be updated to add more lipids/forcefields, for now the following
+   lipids can be dealt with:
+   (a) Thickness
+    The beads below are used to identify the position of lipids -  any lipid containing
+    such a particle will be taken into account.
+     -> Martini: PO4, PO3, B1A
 
-5. The order parameter calculated for each (handled) lipd specie can be visualised with VMD.
-   This can be done either with pdb files (output frequency controled via -w flag) or with the 
-   xtc trajectory.
-     - pdb file: the order parameter info is stored in the beta factor column. Just open
-                 the pdb with VMD and choose Draw Style > Coloring Method > Beta 
-     - xtc file: the order parameter info is stored in a .txt file in /3_VMD/ and you can load it into
-                 the user field in the xtc by sourcing the script 'set_user_fields.tcl' and running the
-                 procedure 'set_order_param'
+   (b) Order parameter
+    The tails composition and lengths have been defined for the lipids below.
+     -> Martini: DHPC, DHPE, DLPC, DLPE, DAPC, DUPC, DPPC, DPPE, DPPS, DPPG, DSPC, DSPE,
+                 POPC, POPE, POPS, POPG, PPCS, PIP2, PIP3, GM3
 
-6. The colour associated to each lipid specie can be defined by supplying a colour file containing
-   'resname,colour' on each line (a line with a colour MUST be defined for all species).
-   Colours can be specified using single letter code (e.g. 'r'), hex code  or the name of colormap.
-   In case a colormap is used, its name must be specified as the colour for each lipid specie - see
-   the matplotlib website for a list of standard colour maps.
-   If no colour is used the 'jet' colour map is used by default.
+5. Proteins are detected automatically but you can specify an input file to define your
+   own selection with the -p option.
+   In this case the supplied file should contain on each line a protein selection string
+   that can be passed as the argument of the MDAnalysis selectAtoms() routine - for 
+   instance 'bynum 1:344'.
 
+6. The perturbations associated to transmembrane clusters can be binned into size groups.
+   The size groups are defined by supplying a file with the -g option, whose lines all
+   follow the format:
+    -> 'lower_size,upper_size, colour'
+
+   Size groups definition should follow the following rules:
+    -to specify an open ended group use 'max', e.g. '3,max,colour'
+    -groups should be ordered by increasing size and their boundaries should not overlap
+    -boundaries are inclusive so you can specify one size groups with 'size,size,colour'
+    -colours must be specified for each group (see (c) in note 7)
+    -any cluster size not falling within the specified size groups will be labeled as
+     'other' and coloured in grey (#C0C0C0)
+
+7. The colours associated to each lipid specie and each TM cluster size identified are
+   based on the matplotlib 'jet' colour map by default. You can specify your own colours
+   as follows:
+   (a) Lipids
+    The lipids colours are controlled by supplying a file with the -c option. Each line of
+    this file should follow the format (there must be a line for all species present):
+     -> 'lipid_specie_name,colour'
+    
+   (b) Cluster sizes
+    Colours of individual cluster sizes use the matplotlib 'jet' colour scheme and cannot 
+    be modified. However colours of cluster size groups can be customised (see note 6), so
+    if you want to define individual cluster sizes just specify the relevant group file.
+
+   (c) Colour definition
+    Colours can be specified using single letter code (e.g. 'r'), hex code  or the name of
+    a colour map (see the matplotlib website for a list of the available colour maps).
+    In case a colour map is used, its name must be specified as the colour for each lipid
+    specie or size group.
+
+   
 [ Usage ]
 	
 Option	      Default  	Description                    
 -----------------------------------------------------
--f			: structure file [.gro]
--x			: trajectory file [.xtc] (optional)
--c			: colour definition file, see note 6
+-f			: structure file [.gro] (required)
+-x			: trajectory file [.xtc]
+-c			: colour definition file, see note 7
 -o			: name of output folder
 -b			: beginning time (ns) (the bilayer must exist by then!)
 -e			: ending time (ns)	
 -t 		10	: process every t-frames
--w			: write annotated pdbs every [w] processed frames (optional, see note 5)
---radial		: calculate radial perturbations around protein clusters
---smooth		: nb of points to use for data smoothing (optional)
---perturb 	0	: perturbation to calculate (see note XX)
+-w			: write snapshots every [w] processed frames (see 'Description')
+--radial		: calculate perturbations induced by protein clusters (see 'Description')
+--smooth		: nb of points to use for data smoothing
+--perturb 	0	: perturbation to calculate (see 'Description')
 	       [1]	  thickness
 		2	  order parameters
 		3	  thickness + order parameters
@@ -165,22 +219,22 @@ Lipids identification
 -----------------------------------------------------
 --flipflops		: input file with flipflopping lipids, see note 3
 --forcefield		: forcefield options, see note 3
---leaflet_cutoff	: leaflet identification technique, see note 2
+--leaflet	optimise: leaflet identification technique, see note 2
 
-radial perturbations and protein clusters identification
+Radial perturbations and protein clusters identification
 -----------------------------------------------------
--g			: cluster groups definition file, see note XXX
--p			: protein selection file, (optional, see note XXX)
---radial_radius 	100	: max radius to which represent the radial perturbations (Angtrom)
+-g			: cluster groups definition file, see note 6
+-p			: protein selection file, (optional, see note 5)
+--radial_radius 100	: max radius to which represent the radial perturbations (Angtrom)
 --radial_bins 	25	: number of bins into which discretise data for radial perturbations
---algorithm	min	: 'cog','min' or 'density', see note XXX
+--algorithm	min	: 'cog','min' or 'density', see 'Description'
 --nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angtrom)
 --db_radius 	20	: DBSCAN search radius (Angtrom)
 --db_neighbours	3	: DBSCAN minimum number of neighbours within a circle of radius --radius	
  
 Other options
 -----------------------------------------------------
---neighbours	5	: nb of nearest opposite neighbours to use for thickness calculation
+--neighbours	5	: nb of opposite neighbours to use for thickness calculation
 --version		: show version number and exit
 -h, --help		: show this menu and exit
   
@@ -202,7 +256,7 @@ parser.add_argument('--perturb', dest='perturb', choices=['0','1','2','3'], defa
 #lipids identification
 parser.add_argument('--flipflops', nargs=1, dest='selection_file_ff', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--forcefield', dest='forcefield_opt', choices=['martini'], default='martini', help=argparse.SUPPRESS)
-parser.add_argument('--leaflet_cutoff', nargs=1, dest='cutoff_leaflet', default=['optimise'], help=argparse.SUPPRESS)
+parser.add_argument('--leaflet', nargs=1, dest='cutoff_leaflet', default=['optimise'], help=argparse.SUPPRESS)
 
 #radial and protein clusters options
 parser.add_argument('-g', nargs=1, dest='cluster_groups_file', default=['no'], help=argparse.SUPPRESS)
