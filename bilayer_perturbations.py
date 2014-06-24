@@ -22,7 +22,7 @@ git: https://github.com/jhelie/bilayer_perturbations.git
 DOI: 
 ********************************************************
 
-[ Description ]
+[ DESCRIPTION ]
 
 This script calculates the evolution of a lipid bilayer thickness and of the lipids tails
 order parameters.
@@ -108,7 +108,7 @@ frames and then set the -t option to 1 when running the script.
    To load it into your trajectory opened with VMD use the appropriate routine of the
    script 'set_user_fields.tcl' - e.g. set_order_param script_output.txt.
 
-[ Requirements ]
+[ REQUIREMENTS ]
 
 The following python modules are needed :
  - MDAnalysis
@@ -117,7 +117,7 @@ The following python modules are needed :
  - sklearn (if option --radial is used and option --algorithm set to 'density')
 
 
-[ Notes ]
+[ NOTES ]
 
 1. It's a good idea to pre-process the trajectory first and to only output the relevant
    particles (e.g. no water and no cholesterol).
@@ -196,7 +196,7 @@ The following python modules are needed :
     specie or size group.
 
    
-[ Usage ]
+[ USAGE ]
 	
 Option	      Default  	Description                    
 -----------------------------------------------------
@@ -207,10 +207,10 @@ Option	      Default  	Description
 -b			: beginning time (ns) (the bilayer must exist by then!)
 -e			: ending time (ns)	
 -t 		10	: process every t-frames
--w			: write snapshots every [w] processed frames (see 'Description')
---radial		: calculate perturbations induced by protein clusters (see 'Description')
+-w			: write snapshots every [w] processed frames (see 'DESCRIPTION')
+--radial		: calculate perturbations induced by protein clusters (see 'DESCRIPTION')
 --smooth		: nb of points to use for data smoothing
---perturb 	0	: perturbation to calculate (see 'Description')
+--perturb 	0	: perturbation to calculate (see 'DESCRIPTION')
 	       [1]	  thickness
 		2	  order parameters
 		3	  thickness + order parameters
@@ -225,11 +225,11 @@ Radial perturbations and protein clusters identification
 -----------------------------------------------------
 -g			: cluster groups definition file, see note 6
 -p			: protein selection file, (optional, see note 5)
---radial_radius 100	: max radius to which represent the radial perturbations (Angtrom)
+--radial_radius 100	: max radius to which represent the radial perturbations (Angstrom)
 --radial_bins 	25	: number of bins into which discretise data for radial perturbations
---algorithm	min	: 'cog','min' or 'density', see 'Description'
---nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angtrom)
---db_radius 	20	: DBSCAN search radius (Angtrom)
+--algorithm	min	: 'cog','min' or 'density', see 'DESCRIPTION'
+--nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angstrom)
+--db_radius 	20	: DBSCAN search radius (Angstrom)
 --db_neighbours	3	: DBSCAN minimum number of neighbours within a circle of radius --radius	
  
 Other options
