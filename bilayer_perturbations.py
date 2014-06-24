@@ -12,7 +12,7 @@ import os.path
 #=======================================================================
 # create parser
 #=======================================================================
-version_nb="0.1.1"
+version_nb="0.1.2"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ********************************************************
@@ -105,8 +105,8 @@ frames and then set the -t option to 1 when running the script.
 
  ->trajectory:
    The thickness or order parameter info is stored in a .txt file in folders '/3_VMD/'.
-   To load it into your trajectory opened with VMD use the appropriate routine of the
-   script 'set_user_fields.tcl' - e.g. set_order_param script_output.txt.
+   To load it into your trajectory in VMD use the appropriate routine of the script
+   script 'vmd_parser.tcl' (see https://github.com/jhelie/vmd_parser.git).
 
 [ REQUIREMENTS ]
 
