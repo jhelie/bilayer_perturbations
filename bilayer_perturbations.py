@@ -12,7 +12,7 @@ import os.path
 #=======================================================================
 # create parser
 #=======================================================================
-version_nb="0.1.3"
+version_nb="0.1.2"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -40,7 +40,7 @@ a trajectory is supplied the data for individual frame snapshots can also be pro
 frequency specified by the option -w.
 
 The perturbations calculated can also be visualised in VMD by loading the text files
-produced by the script (see https://github.com/jhelie/set_users_fields.git).
+produced by the script (see https://github.com/jhelie/vmd_parser).
 
 Visit the DOI for related paper and full information or see below for a summary of how the
 script works.
