@@ -12,15 +12,15 @@ import os.path
 #=======================================================================
 # create parser
 #=======================================================================
-version_nb="0.1.2"
+version_nb="0.1.3"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
-********************************************************
+****************************************************
 v''' + version_nb + '''
-author: Jean Helie
-git: https://github.com/jhelie/bilayer_perturbations.git
+author: Jean Helie (jean.helie@bioch.ox.ac.uk)
+git: https://github.com/jhelie/bilayer_perturbations
 DOI: 
-********************************************************
+****************************************************
 
 [ DESCRIPTION ]
 
