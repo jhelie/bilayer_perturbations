@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.2"
+version_nb="0.1.3"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -3310,13 +3310,13 @@ def radial_density_frame_xvg_write(f_nb, f_time):
 		if f_nb == "all frames":
 			tmp_filename = 'radial_density_species_' + str(s)
 		else:
-			tmp_filename = 'radial_density_species_' + str(int(f_time)).zfill(5) + 'ns_' + str(s)
+			tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_nb == "all frames":
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/xvg/' + str(tmp_filename) + '.txt'
 			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/xvg/' + str(tmp_filename) + '.xvg'
 		else:
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid density statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3382,7 +3382,7 @@ def radial_density_frame_xvg_write(f_nb, f_time):
 			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/xvg/' + str(tmp_filename) + '.xvg'
 		else:
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) +".xvg.\n")
@@ -3467,11 +3467,11 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 	for s in leaflet_species["both"]:
 		#create filenames
 		if f_nb == "all frames":
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/png/radial_density_species' + str(s) + '.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/radial_density_species' + str(s) + '.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/png/radial_density_species_' + str(s) + '.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/radial_density_species_' + str(s) + '.svg'
 		else:
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/png/radial_density_species' + str(int(f_time)).zfill(5) + 'ns_' + str(s) + '.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/radial_density_species' + str(int(f_time)).zfill(5) + 'ns_' + str(s) + '.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 	
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -3504,7 +3504,7 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
-		plt.ylabel('lipids density', fontsize="small")
+		plt.ylabel('lipids density (%)', fontsize="small")
 		
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
@@ -3516,7 +3516,7 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
-		plt.ylabel('lipids density', fontsize="small")
+		plt.ylabel('lipids density (%)', fontsize="small")
 	
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)
@@ -3549,11 +3549,11 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/radial_density_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/radial_density_' + str(int(f_time)).zfill(5) + 'ns_all.svg'			
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'			
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/radial_density_' + str(int(f_time)).zfill(5) + 'ns_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -3584,7 +3584,7 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 		ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
-		plt.ylabel('lipids density', fontsize="small")
+		plt.ylabel('lipids density (%)', fontsize="small")
 		
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
@@ -3595,7 +3595,7 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 		ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
-		plt.ylabel('lipids density', fontsize="small")
+		plt.ylabel('lipids density (%)', fontsize="small")
 	
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)
@@ -3641,7 +3641,7 @@ def radial_thick_frame_xvg_write(f_nb, f_time):
 			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/xvg/' + str(tmp_filename) + '.xvg'
 		else:
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3705,9 +3705,7 @@ def radial_thick_frame_xvg_write(f_nb, f_time):
 			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/xvg/' + str(tmp_filename) + '.xvg'
 		else:
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-		filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/xvg/radial_thickness_' + str(c_size) + '.txt'
-		filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/xvg/radial_thickness_' + str(c_size) + '.xvg'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3773,11 +3771,11 @@ def radial_thick_frame_xvg_graph(f_nb, f_time):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/radial_thickness_species_' + str(s) + '.svg'
 		else:
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/png/radial_thickness_species_' + str(int(f_time)).zfill(5) + 'ns_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/radial_thickness_species_' + str(int(f_time)).zfill(5) + 'ns_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/png/radial_thickness_species_' + str(int(f_time)).zfill(5) + 'ns_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/radial_thickness_species_' + str(int(f_time)).zfill(5) + 'ns_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
 		fig=plt.figure(figsize=(8, 5))
@@ -3836,11 +3834,11 @@ def radial_thick_frame_xvg_graph(f_nb, f_time):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/radial_thickness_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/png/radial_thickness_sizes_' + str(int(f_time)).zfill(5) + 'ns_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/radial_thickness_sizes_' + str(int(f_time)).zfill(5) + 'ns_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/png/radial_thickness_sizes_' + str(int(f_time)).zfill(5) + 'ns_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/radial_thickness_sizes_' + str(int(f_time)).zfill(5) + 'ns_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 5))
@@ -3922,7 +3920,7 @@ def radial_op_frame_xvg_write(f_nb, f_time):
 			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/xvg/' + str(tmp_filename) + '.xvg'
 		else:
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3988,9 +3986,7 @@ def radial_op_frame_xvg_write(f_nb, f_time):
 			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/xvg/' + str(tmp_filename) + '.xvg'
 		else:
 			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-		filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/xvg/radial_order_param_' + str(c_size) + '.txt'
-		filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/xvg/radial_order_param_' + str(c_size) + '.xvg'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -4086,11 +4082,11 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/radial_order_param_species_' + str(s) + '.svg'
 		else:
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/png/radial_order_param_species_' + str(int(f_time)).zfill(5) + 'ns_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/radial_order_param_species_' + str(int(f_time)).zfill(5) + 'ns_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/png/radial_order_param_species_' + str(int(f_time)).zfill(5) + 'ns_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/radial_order_param_species_' + str(int(f_time)).zfill(5) + 'ns_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -4175,11 +4171,11 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/radial_order_param_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/png/radial_order_param_sizes_' + str(int(f_time)).zfill(5) + 'ns_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/radial_order_param_sizes_' + str(int(f_time)).zfill(5) + 'ns_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/png/radial_order_param_sizes_' + str(int(f_time)).zfill(5) + 'ns_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/radial_order_param_sizes_' + str(int(f_time)).zfill(5) + 'ns_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
