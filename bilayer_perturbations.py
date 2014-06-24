@@ -39,8 +39,7 @@ The metrics can be calculated for a single frame or for an entire trajectory - a
 a trajectory is supplied the data for individual frame snapshots can also be produced at a
 frequency specified by the option -w.
 
-The perturbations calculated can also be visualised in VMD by loading the text files
-produced by the script (see https://github.com/jhelie/vmd_parser).
+The perturbations calculated can also be visualised in VMD.
 
 Visit the DOI for related paper and full information or see below for a summary of how the
 script works.
@@ -106,7 +105,7 @@ frames and then set the -t option to 1 when running the script.
  ->trajectory:
    The thickness or order parameter info is stored in a .txt file in folders '/3_VMD/'.
    To load it into your trajectory in VMD use the appropriate routine of the script
-   script 'vmd_parser.tcl' (see https://github.com/jhelie/vmd_parser.git).
+   script 'vmd_parser.tcl' (see https://github.com/jhelie/vmd_parser).
 
 [ REQUIREMENTS ]
 
