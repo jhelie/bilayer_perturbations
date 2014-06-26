@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.3"
+version_nb="0.1.4"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -275,31 +275,31 @@ parser.add_argument('-h','--help', action='help', help=argparse.SUPPRESS)
 #=========================================================================================
 # store inputs
 #=========================================================================================
-args=parser.parse_args()
+args = parser.parse_args()
 #data options
-args.grofilename=args.grofilename[0]
-args.xtcfilename=args.xtcfilename[0]
-args.colour_file=args.colour_file[0]
-args.output_folder=args.output_folder[0]
-args.t_start=args.t_start[0]
-args.t_end=args.t_end[0]
-args.frames_dt=args.frames_dt[0]
-args.frames_write_dt=args.frames_write_dt[0]
-args.nb_smoothing=args.nb_smoothing[0]
-args.perturb=int(args.perturb[0])
+args.grofilename = args.grofilename[0]
+args.xtcfilename = args.xtcfilename[0]
+args.colour_file = args.colour_file[0]
+args.output_folder = args.output_folder[0]
+args.t_start = args.t_start[0]
+args.t_end = args.t_end[0]
+args.frames_dt = args.frames_dt[0]
+args.frames_write_dt = args.frames_write_dt[0]
+args.nb_smoothing = args.nb_smoothing[0]
+args.perturb = int(args.perturb[0])
 #lipids identification
-args.selection_file_ff=args.selection_file_ff[0]
+args.selection_file_ff = args.selection_file_ff[0]
 #radial and protein clusters options
-args.cluster_groups_file=args.cluster_groups_file[0]
-args.selection_file_prot=args.selection_file_prot[0]
-args.radial_radius=args.radial_radius[0]
-args.radial_nb_bins=args.radial_nb_bins[0]
-args.cutoff_connect=args.cutoff_connect[0]
-args.dbscan_dist=args.dbscan_dist[0]
-args.dbscan_nb=args.dbscan_nb[0]
+args.cluster_groups_file = args.cluster_groups_file[0]
+args.selection_file_prot = args.selection_file_prot[0]
+args.radial_radius = args.radial_radius[0]
+args.radial_nb_bins = args.radial_nb_bins[0]
+args.cutoff_connect = args.cutoff_connect[0]
+args.dbscan_dist = args.dbscan_dist[0]
+args.dbscan_nb = args.dbscan_nb[0]
 #other options
-args.cutoff_leaflet=args.cutoff_leaflet[0]
-args.thick_nb_neighbours=args.thick_nb_neighbours[0]
+args.cutoff_leaflet = args.cutoff_leaflet[0]
+args.thick_nb_neighbours = args.thick_nb_neighbours[0]
 
 #process options
 if args.perturb == 0:
@@ -495,6 +495,7 @@ else:
 			os.mkdir(args.output_folder + "/radial/thickness/species")
 			os.mkdir(args.output_folder + "/radial/thickness/species/xvg")
 			os.mkdir(args.output_folder + "/radial/thickness/species/png")
+
 			if args.xtcfilename != "no":
 				os.mkdir(args.output_folder + "/radial/thickness/snapshots")			
 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/sizes")
@@ -503,6 +504,49 @@ else:
 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/species")
 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/species/xvg")
 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/species/png")
+
+			#-----------------------------------------------------------------------------
+# 			#individual sizes
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes")
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size")
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/xvg")
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/png")
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie")
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/xvg")
+# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/png")
+# 			
+# 			#size groups
+# 			os.mkdir(args.output_folder + "/radial/thickness/2_groups")
+# 			if args.cluster_groups_file == "no":
+# 				#output text file saying (not size groups defined, see --help how to do so)
+# 			else:			
+# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group")
+# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/xvg")
+# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/png")
+# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie")
+# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/xvg")
+# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/png")
+# 
+# 			if args.xtcfilename != "no":
+# 				#individual sizes
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes")
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size")
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/xvg")
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/png")
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie")
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/xvg")
+# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/png")
+# 			
+# 				#size groups
+# 				if args.cluster_groups_file != "no":
+# 					os.mkdir(args.output_folder + "/radial/thickness/2_groups")
+# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group")
+# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/xvg")
+# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/png")
+# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie")
+# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/xvg")
+# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/png")
+			#-----------------------------------------------------------------------------			
 
 		#order parameters
 		if args.perturb == 2 or args.perturb == 3:
