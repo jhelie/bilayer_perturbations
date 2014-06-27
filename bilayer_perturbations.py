@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.4"
+version_nb="dev0.1.4.1"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -46,10 +46,10 @@ script works.
 
 bilayer thickness
 -----------------
-A thickness is associated to each lipids headgroups for each frame. It is calculated as 
-the average geometric distance between the head group and its closest headgroup neighbours
-in the opposite leaflet. This means that the shape of the bilayer does not prevent
-meaningful calculations of its thickness.
+A thickness is associated to each lipids headgroups (see note 2(a)) for each frame. It is
+calculated as  the average geometric distance between the head group and its closest
+headgroup neighbours in the opposite leaflet. This means that the shape of the bilayer
+does not prevent meaningful calculations of its thickness.
 The number of neighbours to take into account in the opposite leaflet can be set with the
 --neighbours option.
 
@@ -90,7 +90,7 @@ Two clustering algorithms can be used to identify protein clusters.
 
 The identified protein clusters are considered to be transmembrane only if the closest
 lipid headgroup neighbours to the cluster particles are all within the same leaflet.
-In addition to the sizes identified, size groups can be defined - see note 6.
+In addition to the sizes identified, size groups can be defined - see note 7.
 
 VMD visualisation
 -----------------
@@ -107,6 +107,7 @@ frames and then set the -t option to 1 when running the script.
    To load it into your trajectory in VMD use the appropriate routine of the script
    script 'vmd_parser.tcl' (see https://github.com/jhelie/vmd_parser).
 
+
 [ REQUIREMENTS ]
 
 The following python modules are needed :
@@ -121,48 +122,77 @@ The following python modules are needed :
 1. It's a good idea to pre-process the trajectory first and to only output the relevant
    particles (e.g. no water and no cholesterol).
 
-2. By default leaflets are identified using the MDAnalysis LeafletFinder routine and the
-   the optimum cutoff to identify 2 lipids groups is determined using the optimize_cutoff
-   routine.
-   This optimisation process can take time in large systems and you can specify your own
-   cutoff value to skip this step. For instance to use a 15 Angstrom cutoff value:
-    -> '--leaflet 15'
+2. Identification of the bilayer leaflets can be controlled via two options.
+   (a) beads
+    By default, the particles taken into account to define leaflet depend on the
+    forcefield (which can be set via the --forcefield option) and are as follows:
+    -> Martini: 'name PO4 or name PO3 or name B1A'
    
-   In very large systems (more then ~50,000 phospholipids) LeafletFinder (or rather the
-   networkX module that it relies on) can fail. To  avoid this you can choose not to use
-   this routine by specifying:
-    -> '--leaflet large'
-   In this case lipids whose headgroups z value is above the average lipids z value will
-   be considered to make up the upper leaflet and those whose headgroups z value is below
-   the average will be considered to be in the lower leaflet.
-   This means that the bilayer should be as flat as possible in the gro file supplied in
-   order to get a meaningful outcome.
+    Note that only lipids which contain one of the beads mentioned in the selection string
+    will be taken into account. If you wish to specify your own selection string (e.g. to
+    choose different beads or add a bead not in the default list in order to take into
+    account a particular lipid specie) you can do so by supplying a file via the --beads
+    option. This file should contain a single line that can be passed as the argument
+    to MDAnalysis selectAtoms() routine and should not contain any quotation marks, e.g.:
+     -> name PO4 or name PO3 or name B1A or name AM1
+        
+   (b) leaflet finding method
+    By default leaflets are identified using the MDAnalysis LeafletFinder routine and the
+    the optimum cutoff to identify 2 lipids groups is determined using the optimize_cutoff
+    routine.
+    This optimisation process can take time in large systems and you can specify your own
+    cutoff value to skip this step. For instance to use a 15 Angstrom cutoff value:
+     -> '--leaflet 15'
+   
+    In very large systems (more then ~50,000 phospholipids) LeafletFinder (or rather the
+    networkX module that it relies on) can fail. To  avoid this you can choose not to use
+    this routine by specifying:
+     -> '--leaflet large'
+    In this case lipids whose headgroups z value is above the average lipids z value will
+    be considered to make up the upper leaflet and those whose headgroups z value is below
+    the average will be considered to be in the lower leaflet.
+    This means that the bilayer should be as flat as possible in the gro file supplied in
+    order to get a meaningful outcome.
 
-3. In case lipids flipflop during the trajectory, a file listing them can be supplied with
+3. Lipids tails order parameters can only be calculated for lipid species for which the
+   tails composition has been defined. By default, the following lipids can be taken into
+   account:
+    -> Martini: DHPC, DHPE, DLPC, DLPE, DAPC, DUPC, DPPC, DPPE, DPPS, DPPG, DSPC, DSPE,
+                POPC, POPE, POPS, POPG, PPCS, PIP2, PIP3, GM3
+   
+   You define tails properties of additional lipids by supplying a file to the --tails
+   option (note that if you define tails for one of the default lipids your definition
+   will override the default one). The file supplied should contain one line per lipid
+   specie and should follow the format:
+    -> specie_name,bonds-definition,tailA_start,tailA_length,tailB_start,tailB_length
+
+   Only the bonds within the tails indexes will be processed and those indexes are 0-based
+   from the first bond specified. Also note that two tails exactly must be specified for
+   each lipid specie.
+   For example:
+    ->GM3,very-big,AM1-C1A,AM2-D1B,C1A-C2A,C2A-C3A,C3A-C4A,D1B-C2B,C2B-C3B,C3B-C4B,3,3,6,3
+    
+   will work and will define tail A as the bonds C1A-C2A,C2A-C3A,C3A-C4A and tail B as the
+   bonds D1B-C2B,C2B-C3B,C3B-C4B.
+
+4. In case lipids flipflop during the trajectory, a file listing them can be supplied with
    the --flipflops option. Each line of this file should follow the format:
     -> 'resname,resid,starting_leaflet'
    where starting_leaflet is either 'upper' or 'lower' - e.g. 'POPC,145,lower'
    If flipflopping lipids are not specified they may add significant noise to the results.
 
-4. The code can easily be updated to add more lipids/forcefields, for now the following
-   lipids can be dealt with:
-   (a) Thickness
-    The beads below are used to identify the position of lipids -  any lipid containing
-    such a particle will be taken into account.
-     -> Martini: PO4, PO3, B1A
-
-   (b) Order parameter
-    The tails composition and lengths have been defined for the lipids below.
-     -> Martini: DHPC, DHPE, DLPC, DLPE, DAPC, DUPC, DPPC, DPPE, DPPS, DPPG, DSPC, DSPE,
-                 POPC, POPE, POPS, POPG, PPCS, PIP2, PIP3, GM3
-
-5. Proteins are detected automatically but you can specify an input file to define your
+5. In addition to specifying custom lipid characteristics via the --beads and --tails
+   options, the code can easily be updated to add more default lipids or forcefields.
+   Please do get in touch (jean.helie@bioch.ox.ac.uk) if you're interested in a particular
+   forcefield or if you have done such work and think others could benefit from it.
+   
+6. Proteins are detected automatically but you can specify an input file to define your
    own selection with the -p option.
    In this case the supplied file should contain on each line a protein selection string
    that can be passed as the argument of the MDAnalysis selectAtoms() routine - for 
    instance 'bynum 1:344'.
 
-6. The perturbations associated to transmembrane clusters can be binned into size groups.
+7. The perturbations associated to transmembrane clusters can be binned into size groups.
    The size groups are defined by supplying a file with the -g option, whose lines all
    follow the format:
     -> 'lower_size,upper_size, colour'
@@ -171,11 +201,11 @@ The following python modules are needed :
     -to specify an open ended group use 'max', e.g. '3,max,colour'
     -groups should be ordered by increasing size and their boundaries should not overlap
     -boundaries are inclusive so you can specify one size groups with 'size,size,colour'
-    -colours must be specified for each group (see (c) in note 7)
+    -colours must be specified for each group (see (c) in note 8)
     -any cluster size not falling within the specified size groups will be labeled as
      'other' and coloured in grey (#C0C0C0)
 
-7. The colours associated to each lipid specie and each TM cluster size identified are
+8. The colours associated to each lipid specie and each TM cluster size identified are
    based on the matplotlib 'jet' colour map by default. You can specify your own colours
    as follows:
    (a) Lipids
@@ -185,7 +215,7 @@ The following python modules are needed :
     
    (b) Cluster sizes
     Colours of individual cluster sizes use the matplotlib 'jet' colour scheme and cannot 
-    be modified. However colours of cluster size groups can be customised (see note 6), so
+    be modified. However colours of cluster size groups can be customised (see note 7), so
     if you want to define individual cluster sizes just specify the relevant group file.
 
    (c) Colour definition
@@ -201,7 +231,7 @@ Option	      Default  	Description
 -----------------------------------------------------
 -f			: structure file [.gro] (required)
 -x			: trajectory file [.xtc]
--c			: colour definition file, see note 7
+-c			: colour definition file, see note 8
 -o			: name of output folder
 -b			: beginning time (ns) (the bilayer must exist by then!)
 -e			: ending time (ns)	
@@ -216,14 +246,16 @@ Option	      Default  	Description
 
 Lipids identification  
 -----------------------------------------------------
---flipflops		: input file with flipflopping lipids, see note 3
---forcefield		: forcefield options, see note 3
---leaflet	optimise: leaflet identification technique, see note 2
+--beads		: leaflet identification technique, see note 2(a)
+--tails		: leaflet identification technique, see note 3
+--flipflops		: input file with flipflopping lipids, see note 4
+--forcefield		: forcefield options, see notes 2 and 3
+--leaflet	optimise: leaflet identification technique, see note 2(b)
 
 Radial perturbations and protein clusters identification
 -----------------------------------------------------
--g			: cluster groups definition file, see note 6
--p			: protein selection file, (optional, see note 5)
+-g			: cluster groups definition file, see note 7
+-p			: protein selection file, (optional, see note 6)
 --radial_radius 100	: max radius to which represent the radial perturbations (Angstrom)
 --radial_bins 	25	: number of bins into which discretise data for radial perturbations
 --algorithm	min	: 'cog','min' or 'density', see 'DESCRIPTION'
@@ -253,6 +285,8 @@ parser.add_argument('--smooth', nargs=1, dest='nb_smoothing', default=[0], type=
 parser.add_argument('--perturb', dest='perturb', choices=['0','1','2','3'], default='1', help=argparse.SUPPRESS)
 
 #lipids identification
+parser.add_argument('--beads', nargs=1, dest='beadsfilename', default=['no'], help=argparse.SUPPRESS)
+parser.add_argument('--tails', nargs=1, dest='tailsfilename', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--flipflops', nargs=1, dest='selection_file_ff', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--forcefield', dest='forcefield_opt', choices=['martini'], default='martini', help=argparse.SUPPRESS)
 parser.add_argument('--leaflet', nargs=1, dest='cutoff_leaflet', default=['optimise'], help=argparse.SUPPRESS)
@@ -288,6 +322,8 @@ args.frames_write_dt = args.frames_write_dt[0]
 args.nb_smoothing = args.nb_smoothing[0]
 args.perturb = int(args.perturb[0])
 #lipids identification
+args.beadsfilename = args.beadsfilename[0]
+args.tailsfilename = args.tailsfilename[0]
 args.selection_file_ff = args.selection_file_ff[0]
 #radial and protein clusters options
 args.cluster_groups_file = args.cluster_groups_file[0]
@@ -306,9 +342,11 @@ if args.perturb == 0:
 	args.radial=True
 if args.radial:
 	global radial_sizes
+	global radial_groups
 	global radial_step
 	radial_sizes = {}
 	radial_sizes["all frames"] = []
+	radial_groups = {}
 	radial_step = args.radial_radius/float(args.radial_nb_bins)
 global lipids_ff_nb
 global nb_frames_processed
@@ -383,9 +421,16 @@ if not os.path.isfile(args.grofilename):
 if args.colour_file!="no" and not os.path.isfile(args.colour_file):
 	print "Error: file " + str(args.colour_file) + " not found."
 	sys.exit(1)
-if args.selection_file_ff!="no" and not os.path.isfile(args.selection_file_ff):
+if args.selection_file_ff != "no" and not os.path.isfile(args.selection_file_ff):
 	print "Error: file " + str(args.selection_file_ff) + " not found."
 	sys.exit(1)
+if args.beadsfilename != "no" and not os.path.isfile(args.beadsfilename):
+	print "Error: file " + str(args.beadsfilename) + " not found."
+	sys.exit(1)
+if args.tailsfilename != "no" and not os.path.isfile(args.tailsfilename):
+	print "Error: file " + str(args.tailsfilename) + " not found."
+	sys.exit(1)
+
 if args.xtcfilename=="no":
 	if '-t' in sys.argv:
 		print "Error: -t option specified but no xtc file specified."
@@ -470,101 +515,129 @@ else:
 	if args.radial:
 		os.mkdir(args.output_folder + "/radial")
 		#density
-		os.mkdir(args.output_folder + "/radial/density")
-		os.mkdir(args.output_folder + "/radial/density/sizes")
-		os.mkdir(args.output_folder + "/radial/density/sizes/xvg")
-		os.mkdir(args.output_folder + "/radial/density/sizes/png")
-		os.mkdir(args.output_folder + "/radial/density/species")
-		os.mkdir(args.output_folder + "/radial/density/species/xvg")
-		os.mkdir(args.output_folder + "/radial/density/species/png")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_size")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_size/xvg")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_size/png")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_specie")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_specie/xvg")
+		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_specie/png")
+		os.mkdir(args.output_folder + "/radial/density/2_groups")
+		if args.cluster_groups_file == "no":
+			filename_details = args.output_folder + '/radial/density/2_groups/groups.txt'
+			output_stat = open(filename_details, 'w')		
+			output_stat.write("[written by bilayer_perturbations v" + str(version_nb) + "]\n")
+			output_stat.write("\n")
+			output_stat.write("No size groups defined, see note 7 in bilayer_perturbations --help.\n")
+			output_stat.write("\n")
+			output_stat.close()
+		else:			
+			os.mkdir(args.output_folder + "/radial/density/2_groups/by_group")
+			os.mkdir(args.output_folder + "/radial/density/2_groups/by_group/xvg")
+			os.mkdir(args.output_folder + "/radial/density/2_groups/by_group/png")
+			os.mkdir(args.output_folder + "/radial/density/2_groups/by_specie")
+			os.mkdir(args.output_folder + "/radial/density/2_groups/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/density/2_groups/by_specie/png")
 		if args.xtcfilename != "no":
-			os.mkdir(args.output_folder + "/radial/density/snapshots")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/sizes")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/sizes/xvg")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/sizes/png")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/species")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/species/xvg")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/species/png")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_size")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_size/xvg")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_size/png")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_specie")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_specie/png")
+			if args.cluster_groups_file != "no":
+				os.mkdir(args.output_folder + "/radial/density/2_groups")
+				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_group")
+				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_group/xvg")
+				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_group/png")
+				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_specie")
+				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_specie/png")
 
 		#thickness
 		if args.perturb == 1 or args.perturb == 3:
-			os.mkdir(args.output_folder + "/radial/thickness")
-			os.mkdir(args.output_folder + "/radial/thickness/sizes")
-			os.mkdir(args.output_folder + "/radial/thickness/sizes/xvg")
-			os.mkdir(args.output_folder + "/radial/thickness/sizes/png")
-			os.mkdir(args.output_folder + "/radial/thickness/species")
-			os.mkdir(args.output_folder + "/radial/thickness/species/xvg")
-			os.mkdir(args.output_folder + "/radial/thickness/species/png")
-
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes")
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size")
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/xvg")
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/png")
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie")
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/png")
+			os.mkdir(args.output_folder + "/radial/thickness/2_groups")
+			if args.cluster_groups_file == "no":
+				filename_details = args.output_folder + '/radial/thickness/2_groups/groups.txt'
+				output_stat = open(filename_details, 'w')		
+				output_stat.write("[written by bilayer_perturbations v" + str(version_nb) + "]\n")
+				output_stat.write("\n")
+				output_stat.write("No size groups defined, see note 7 in bilayer_perturbations --help.\n")
+				output_stat.write("\n")
+				output_stat.close()
+			else:			
+				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group")
+				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/xvg")
+				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/png")
+				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie")
+				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/png")
 			if args.xtcfilename != "no":
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots")			
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/sizes")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/sizes/xvg")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/sizes/png")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/species")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/species/xvg")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/species/png")
-
-			#-----------------------------------------------------------------------------
-# 			#individual sizes
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes")
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size")
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/xvg")
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/png")
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie")
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/xvg")
-# 			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/png")
-# 			
-# 			#size groups
-# 			os.mkdir(args.output_folder + "/radial/thickness/2_groups")
-# 			if args.cluster_groups_file == "no":
-# 				#output text file saying (not size groups defined, see --help how to do so)
-# 			else:			
-# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group")
-# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/xvg")
-# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/png")
-# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie")
-# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/xvg")
-# 				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/png")
-# 
-# 			if args.xtcfilename != "no":
-# 				#individual sizes
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes")
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size")
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/xvg")
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/png")
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie")
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/xvg")
-# 				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/png")
-# 			
-# 				#size groups
-# 				if args.cluster_groups_file != "no":
-# 					os.mkdir(args.output_folder + "/radial/thickness/2_groups")
-# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group")
-# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/xvg")
-# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/png")
-# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie")
-# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/xvg")
-# 					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/png")
-			#-----------------------------------------------------------------------------			
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes")
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size")
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/xvg")
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/png")
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie")
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/png")
+				if args.cluster_groups_file != "no":
+					os.mkdir(args.output_folder + "/radial/thickness/2_groups")
+					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group")
+					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/xvg")
+					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/png")
+					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie")
+					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/xvg")
+					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/png")
 
 		#order parameters
 		if args.perturb == 2 or args.perturb == 3:
-			os.mkdir(args.output_folder + "/radial/order_param")
-			os.mkdir(args.output_folder + "/radial/order_param/sizes")
-			os.mkdir(args.output_folder + "/radial/order_param/sizes/xvg")
-			os.mkdir(args.output_folder + "/radial/order_param/sizes/png")
-			os.mkdir(args.output_folder + "/radial/order_param/species")
-			os.mkdir(args.output_folder + "/radial/order_param/species/xvg")
-			os.mkdir(args.output_folder + "/radial/order_param/species/png")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_size")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_size/xvg")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_size/png")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_specie")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_specie/png")
+			os.mkdir(args.output_folder + "/radial/order_param/2_groups")
+			if args.cluster_groups_file == "no":
+				filename_details = args.output_folder + '/radial/order_param/2_groups/groups.txt'
+				output_stat = open(filename_details, 'w')		
+				output_stat.write("[written by bilayer_perturbations v" + str(version_nb) + "]\n")
+				output_stat.write("\n")
+				output_stat.write("No size groups defined, see note 7 in bilayer_perturbations --help.\n")
+				output_stat.write("\n")
+				output_stat.close()
+			else:			
+				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_group")
+				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_group/xvg")
+				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_group/png")
+				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_specie")
+				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_specie/png")
 			if args.xtcfilename != "no":
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/sizes")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/sizes/xvg")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/sizes/png")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/species")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/species/xvg")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/species/png")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_size")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_size/xvg")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_size/png")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_specie")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_specie/png")
+				if args.cluster_groups_file != "no":
+					os.mkdir(args.output_folder + "/radial/order_param/2_groups")
+					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_group")
+					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_group/xvg")
+					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_group/png")
+					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_specie")
+					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_specie/xvg")
+					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_specie/png")
 		
 	#create log
 	#----------
@@ -592,25 +665,41 @@ else:
 # data loading
 #=========================================================================================
 
-def set_forcefield_lipids_info():
-	#leaflet selection
-	global leaflet_beads
+def set_lipids_beads():
+
 	global leaflet_sele_string
+
+	#use default beads
 	leaflet_beads = {}
 	leaflet_beads['martini'] = "name PO4 or name PO3 or name B1A"
 	leaflet_sele_string = leaflet_beads[args.forcefield_opt]
 
-	#order parameter: lipids handled
-	global op_lipids_possible
-	op_lipids_possible = {}
-	op_lipids_possible["martini"]=['DHPC','DHPE','DLPC','DLPE','DAPC','DUPC','DPPC','DPPE','DPPS','DPPG','DSPC','DSPE','POPC','POPE','POPS','POPG','PPCS','PIP2','PIP3','GM3']
-	
-	#order parameter: lipid tails
+	#use users input
+	if args.beadsfilename != "no":
+		with open(args.beadsfilename) as f:
+			lines = f.readlines()
+		if len(lines) > 1:
+			print "Error: the file " + str(args.beadsfilename) + " should conly ontain 1 line (" + str(len(lines)) + " found), see note 2(a)."
+			sys.exit(1)
+		else:
+			leaflet_sele_string = lines[0]
+
+	return
+def set_lipids_tails():
+
+	global op_lipids
 	global bond_names
 	global tail_boundaries
+
+	#lipids handled: default
+	op_possible = {}
+	op_possible["martini"] = ['DHPC','DHPE','DLPC','DLPE','DAPC','DUPC','DPPC','DPPE','DPPS','DPPG','DSPC','DSPE','POPC','POPE','POPS','POPG','PPCS','PIP2','PIP3','GM3']
+	op_lipids = op_possible[args.forcefield_opt]
+	
+	#lipid tails: default
 	bond_names = {}
 	tail_boundaries = {}
-	if args.forcefield_opt=="martini":
+	if args.forcefield_opt == "martini":
 		#define possible head, link and tail sequences
 		head_PC=" NC3-PO4"
 		head_PE=" NH3-PO4"
@@ -683,6 +772,46 @@ def set_forcefield_lipids_info():
 		tail_boundaries['PIP3']=[12,3,15,4]
 		tail_boundaries['GM3']=[5,3,8,3]
 
+	#include user's definition
+	if args.tailsfilename != "no":
+		replaced = {}
+		with open(args.beadsfilename) as f:
+			lines = f.readlines()
+		nb_lines = len(lines)
+		for l_index in range(0,nb_lines):
+			l = lines[l_index]
+			if l[-1] == "\n":
+				l = l[:-1]
+			l_content = l.split(',')
+			if len(l_content < 7):
+				print "Error: wrong format or not enough information on line " + str(l_index) + ", see note 3"
+				print "->'" + str(l)
+				sys.exit(1)			
+			#get lipid specie
+			tmp_specie = l_content[0]
+			#store old tail definition if it exists
+			if tmp_specie in op_lipids:
+				replaced[tmp_specie] = tmp_specie + bond_names[tmp_specie]
+				for n in range(0,4):
+					replaced[tmp_specie] += " " + str(tail_boundaries[tmp_specie][n])
+			#otherwise add it to the list of lipids handled
+			else:
+				op_lipids.append(tmp_specie)
+			#set tails definition
+			bond_names[tmp_specie] = ""
+			for b in l_content[1:-4]:
+				bond_names[tmp_specie] += " " + str(b)
+			#set tails boundaries
+				tails_boundaries[tmp_specie] = [int(l_content[-4]),int(l_content[-3]),int(l_content[-2]),int(l_content[-1])]
+				
+		#warn of overriding if relevant
+		if len(replaced.keys()) > 0:
+			print "Warning: the following default definitions:"
+			for s in replaced.keys():
+				print replaced[s]
+			print "have been overridden by::
+			for s in replaced.keys():
+				print str(s) + str(bonds_names[s]) + " " + str(tail_boundaries[s][0]) + " " + str(tail_boundaries[s][1]) + " " + str(tail_boundaries[s][2]) + " " + str(tail_boundaries[s][3])
 	return
 def load_MDA_universe():
 	
@@ -734,14 +863,16 @@ def identify_ff():
 		lines = f.readlines()
 	lipids_ff_nb = len(lines)
 	print " -found " + str(lipids_ff_nb) + " flipflopping lipids"
-	leaflet_sele_string = leaflet_beads[args.forcefield_opt] + " and not ("
+	leaflet_sele_string = leaflet_sele_string + " and not ("
 	for l_index in range(0,lipids_ff_nb):
 		line = lines[l_index]
+		if line[-1] == "\n":
+			line = line[:-1]
 		try:
 			#read current lipid details
 			lip_resname = line.split(',')[0]
 			lip_resnum = int(line.split(',')[1])
-			lip_leaflet = line.split(',')[2][0:-1]
+			lip_leaflet = line.split(',')[2]
 			lipids_ff_info[l_index] = [lip_resname,lip_resnum,lip_leaflet]
 						
 			#update: starting leaflets
@@ -776,7 +907,7 @@ def identify_ff():
 				print "-> no such lipid found."
 				sys.exit(1)	
 		except:
-			print "Error: invalid flipflopping lipid selection string on line " + str(l_index+1) + ": '" + lines[l_index][:-1] + "'"
+			print "Error: invalid flipflopping lipid selection string on line " + str(l_index+1) + ": '" + lines[l_index] + "'"
 			sys.exit(1)
 	leaflet_sele_string+=")"		
 
@@ -819,11 +950,13 @@ def identify_proteins():
 		proteins_sele["all"] = MDAnalysis.core.AtomGroup.AtomGroup([])
 		for p_index in range(0,proteins_nb):
 			line = lines[p_index]
+			if line[-1] == "\n":
+				line = line[:-1]
 			progress='\r -creating proteins selections: ' + str(p_index+1) + '/' + str(proteins_nb) + '        '
 			sys.stdout.flush()
 			sys.stdout.write(progress)
 			try:
-				print " p[" + str(p_index) + "]=U.selectAtoms(" + line[0:-1] + ")"
+				print " p[" + str(p_index) + "]=U.selectAtoms(" + line + ")"
 				proteins_sele[p_index] = U.selectAtoms(line[1:-2])
 				proteins_sele["all"] += proteins_sele[p_index]
 				proteins_boundaries[p_index] = [proteins_sele[p_index].indices()[0] + 1, proteins_sele[p_index].indices()[proteins_sele[p_index].numberOfAtoms()]+1]
@@ -901,6 +1034,13 @@ def identify_leaflets():
 		leaflet_sele[l] = {}
 		leaflet_sele_atoms[l] = {}
 	
+	#check the leaflet selection string is valie
+	test_beads = U.selectAtoms(leaflet_sele_string)
+	if test_beads.numberOfAtoms() == 0:
+		print "Error: invalid selection string '" + str(leaflet_sele_string) + "'"
+		print "-> no particles selected."
+		sys.exit(1)
+
 	#use LeafletFinder:
 	if args.cutoff_leaflet != 'large':
 		if args.cutoff_leaflet == 'optimise':
@@ -1000,7 +1140,7 @@ def identify_species():
 			op_lipids_handled[l] = []
 			leaflet_sele[l]["op"] = MDAnalysis.core.AtomGroup.AtomGroup([])
 			for s in leaflet_species[l]:
-				if s in op_lipids_possible[args.forcefield_opt]:
+				if s in op_lipids:
 					op_lipids_handled[l].append(s)
 					leaflet_sele[l]["op"] += leaflet_sele[l][s]
 		op_lipids_handled["both"]= list(numpy.unique(op_lipids_handled["lower"] + op_lipids_handled["upper"]))
@@ -1068,8 +1208,11 @@ def initialise_colours_and_groups():
 			lines = f.readlines()
 		colours_lipids_nb = len(lines)
 		for line_index in range(0,colours_lipids_nb):
-			l_content = lines[line_index].split(',')
-			colours_lipids[l_content[0]] = l_content[1][:-1]
+			line = lines[line_index]
+			if line[-1] == "\n":
+				line = line[:-1]
+			l_content = line.split(',')
+			colours_lipids[l_content[0]] = l_content[1]
 		print " -found the following colours definition:"
 		for s in colours_lipids.keys():
 			print " -" + str(s) + ": " + str(colours_lipids[s])
@@ -1114,10 +1257,13 @@ def initialise_colours_and_groups():
 			lines = f.readlines()
 		groups_number = len(lines)
 		for g_index in range(0,groups_number):
-			l_content=lines[g_index].split(',')
+			line = lines[g_index]
+			if line[-1] == "\n":
+				line = line[:-1]
+			l_content = line.split(',')
 			tmp_beg = int(l_content[0])
 			tmp_end = l_content[1]
-			colours_groups[g_index] = l_content[2][:-1]					#attribute colour to group
+			colours_groups[g_index] = l_content[2]						#attribute colour to group
 			if tmp_end == "max":
 				tmp_end = 100000										#put a stupidly big size to cap the open ended group
 			else:
@@ -1155,7 +1301,7 @@ def initialise_colours_and_groups():
 			tmp_end = bb[1]
 			for tmp_size in range(tmp_beg, tmp_end+1):
 				groups_sizes_dict[tmp_size] = g_index
-		for tmp_size in list(set(range(1,max(groups_sizes_dict.keys()))) - set(groups_sizes_dict.keys())): 	#this handles potentially unaccounted for sizes up to the maximum specified by the user
+		for tmp_size in list(set(range(1,max(groups_sizes_dict.keys()))) - set(groups_sizes_dict.keys())): 		#this handles potentially unaccounted for sizes up to the maximum specified by the user
 			groups_sizes_dict[tmp_size] = groups_number
 		if max(groups_sizes_dict.keys())!= 100000:															    #this handles potentially unaccounted for sizes above the maximum specified by the user (in case it's not an open group)
 			for tmp_size in range(max(groups_sizes_dict.keys())+1,100001):
@@ -1200,6 +1346,151 @@ def data_struct_time_coords():
 	for l_index in range(0,lipids_ff_nb):
 		z_ff[l_index] = {}
 
+	return
+def data_struct_radial():
+		
+	#density
+	#-------
+	global radial_density
+	radial_density = {}	
+	for l in ["lower","upper"]:
+		radial_density[l] = {}
+		#all species
+		radial_density[l]["all species"] = {}
+		radial_density[l]["all species"]["all sizes"] = {}
+		radial_density[l]["all species"]["all sizes"]["nb"] = {}
+		radial_density[l]["all species"]["all sizes"]["pc"] = {}
+		radial_density[l]["all species"]["all sizes"]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+		radial_density[l]["all species"]["all sizes"]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+		#each specie
+		for s in leaflet_species[l]:
+			radial_density[l][s] = {}
+			radial_density[l][s]["all sizes"] = {}
+			radial_density[l][s]["all sizes"]["nb"] = {}
+			radial_density[l][s]["all sizes"]["pc"] = {}
+			radial_density[l][s]["all sizes"]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+			radial_density[l][s]["all sizes"]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+			if args.cluster_groups_file != "no":
+				radial_density[l][s]["groups"] = {}
+				for g_index in range(0,groups_number+1):
+					radial_density[l][s]["groups"][g_index] = {}
+					radial_density[l][s]["groups"][g_index]["nb"] = {}
+					radial_density[l][s]["groups"][g_index]["pc"] = {}
+					radial_density[l][s]["groups"][g_index]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+					radial_density[l][s]["groups"][g_index]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+		
+	#thickness
+	#---------
+	if args.perturb == 1 or args.perturb == 3:
+		global radial_thick
+		radial_thick = {}	
+		#all species
+		radial_thick["all species"] = {}
+		radial_thick["all species"]["avg"] = {}
+		radial_thick["all species"]["std"] = {}
+		radial_thick["all species"]["avg"]["all sizes"] = {}
+		radial_thick["all species"]["std"]["all sizes"] = {}
+		radial_thick["all species"]["avg"]["all sizes"]["all frames"] = {}
+		radial_thick["all species"]["std"]["all sizes"]["all frames"] = {}
+		#each specie
+		for s in leaflet_species["both"]:
+			radial_thick[s] = {}
+			radial_thick[s]["avg"] = {}
+			radial_thick[s]["std"] = {}
+			radial_thick[s]["avg"]["all sizes"] = {}
+			radial_thick[s]["std"]["all sizes"] = {}
+			radial_thick[s]["avg"]["all sizes"]["all frames"] = {}
+			radial_thick[s]["std"]["all sizes"]["all frames"] = {}
+			if args.cluster_groups_file != "no":
+				radial_thick[s]["avg"]["groups"] = {}
+				radial_thick[s]["std"]["groups"] = {}
+				for g_index in range(0,groups_number+1):
+					radial_thick[s]["avg"]["groups"][g_index] = {}
+					radial_thick[s]["std"]["groups"][g_index] = {}
+					radial_thick[s]["avg"]["groups"][g_index]["all frames"] = {}
+					radial_thick[s]["std"]["groups"][g_index]["all frames"] = {}
+		for n in range(0,args.radial_nb_bins):
+			radial_thick["all species"]["avg"]["all sizes"]["all frames"][n] = []
+			radial_thick["all species"]["std"]["all sizes"]["all frames"][n] = []
+			for s in leaflet_species["both"]:
+				radial_thick[s]["avg"]["all sizes"]["all frames"][n] = []
+				radial_thick[s]["std"]["all sizes"]["all frames"][n] = []
+				if args.cluster_groups_file != "no":
+					for g_index in range(0,groups_number+1):
+						radial_thick[s]["avg"]["groups"][g_index]["all frames"][n] = []
+						radial_thick[s]["std"]["groups"][g_index]["all frames"][n] = []
+
+	#order parameter
+	#---------------
+	if args.perturb == 2 or args.perturb == 3:
+		global radial_op
+		radial_op = {}
+		for l in ["lower","upper"]:
+			radial_op[l] = {}
+			#all species
+			radial_op[l]["all species"] = {}
+			radial_op[l]["all species"]["avg"] = {}
+			radial_op[l]["all species"]["std"] = {}
+			radial_op[l]["all species"]["avg"]["all sizes"] = {}
+			radial_op[l]["all species"]["std"]["all sizes"] = {}
+			radial_op[l]["all species"]["avg"]["all sizes"]["all frames"] = {}
+			radial_op[l]["all species"]["std"]["all sizes"]["all frames"] = {}
+			#each specie
+			for s in op_lipids_handled[l]:
+				radial_op[l][s] = {}
+				radial_op[l][s]["avg"] = {}
+				radial_op[l][s]["std"] = {}
+				radial_op[l][s]["avg"]["all sizes"] = {}
+				radial_op[l][s]["std"]["all sizes"] = {}
+				radial_op[l][s]["avg"]["all sizes"]["all frames"] = {}
+				radial_op[l][s]["std"]["all sizes"]["all frames"] = {}
+				if args.cluster_groups_file != "no":
+					radial_op[l][s]["avg"]["groups"] = {}
+					radial_op[l][s]["std"]["groups"] = {}
+					for g_index in range(0,groups_number+1):
+						radial_op[l][s]["avg"]["groups"][g_index] = {}
+						radial_op[l][s]["std"]["groups"][g_index] = {}	
+						radial_op[l][s]["avg"]["groups"][g_index]["all frames"] = {}
+						radial_op[l][s]["std"]["groups"][g_index]["all frames"] = {}
+			for n in range(0,args.radial_nb_bins):
+				radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][n] = []
+				radial_op[l]["all species"]["std"]["all sizes"]["all frames"][n] = []
+				for s in op_lipids_handled[l]:
+					radial_op[l][s]["avg"]["all sizes"]["all frames"][n] = []
+					radial_op[l][s]["std"]["all sizes"]["all frames"][n] = []
+					if args.cluster_groups_file != "no":
+						for g_index in range(0,groups_number+1):
+							radial_op[l][s]["avg"]["groups"][g_index]["all frames"][n] = {}
+							radial_op[l][s]["std"]["groups"][g_index]["all frames"][n] = {}	
+						
+	return
+def data_struct_thick():
+
+	global lipids_thick_nff
+	lipids_thick_nff = {}
+	
+	#thickness: each lipid
+	for l in ["lower","upper"]:
+		lipids_thick_nff[l] = {}
+		for s in leaflet_species[l]:
+			lipids_thick_nff[l][s] = {}
+			for r_index in range(0,leaflet_sele[l][s].numberOfResidues()):
+				lipids_thick_nff[l][s][r_index] = {}
+
+	#thickness: each specie
+	lipids_thick_nff["data"] = {}
+	lipids_thick_nff["sorted"] = {}
+	lipids_thick_nff["sorted"]["avg"] = {}
+	lipids_thick_nff["sorted"]["std"] = {}
+	lipids_thick_nff["smoothed"] = {}
+	lipids_thick_nff["smoothed"]["avg"] = {}
+	lipids_thick_nff["smoothed"]["std"] = {}
+	for s in leaflet_species["both"] + ["all species"]:
+		lipids_thick_nff["data"][s] = {}
+		lipids_thick_nff["data"][s]["all frames"] = []
+		lipids_thick_nff["sorted"]["avg"][s] = []
+		lipids_thick_nff["sorted"]["std"][s] = []
+	
 	return
 def data_struct_op_ff():
 
@@ -1280,119 +1571,6 @@ def data_struct_op_nff():
 				lipids_op_nff["sorted"]["std"][tail][l][s] = []	
 	
 	return
-def data_struct_thick():
-
-	global lipids_thick_nff
-	lipids_thick_nff = {}
-	
-	#thickness: each lipid
-	for l in ["lower","upper"]:
-		lipids_thick_nff[l] = {}
-		for s in leaflet_species[l]:
-			lipids_thick_nff[l][s] = {}
-			for r_index in range(0,leaflet_sele[l][s].numberOfResidues()):
-				lipids_thick_nff[l][s][r_index] = {}
-
-	#thickness: each specie
-	lipids_thick_nff["data"] = {}
-	lipids_thick_nff["sorted"] = {}
-	lipids_thick_nff["sorted"]["avg"] = {}
-	lipids_thick_nff["sorted"]["std"] = {}
-	lipids_thick_nff["smoothed"] = {}
-	lipids_thick_nff["smoothed"]["avg"] = {}
-	lipids_thick_nff["smoothed"]["std"] = {}
-	for s in leaflet_species["both"] + ["all species"]:
-		lipids_thick_nff["data"][s] = {}
-		lipids_thick_nff["data"][s]["all frames"] = []
-		lipids_thick_nff["sorted"]["avg"][s] = []
-		lipids_thick_nff["sorted"]["std"][s] = []
-	
-	return
-def data_struct_radial():
-		
-	#density
-	#-------
-	global radial_density
-	radial_density = {}	
-	for l in ["lower","upper"]:
-		radial_density[l] = {}
-		#all species
-		radial_density[l]["all species"] = {}
-		radial_density[l]["all species"]["all sizes"] = {}
-		radial_density[l]["all species"]["all sizes"]["nb"] = {}
-		radial_density[l]["all species"]["all sizes"]["pc"] = {}
-		radial_density[l]["all species"]["all sizes"]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
-		radial_density[l]["all species"]["all sizes"]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
-		#each specie
-		for s in leaflet_species[l]:
-			radial_density[l][s] = {}
-			radial_density[l][s]["all sizes"] = {}
-			radial_density[l][s]["all sizes"]["nb"] = {}
-			radial_density[l][s]["all sizes"]["pc"] = {}
-			radial_density[l][s]["all sizes"]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
-			radial_density[l][s]["all sizes"]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
-
-	#thickness
-	#---------
-	if args.perturb == 1 or args.perturb == 3:
-		global radial_thick
-		radial_thick = {}	
-		#all species
-		radial_thick["all species"] = {}
-		radial_thick["all species"]["avg"] = {}
-		radial_thick["all species"]["std"] = {}
-		radial_thick["all species"]["avg"]["all sizes"] = {}
-		radial_thick["all species"]["std"]["all sizes"] = {}
-		radial_thick["all species"]["avg"]["all sizes"]["all frames"] = {}
-		radial_thick["all species"]["std"]["all sizes"]["all frames"] = {}
-		#each specie
-		for s in leaflet_species["both"]:
-			radial_thick[s] = {}
-			radial_thick[s]["avg"] = {}
-			radial_thick[s]["std"] = {}
-			radial_thick[s]["avg"]["all sizes"] = {}
-			radial_thick[s]["std"]["all sizes"] = {}
-			radial_thick[s]["avg"]["all sizes"]["all frames"] = {}
-			radial_thick[s]["std"]["all sizes"]["all frames"] = {}
-		for n in range(0,args.radial_nb_bins):
-			radial_thick["all species"]["avg"]["all sizes"]["all frames"][n] = []
-			radial_thick["all species"]["std"]["all sizes"]["all frames"][n] = []
-			for s in leaflet_species["both"]:
-				radial_thick[s]["avg"]["all sizes"]["all frames"][n] = []
-				radial_thick[s]["std"]["all sizes"]["all frames"][n] = []
-
-	#order parameter
-	#---------------
-	if args.perturb == 2 or args.perturb == 3:
-		global radial_op
-		radial_op = {}
-		for l in ["lower","upper"]:
-			radial_op[l] = {}
-			#all species
-			radial_op[l]["all species"] = {}
-			radial_op[l]["all species"]["avg"] = {}
-			radial_op[l]["all species"]["std"] = {}
-			radial_op[l]["all species"]["avg"]["all sizes"] = {}
-			radial_op[l]["all species"]["std"]["all sizes"] = {}
-			radial_op[l]["all species"]["avg"]["all sizes"]["all frames"] = {}
-			radial_op[l]["all species"]["std"]["all sizes"]["all frames"] = {}
-			#each specie
-			for s in op_lipids_handled[l]:
-				radial_op[l][s] = {}
-				radial_op[l][s]["avg"] = {}
-				radial_op[l][s]["std"] = {}
-				radial_op[l][s]["avg"]["all sizes"] = {}
-				radial_op[l][s]["std"]["all sizes"] = {}
-				radial_op[l][s]["avg"]["all sizes"]["all frames"] = {}
-				radial_op[l][s]["std"]["all sizes"]["all frames"] = {}
-			for n in range(0,args.radial_nb_bins):
-				radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][n] = []
-				radial_op[l]["all species"]["std"]["all sizes"]["all frames"][n] = []
-				for s in op_lipids_handled[l]:
-					radial_op[l][s]["avg"]["all sizes"]["all frames"][n] = []
-					radial_op[l][s]["std"]["all sizes"]["all frames"][n] = []
-
-	return
 
 #=========================================================================================
 # core functions
@@ -1455,8 +1633,12 @@ def calculate_radial(f_nb):
 	
 	#store cluster size and selection
 	radial_sizes[f_nb] = []
+	radial_groups[f_nb] = []
 	tmp_cluster_selections = {}
 	for g in tmp_groups:		
+		if args.cluster_groups_file != "no":
+			radial_groups[f_nb].append(groups_sizes_dict[numpy.size(g)])
+
 		#create selection for current cluster
 		tmp_cluster_sele = MDAnalysis.core.AtomGroup.AtomGroup([])	
 		for p_index in g:
@@ -1477,9 +1659,9 @@ def calculate_radial(f_nb):
 		
 	#update data structures
 	#======================
-	radial_sizes[f_nb] = sorted(radial_sizes[f_nb])
+	radial_sizes[f_nb] = list(numpy.unique(radial_sizes[f_nb]))
 	for c_size in radial_sizes[f_nb]:
-		#add size if necessary
+		#add size if necessary						
 		#---------------------
 		if c_size not in radial_sizes["all frames"]:
 			radial_sizes["all frames"].append(c_size)
@@ -1548,6 +1730,7 @@ def calculate_radial(f_nb):
 				radial_density[l][s][c_size]["pc"][f_nb] = numpy.zeros(args.radial_nb_bins)
 				radial_density[l][s]["all sizes"]["nb"][f_nb] = numpy.zeros(args.radial_nb_bins)
 				radial_density[l][s]["all sizes"]["pc"][f_nb] = numpy.zeros(args.radial_nb_bins)
+
 		#thickness
 		if args.perturb == 1 or args.perturb == 3:
 			radial_thick["all species"]["avg"][c_size][f_nb] = {}
@@ -1569,6 +1752,7 @@ def calculate_radial(f_nb):
 					radial_thick[s]["std"][c_size][f_nb][n] = []
 					radial_thick[s]["avg"]["all sizes"][f_nb][n] = []
 					radial_thick[s]["std"]["all sizes"][f_nb][n] = []
+
 		#order param
 		if args.perturb == 2 or args.perturb == 3:
 			for l in ["lower","upper"]:
@@ -1591,7 +1775,40 @@ def calculate_radial(f_nb):
 						radial_op[l][s]["std"][c_size][f_nb][n] = []
 						radial_op[l][s]["avg"]["all sizes"][f_nb][n] = []
 						radial_op[l][s]["std"]["all sizes"][f_nb][n] = []
-	
+
+	#add frame entry to groups
+	#-------------------------
+	if args.cluster_groups_file != "no":
+		radial_groups[f_nb] = list(numpy.unique(radial_groups[f_nb]))
+		for g_index in radial_groups[f_nb]:
+			#density
+			for l in ["lower","upper"]:
+				for s in leaflet_species[l]:
+					radial_density[l][s]["groups"][g_index]["nb"][f_nb] = numpy.zeros(args.radial_nb_bins)
+					radial_density[l][s]["groups"][g_index]["pc"][f_nb] = numpy.zeros(args.radial_nb_bins)
+
+			#thickness
+			if args.perturb == 1 or args.perturb == 3:
+				for s in leaflet_species["both"]:
+					radial_thick[s]["avg"]["groups"][g_index][f_nb] = {}
+					radial_thick[s]["std"]["groups"][g_index][f_nb] = {}
+				for n in range(0,args.radial_nb_bins):
+					for s in leaflet_species["both"]:
+						radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = []
+						radial_thick[s]["std"]["groups"][g_index][f_nb][n] = []
+
+			#order param
+			if args.perturb == 2 or args.perturb == 3:
+				for l in ["lower","upper"]:
+					for s in op_lipids_handled[l]:
+						radial_op[l][s]["avg"]["groups"][g_index][f_nb] = {}
+						radial_op[l][s]["std"]["groups"][g_index][f_nb] = {}
+					for n in range(0,args.radial_nb_bins):
+						for s in op_lipids_handled[l]:					
+							radial_op[l][s]["avg"]["groups"][g_index][f_nb][n] = []
+							radial_op[l][s]["std"]["groups"][g_index][f_nb][n] = []
+
+
 	#deal with lipids around them
 	#============================
 	for l in ["lower","upper"]:
@@ -1605,7 +1822,7 @@ def calculate_radial(f_nb):
 				tmp_c_cog[0,:] = calculate_cog(c_sele)
 
 				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
-				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].selectAtoms(leaflet_beads[args.forcefield_opt]).coordinates(), U.trajectory.ts.dimensions)
+				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].selectAtoms(leaflet_sele_string).coordinates(), U.trajectory.ts.dimensions)
 				r_num_within = list(tmp_resnums[lip_dist<args.radial_radius])
 
 				#drop data into the right radial bin for those lipids
@@ -1628,6 +1845,8 @@ def calculate_radial(f_nb):
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
+						if args.cluster_groups_file != "no":
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
 				
 				#case: density + thickness
 				elif args.perturb == 1:
@@ -1647,6 +1866,8 @@ def calculate_radial(f_nb):
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
+						if args.cluster_groups_file != "no":
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
 
 						#thickness
 						radial_thick["all species"]["avg"][c_size][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
@@ -1657,6 +1878,8 @@ def calculate_radial(f_nb):
 						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
 						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
 						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
+						if args.cluster_groups_file != "no":
+							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
 
 				#case: density + order parameters
 				elif args.perturb == 2:
@@ -1676,6 +1899,8 @@ def calculate_radial(f_nb):
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
+						if args.cluster_groups_file != "no":
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
 					
 						#order parameters
 						if r_specie in op_lipids_handled[l]:
@@ -1687,6 +1912,8 @@ def calculate_radial(f_nb):
 							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
 							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
 							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
+							if args.cluster_groups_file != "no":
+								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
 				
 				#case: density + thickness + order parameters
 				else:
@@ -1706,6 +1933,8 @@ def calculate_radial(f_nb):
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
+						if args.cluster_groups_file != "no":
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
 						
 						#thickness
 						radial_thick["all species"]["avg"][c_size][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
@@ -1716,6 +1945,8 @@ def calculate_radial(f_nb):
 						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
 						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
 						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
+						if args.cluster_groups_file != "no":
+							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
 
 						#order parameters
 						if r_specie in op_lipids_handled[l]:
@@ -1727,11 +1958,14 @@ def calculate_radial(f_nb):
 							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
 							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
 							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
+							if args.cluster_groups_file != "no":
+								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
 			
 	return
 def calculate_radial_data():
 	
-	#case: density:
+	#case: density
+	#=============
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
 			for c_size in radial_sizes["all frames"] + ["all sizes"]:
@@ -2070,7 +2304,7 @@ def thick_xvg_write():
 	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/xvg/1_2_thickness_species.txt'
 	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/xvg/1_2_thickness_species.xvg'
 	output_txt = open(filename_txt, 'w')
-	output_txt.write("@[lipid tail order parameters statistics - written by thickness v" + str(version_nb) + "]\n")
+	output_txt.write("@[lipid bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_2_thickness_species.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\n")
@@ -2108,7 +2342,7 @@ def thick_xvg_write_smoothed():
 	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/xvg/1_4_thickness_species_smoothed.txt'
 	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/xvg/1_4_thickness_species_smoothed.xvg'
 	output_txt = open(filename_txt, 'w')
-	output_txt.write("@[lipid tail order parameters statistics - written by thickness v" + str(version_nb) + "]\n")
+	output_txt.write("@[lipid bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_4_thickness_species_smoothed.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\n")
@@ -2221,7 +2455,7 @@ def thick_frame_write_stat(f_nb, f_time):
 	else:
 		filename_details = os.getcwd() + '/' + str(args.output_folder) + '/thickness/2_snapshots/' + args.xtcfilename[:-4] + '_annotated_thickness_' + str(int(f_time)).zfill(5) + 'ns.stat'
 	output_stat = open(filename_details, 'w')		
-	output_stat.write("[thickness statistics - written by thickness v" + str(version_nb) + "]\n")
+	output_stat.write("[lipid bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_stat.write("\n")
 	
 	#general info
@@ -3356,11 +3590,11 @@ def radial_density_frame_xvg_write(f_nb, f_time):
 		else:
 			tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_nb == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid density statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3422,11 +3656,11 @@ def radial_density_frame_xvg_write(f_nb, f_time):
 			else:
 				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
 		if f_nb == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) +".xvg.\n")
@@ -3511,11 +3745,11 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 	for s in leaflet_species["both"]:
 		#create filenames
 		if f_nb == "all frames":
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/png/radial_density_species_' + str(s) + '.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/species/radial_density_species_' + str(s) + '.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/png/radial_density_species_' + str(s) + '.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/radial_density_species_' + str(s) + '.svg'
 		else:
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/species/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 	
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -3586,18 +3820,18 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 		#create filenames
 		if f_nb == "all frames":
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/png/radial_density_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/radial_density_sizes_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/png/radial_density_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/radial_density_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/png/radial_density_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/sizes/radial_density_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/png/radial_density_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/radial_density_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'			
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'			
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/sizes/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -3681,11 +3915,11 @@ def radial_thick_frame_xvg_write(f_nb, f_time):
 			else:
 				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_nb == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3745,11 +3979,11 @@ def radial_thick_frame_xvg_write(f_nb, f_time):
 			else:
 				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
 		if f_nb == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -3808,18 +4042,18 @@ def radial_thick_frame_xvg_graph(f_nb, f_time):
 		#create filenames
 		if f_nb == "all frames":
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/png/radial_thickness_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/radial_thickness_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/png/radial_thickness_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/radial_thickness_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/png/radial_thickness_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/species/radial_thickness_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/png/radial_thickness_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/radial_thickness_species_' + str(s) + '.svg'
 		else:
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/species/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
 		fig=plt.figure(figsize=(8, 5))
@@ -3871,18 +4105,18 @@ def radial_thick_frame_xvg_graph(f_nb, f_time):
 		#create filenames
 		if f_nb == "all frames":
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/png/radial_thickness_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/radial_thickness_sizes_all.svg'		
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/png/radial_thickness_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/radial_thickness_sizes_all.svg'		
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/png/radial_thickness_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/sizes/radial_thickness_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/png/radial_thickness_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/radial_thickness_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/sizes/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 5))
@@ -3960,11 +4194,11 @@ def radial_op_frame_xvg_write(f_nb, f_time):
 			else:
 				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_nb == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -4026,11 +4260,11 @@ def radial_op_frame_xvg_write(f_nb, f_time):
 			else:
 				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
 		if f_nb == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
@@ -4119,18 +4353,18 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 		#create filenames
 		if f_nb == "all frames":
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/png/radial_order_param_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/radial_order_param_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/png/radial_order_param_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/radial_order_param_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/png/radial_order_param_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/species/radial_order_param_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/png/radial_order_param_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/radial_order_param_species_' + str(s) + '.svg'
 		else:
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/species/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -4208,18 +4442,18 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 		#create filenames
 		if f_nb == "all frames":
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/png/radial_order_param_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/radial_order_param_sizes_all.svg'		
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/png/radial_order_param_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/radial_order_param_sizes_all.svg'		
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/png/radial_order_param_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/sizes/radial_order_param_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/png/radial_order_param_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/radial_order_param_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/sizes/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -4299,7 +4533,8 @@ def radial_op_frame_xvg_graph(f_nb, f_time):
 #=========================================================================================
 #process inputs
 #=========================================================================================
-set_forcefield_lipids_info()
+set_lipids_beads()
+set_lipids_tails()
 load_MDA_universe()
 if args.selection_file_ff != "no":
 	identify_ff()
