@@ -25,5 +25,10 @@ Features
 
 To do
 -----
-- cluster groups: already read file, just store info in the right data structures using the group size dictionary 
-- try/except when loading modules: error if not present
+- cluster groups: average data, plot it
+- cog_pbc routine....
+
+To test
+--beads and --tails option
+effect of end of line in input files
+
