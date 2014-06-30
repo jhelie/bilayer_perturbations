@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="dev0.1.4.2"
+version_nb="dev0.1.4.5"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -246,8 +246,8 @@ Option	      Default  	Description
 
 Lipids identification  
 -----------------------------------------------------
---beads		: leaflet identification technique, see note 2(a)
---tails		: leaflet identification technique, see note 3
+--beads			: leaflet identification technique, see note 2(a)
+--tails			: leaflet identification technique, see note 3
 --flipflops		: input file with flipflopping lipids, see note 4
 --forcefield		: forcefield options, see notes 2 and 3
 --leaflet	optimise: leaflet identification technique, see note 2(b)
@@ -293,7 +293,7 @@ parser.add_argument('--leaflet', nargs=1, dest='cutoff_leaflet', default=['optim
 
 #radial and protein clusters options
 parser.add_argument('-g', nargs=1, dest='cluster_groups_file', default=['no'], help=argparse.SUPPRESS)
-parser.add_argument('-p', nargs=1, dest='selection_file_prot', default=['auto'], help=argparse.SUPPRESS)
+parser.add_argument('-p', nargs=1, dest='selection_file_prot', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--radial_radius', nargs=1, dest='radial_radius', default=[100], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--radial_bins', nargs=1, dest='radial_nb_bins', default=[25], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--algorithm', dest='m_algorithm', choices=['cog','min','density'], default='min', help=argparse.SUPPRESS)
@@ -349,6 +349,9 @@ if args.radial:
 	radial_groups = {}
 	radial_groups["all frames"] = []
 	radial_step = args.radial_radius/float(args.radial_nb_bins)
+	if args.selection_file_prot == 'no':
+		args.selection_file_prot = 'auto' 
+
 global lipids_ff_nb
 global nb_frames_processed
 lipids_ff_nb = 0
@@ -653,10 +656,17 @@ else:
 	output_log.close()
 	#copy input files
 	#----------------
-	if args.colour_file!="no":
+	if args.colour_file != "no":
 		shutil.copy2(args.colour_file,args.output_folder + "/")
-	if args.selection_file_ff!="no":
-		shutil.copy2(args.selection_file_ff,args.output_folder + "/")
+	if args.selection_file_ff != "no":
+		shutil.copy2(args.selection_file_ff,args.output_folder + "/")	
+	if args.selection_file_prot != "no" and args.selection_file_prot != "auto":
+		shutil.copy2(args.selection_file_prot,args.output_folder + "/")
+	if args.beadsfilename != "no":
+		shutil.copy2(args.beadsfilename,args.output_folder + "/")
+	if args.tailsfilename != "no":
+		shutil.copy2(args.tailsfilename,args.output_folder + "/")
+
 
 ##########################################################################################
 # FUNCTIONS DEFINITIONS
@@ -753,7 +763,7 @@ def set_lipids_tails():
 		tail_boundaries['DLPC']=[5,2,7,2]
 		tail_boundaries['DLPE']=[5,2,7,2]	
 		tail_boundaries['DAPC']=[5,4,9,4]
-		tail_boundaries['DUPC']=[5,4,9,4]	
+		tail_boundaries['DUPC']=[5,3,8,3]	
 		tail_boundaries['DPPC']=[5,3,8,3]
 		tail_boundaries['DPPG']=[5,3,8,3]	
 		tail_boundaries['DPPE']=[5,3,8,3]	
@@ -776,7 +786,7 @@ def set_lipids_tails():
 	#include user's definition
 	if args.tailsfilename != "no":
 		replaced = {}
-		with open(args.beadsfilename) as f:
+		with open(args.tailsfilename) as f:
 			lines = f.readlines()
 		nb_lines = len(lines)
 		for l_index in range(0,nb_lines):
@@ -784,7 +794,7 @@ def set_lipids_tails():
 			if l[-1] == "\n":
 				l = l[:-1]
 			l_content = l.split(',')
-			if len(l_content < 7):
+			if len(l_content) < 7:
 				print "Error: wrong format or not enough information on line " + str(l_index) + ", see note 3"
 				print "->'" + str(l)
 				sys.exit(1)			
@@ -792,7 +802,7 @@ def set_lipids_tails():
 			tmp_specie = l_content[0]
 			#store old tail definition if it exists
 			if tmp_specie in op_lipids:
-				replaced[tmp_specie] = tmp_specie + bond_names[tmp_specie]
+				replaced[tmp_specie] = " -" + tmp_specie + ":" + bond_names[tmp_specie]
 				for n in range(0,4):
 					replaced[tmp_specie] += " " + str(tail_boundaries[tmp_specie][n])
 			#otherwise add it to the list of lipids handled
@@ -803,7 +813,7 @@ def set_lipids_tails():
 			for b in l_content[1:-4]:
 				bond_names[tmp_specie] += " " + str(b)
 			#set tails boundaries
-				tails_boundaries[tmp_specie] = [int(l_content[-4]),int(l_content[-3]),int(l_content[-2]),int(l_content[-1])]
+				tail_boundaries[tmp_specie] = [int(l_content[-4]),int(l_content[-3]),int(l_content[-2]),int(l_content[-1])]
 				
 		#warn of overriding if relevant
 		if len(replaced.keys()) > 0:
@@ -812,7 +822,7 @@ def set_lipids_tails():
 				print replaced[s]
 			print "have been overridden by:"
 			for s in replaced.keys():
-				print str(s) + str(bonds_names[s]) + " " + str(tail_boundaries[s][0]) + " " + str(tail_boundaries[s][1]) + " " + str(tail_boundaries[s][2]) + " " + str(tail_boundaries[s][3])
+				print " -" + str(s) + ":" + str(bond_names[s]) + " " + str(tail_boundaries[s][0]) + " " + str(tail_boundaries[s][1]) + " " + str(tail_boundaries[s][2]) + " " + str(tail_boundaries[s][3])
 	return
 def load_MDA_universe():
 	
@@ -943,7 +953,7 @@ def identify_proteins():
 		sys.exit(1)
 	
 	#case: selection file provided
-	if args.selection_file_prot!="auto":
+	if args.selection_file_prot != "auto":
 		print " -reading protein selection file..."
 		with open(args.selection_file_prot) as f:
 			lines = f.readlines()
@@ -2188,11 +2198,11 @@ def calculate_order_parameters(f_nb):
 			tail_B_start = tail_boundaries[s][2]
 			tail_A_length = tail_boundaries[s][1]
 			tail_B_length = tail_boundaries[s][3]
-										
+								
 			#calculate 'op' for each bond in lipid tails
 			b_index = 0
 			tmp_bond_array = numpy.zeros((leaflet_sele[l][s].numberOfResidues(),tail_A_length + tail_B_length))
-			for bond in op_bonds[s][tail_A_start:]:
+			for bond in op_bonds[s][tail_A_start:tail_A_start+tail_A_length] + op_bonds[s][tail_B_start:tail_B_start+tail_B_length]:
 				v = numpy.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),3))
 				v_norm2 = numpy.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),1))
 				v[:,0] = leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[0])).coordinates()[:,0] - leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[1])).coordinates()[:,0]
@@ -5644,7 +5654,7 @@ if args.radial:
 #=========================================================================================
 print "\nCalculating bilayer perturbations..."
 #case: gro file
-if args.xtcfilename=="no":
+if args.xtcfilename == "no":
 	time_stamp[1]=0
 	if args.perturb == 1 or args.perturb == 3:
 		calculate_thickness(1)
