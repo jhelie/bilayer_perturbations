@@ -24,4 +24,5 @@ Features
 - output files for visualisation in VMD
 - customisable lipids selection and definition
 - different leaflet identifications method (1 suitable for very large systems)
+- calculation of TM clusters center of geometry take pbc into account
 
