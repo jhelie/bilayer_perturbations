@@ -256,8 +256,8 @@ Radial perturbations and protein clusters identification
 -----------------------------------------------------
 -g			: cluster groups definition file, see note 7
 -p			: protein selection file, (optional, see note 6)
---radial_radius 100	: max radius to which represent the radial perturbations (Angstrom)
---radial_bins 	25	: number of bins into which discretise data for radial perturbations
+--radial_radius 80	: max radius to which represent the radial perturbations (Angstrom)
+--radial_bins 	20	: number of bins into which discretise data for radial perturbations
 --algorithm	min	: 'cog','min' or 'density', see 'DESCRIPTION'
 --nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angstrom)
 --db_radius 	20	: DBSCAN search radius (Angstrom)
@@ -294,8 +294,8 @@ parser.add_argument('--leaflet', nargs=1, dest='cutoff_leaflet', default=['optim
 #radial and protein clusters options
 parser.add_argument('-g', nargs=1, dest='cluster_groups_file', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('-p', nargs=1, dest='selection_file_prot', default=['no'], help=argparse.SUPPRESS)
-parser.add_argument('--radial_radius', nargs=1, dest='radial_radius', default=[100], type=float, help=argparse.SUPPRESS)
-parser.add_argument('--radial_bins', nargs=1, dest='radial_nb_bins', default=[25], type=int, help=argparse.SUPPRESS)
+parser.add_argument('--radial_radius', nargs=1, dest='radial_radius', default=[80], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--radial_bins', nargs=1, dest='radial_nb_bins', default=[20], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--algorithm', dest='m_algorithm', choices=['cog','min','density'], default='min', help=argparse.SUPPRESS)
 parser.add_argument('--nx_cutoff', nargs=1, dest='cutoff_connect', default=[8], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--db_radius', nargs=1, dest='dbscan_dist', default=[20], type=float, help=argparse.SUPPRESS)
@@ -411,7 +411,6 @@ try:
 	import MDAnalysis.analysis.distances
 	#set MDAnalysis to use periodic boundary conditions
 	MDAnalysis.core.flags['use_periodic_selections'] = True
-	MDAnalysis.core.flags['use_KDTree_routines'] = False
 	MDAnalysis.core.flags['use_KDTree_routines'] = False
 except:
 	print "Error: you need to install the MDAnalysis module first. See http://mdanalysis.googlecode.com"
@@ -1645,16 +1644,24 @@ def get_distances(box_dim):
 		dist_matrix=MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_proteins_coords), numpy.float32(tmp_proteins_coords), box_dim)
 
 	return dist_matrix
-def calculate_cog(sele):				#TO UPDATE
+def calculate_cog(sele, box_dim):				#TO UPDATE
 	
-	#to do:
-	# move all particles into the same quadrant (translate by the appropriate box dim)
-	# calc center of geometry
-	# check it's in the box and put it back in if necessary
+	#this method allows to take pbc into account when calculcating the center of geometry 
+	#see: http://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
 	
-	tmp_cog=sele.centerOfGeometry()
+	cog_coord = numpy.zeros(3)
+	for n in range(0,3):
+		tet = {}
+		xsi = {}
+		zet = {}
+		for part_index in range(0,sele.numberOfAtoms()):
+			tet[part_index] = sele.coordinates()[part_index,n]*2*math.pi/float(box_dim[n])
+			xsi[part_index] = math.cos(tet[part_index])
+			zet[part_index] = math.sin(tet[part_index])
+		tet_avg = math.atan2(-numpy.average(zet.values()),-numpy.average(xsi.values())) + math.pi
+		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
-	return tmp_cog
+	return cog_coord
 def calculate_radial(f_nb):
 	
 	global radial_step
@@ -1862,7 +1869,7 @@ def calculate_radial(f_nb):
 			for c_sele in tmp_cluster_selections[c_size]:
 				#retrieve COG coords of current cluster
 				tmp_c_cog = numpy.zeros((1,3))
-				tmp_c_cog[0,:] = calculate_cog(c_sele)
+				tmp_c_cog[0,:] = calculate_cog(c_sele, U.trajectory.ts.dimensions)
 
 				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
 				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].selectAtoms(leaflet_sele_string).coordinates(), U.trajectory.ts.dimensions)
