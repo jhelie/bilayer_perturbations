@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.4"
+version_nb="0.1.5"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1091,7 +1091,7 @@ def identify_leaflets():
 		else:
 			leaflet_sele["upper"]["all species"] = L.group(1)
 			leaflet_sele["lower"]["all species"] = L.group(0)
-		leaflet_sele["both"]["all species"] = leaflet_sele["lower"]["all species"] + leaflet_sele["lower"]["all species"]
+		leaflet_sele["both"]["all species"] = leaflet_sele["lower"]["all species"] + leaflet_sele["upper"]["all species"]
 		if numpy.shape(L.groups())[0]==2:
 			print " -found 2 leaflets: ", leaflet_sele["upper"]["all species"].numberOfResidues(), '(upper) and ', leaflet_sele["lower"]["all species"].numberOfResidues(), '(lower) lipids'
 		else:
@@ -1152,7 +1152,8 @@ def identify_species():
 		for s in leaflet_species[l]:
 			leaflet_ratio[l][s] = round(leaflet_sele[l][s].numberOfResidues()/float(leaflet_sele[l]["all species"].numberOfResidues())*100,1)
 			membrane_comp[l] += " " + s + " (" + str(leaflet_ratio[l][s]) + "%)"
-		print membrane_comp[l]
+	print membrane_comp["upper"]
+	print membrane_comp["lower"]
 	
 	#create individual lipid selections
 	for l in ["lower","upper"]:
