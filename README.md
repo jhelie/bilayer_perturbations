@@ -22,13 +22,6 @@ Features
 - statistics and graphs broken by species / leaflet
 - automatic detection of protein and TM clusters 
 - output files for visualisation in VMD
-
-To do
------
-- cluster groups: average data, plot it
-- cog_pbc routine....
-
-To test
---beads and --tails option
-effect of end of line in input files
+- customisable lipids selection and definition
+- different leaflet identifications method (1 suitable for very large systems)
 
