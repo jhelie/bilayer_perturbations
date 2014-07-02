@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.5-dev1"
+version_nb="0.1.5-dev2"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -859,6 +859,12 @@ def load_MDA_universe():
 		nb_frames_xtc = U.trajectory.numframes
 		nb_frames_processed = 0
 		U.trajectory.rewind()
+		#sanity check
+		if U.trajectory.time/float(1000) < args.t_start:
+			print "Error: the trajectory duration (" + str(U.trajectory.time/float(1000)) + "ns) is shorted than the starting stime specified (" + str(args.t_start) + "ns)."
+			sys.exit(1)
+		if U.trajectory.numframes < args.frames_dt:
+			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) ") than the frame step specified (" + str(args.frames_dt) + ")."
 	
 	#check the leaflet selection string is valid
 	test_beads = U.selectAtoms(leaflet_sele_string)
@@ -1389,7 +1395,7 @@ def initialise_colours_and_groups():
 # data structures
 #=========================================================================================
 
-def data_struct_time():
+def data_struct_time():													#updated
 
 	global frames_nb
 	global frames_time
@@ -1397,7 +1403,7 @@ def data_struct_time():
 	frames_time = []
 
 	return
-def data_struct_radial():
+def data_struct_radial():												#optimised
 		
 	#density
 	#-------
@@ -1413,13 +1419,7 @@ def data_struct_radial():
 			radial_density[l][s]["all sizes"]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
 			radial_density[l][s]["all sizes"]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
 			if args.cluster_groups_file != "no":
-				radial_density[l][s]["groups"] = {}
-				for g_index in range(0,groups_number+1):
-					radial_density[l][s]["groups"][g_index] = {}
-					radial_density[l][s]["groups"][g_index]["nb"] = {}
-					radial_density[l][s]["groups"][g_index]["pc"] = {}
-					radial_density[l][s]["groups"][g_index]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
-					radial_density[l][s]["groups"][g_index]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+				radial_density[l][s]["groups"] = {g_index: {k: {"all frames": numpy.zeros(args.radial_nb_bins)} for k in ["nb","pc"]} for g_index in range(0,groups_number+1)}
 					
 	#thickness
 	#---------
@@ -1430,28 +1430,11 @@ def data_struct_radial():
 			radial_thick[s] = {}
 			radial_thick[s]["avg"] = {}
 			radial_thick[s]["std"] = {}
-			radial_thick[s]["avg"]["all sizes"] = {}
-			radial_thick[s]["std"]["all sizes"] = {}
-			radial_thick[s]["avg"]["all sizes"]["all frames"] = {}
-			radial_thick[s]["std"]["all sizes"]["all frames"] = {}
+			radial_thick[s]["avg"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
+			radial_thick[s]["std"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
 			if args.cluster_groups_file != "no":
-				radial_thick[s]["avg"]["groups"] = {}
-				radial_thick[s]["std"]["groups"] = {}
-				for g_index in range(0,groups_number+1):
-					radial_thick[s]["avg"]["groups"][g_index] = {}
-					radial_thick[s]["std"]["groups"][g_index] = {}
-					radial_thick[s]["avg"]["groups"][g_index]["all frames"] = {}
-					radial_thick[s]["std"]["groups"][g_index]["all frames"] = {}
-		for n in range(0,args.radial_nb_bins):
-			radial_thick["all species"]["avg"]["all sizes"]["all frames"][n] = []
-			radial_thick["all species"]["std"]["all sizes"]["all frames"][n] = []
-			for s in leaflet_species["both"] + ["all species"]:
-				radial_thick[s]["avg"]["all sizes"]["all frames"][n] = []
-				radial_thick[s]["std"]["all sizes"]["all frames"][n] = []
-				if args.cluster_groups_file != "no":
-					for g_index in range(0,groups_number+1):
-						radial_thick[s]["avg"]["groups"][g_index]["all frames"][n] = []
-						radial_thick[s]["std"]["groups"][g_index]["all frames"][n] = []
+				radial_thick[s]["avg"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
+				radial_thick[s]["std"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
 
 	#order parameter
 	#---------------
@@ -1464,29 +1447,12 @@ def data_struct_radial():
 				radial_op[l][s] = {}
 				radial_op[l][s]["avg"] = {}
 				radial_op[l][s]["std"] = {}
-				radial_op[l][s]["avg"]["all sizes"] = {}
-				radial_op[l][s]["std"]["all sizes"] = {}
-				radial_op[l][s]["avg"]["all sizes"]["all frames"] = {}
-				radial_op[l][s]["std"]["all sizes"]["all frames"] = {}
+				radial_op[l][s]["avg"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
+				radial_op[l][s]["std"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
 				if args.cluster_groups_file != "no":
-					radial_op[l][s]["avg"]["groups"] = {}
-					radial_op[l][s]["std"]["groups"] = {}
-					for g_index in range(0,groups_number+1):
-						radial_op[l][s]["avg"]["groups"][g_index] = {}
-						radial_op[l][s]["std"]["groups"][g_index] = {}	
-						radial_op[l][s]["avg"]["groups"][g_index]["all frames"] = {}
-						radial_op[l][s]["std"]["groups"][g_index]["all frames"] = {}
-			for n in range(0,args.radial_nb_bins):
-				radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][n] = []
-				radial_op[l]["all species"]["std"]["all sizes"]["all frames"][n] = []
-				for s in op_lipids_handled[l] + ["all species"]:
-					radial_op[l][s]["avg"]["all sizes"]["all frames"][n] = []
-					radial_op[l][s]["std"]["all sizes"]["all frames"][n] = []
-					if args.cluster_groups_file != "no":
-						for g_index in range(0,groups_number+1):
-							radial_op[l][s]["avg"]["groups"][g_index]["all frames"][n] = []
-							radial_op[l][s]["std"]["groups"][g_index]["all frames"][n] = []	
-						
+					radial_op[l][s]["avg"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
+					radial_op[l][s]["std"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
+
 	return
 def data_struct_thick():												#partly optimised
 
@@ -1523,18 +1489,18 @@ def data_struct_op_ff():												#updated
 	global lipids_op_ff_tailA
 	global lipids_op_ff_tailB
 	global lipids_op_ff_tails
-	global lipids_op_ff_tailA_smooth
-	global lipids_op_ff_tailB_smooth
-	global lipids_op_ff_tails_smooth
+	global lipids_op_ff_tailA_smoothed
+	global lipids_op_ff_tailB_smoothed
+	global lipids_op_ff_tails_smoothed
 	
 	z_lower = []
 	z_upper = []
 	lipids_op_ff_tailA = {}
 	lipids_op_ff_tailB = {}
 	lipids_op_ff_tails = {}
-	lipids_op_ff_tailA_smooth = {}
-	lipids_op_ff_tailB_smooth = {}
-	lipids_op_ff_tails_smooth = {}
+	lipids_op_ff_tailA_smoothed = {}
+	lipids_op_ff_tailB_smoothed = {}
+	lipids_op_ff_tails_smoothed = {}
 	for l_index in range(0,lipids_ff_nb):
 		z_ff[l_index] = []
 		lipids_op_ff_tailA[l_index] = {}
@@ -1628,7 +1594,7 @@ def calculate_cog(sele, box_dim):										#optimised
 		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
 	return cog_coord
-def calculate_radial(f_nb):												#partly optimised
+def calculate_radial(f_time, f_write):									#partly optimised
 	
 	global radial_step
 	
@@ -1641,8 +1607,8 @@ def calculate_radial(f_nb):												#partly optimised
 		tmp_groups = detect_clusters_density(get_distances(U.trajectory.ts.dimensions), U.trajectory.ts.dimensions)
 	
 	#store cluster size and selection
-	radial_sizes[f_nb] = []
-	radial_groups[f_nb] = []
+	radial_sizes["current"] = []
+	radial_groups["current"] = []
 	tmp_cluster_selections = {}
 	for g in tmp_groups:		
 		#create selection for current cluster
@@ -1658,34 +1624,32 @@ def calculate_radial(f_nb):												#partly optimised
 
 		#store current cluster details if it is a TM cluster
 		if numpy.size(dist[dist>0]) != numpy.size(dist) and numpy.size(dist[dist>0]) !=0:
-			if numpy.size(g) not in radial_sizes[f_nb]:
-				radial_sizes[f_nb].append(numpy.size(g))
+			if numpy.size(g) not in radial_sizes["current"]:
+				radial_sizes["current"].append(numpy.size(g))
 				tmp_cluster_selections[numpy.size(g)]=[]
 			if args.cluster_groups_file != "no":
-				if groups_sizes_dict[numpy.size(g)] not in radial_groups[f_nb]:
-					radial_groups[f_nb].append(groups_sizes_dict[numpy.size(g)])
+				if groups_sizes_dict[numpy.size(g)] not in radial_groups["current"]:
+					radial_groups["current"].append(groups_sizes_dict[numpy.size(g)])
 			tmp_cluster_selections[numpy.size(g)].append(tmp_cluster_sele)
 		
-	#update individual sizes data structures
-	#=======================================
-	radial_sizes[f_nb] = sorted(list(numpy.unique(radial_sizes[f_nb])))
-	for c_size in radial_sizes[f_nb]:
+	#initialise individual sizes data structures
+	#===========================================
+	radial_sizes["current"] = sorted(list(numpy.unique(radial_sizes["current"])))
+	for c_size in radial_sizes["current"] + ["all sizes"]:
 		#add size if necessary						
 		#---------------------
-		if c_size not in radial_sizes["all frames"]:
+		if c_size not in radial_sizes["all frames"] and c_size != "all sizes":
 			radial_sizes["all frames"].append(c_size)
 			radial_sizes["all frames"] = sorted(radial_sizes["all frames"])
 			#density
 			for l in ["lower","upper"]:	
 				for s in leaflet_species[l] + ["all species"]:
 					radial_density[l][s][c_size] = {key: {"all frames": numpy.zeros(args.radial_nb_bins)} for key in ["nb","pc"]}
-				
 			#thickness
 			if args.perturb == 1 or args.perturb == 3:
 				for s in leaflet_species["both"] + ["all species"]:
 					radial_thick[s]["avg"][c_size] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
 					radial_thick[s]["std"][c_size] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
-				
 			#order parameter
 			if args.perturb == 2 or args.perturb == 3:
 				for l in ["lower","upper"]:					
@@ -1698,33 +1662,25 @@ def calculate_radial(f_nb):												#partly optimised
 		#density
 		for l in ["lower","upper"]:
 			for s in leaflet_species[l] + ["all species"]:
-				radial_density[l][s][c_size]["nb"][f_nb] = numpy.zeros(args.radial_nb_bins)
-				radial_density[l][s][c_size]["pc"][f_nb] = numpy.zeros(args.radial_nb_bins)
-				radial_density[l][s]["all sizes"]["nb"][f_nb] = numpy.zeros(args.radial_nb_bins)
-				radial_density[l][s]["all sizes"]["pc"][f_nb] = numpy.zeros(args.radial_nb_bins)
-
+				radial_density[l][s][c_size]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_density[l][s][c_size]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
 		#thickness
 		if args.perturb == 1 or args.perturb == 3:
 			for s in leaflet_species["both"] + ["all species"]:
-				radial_thick[s]["avg"][c_size][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-				radial_thick[s]["std"][c_size][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-				radial_thick[s]["avg"]["all sizes"][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-				radial_thick[s]["std"]["all sizes"][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-
+				radial_thick[s]["avg"][c_size]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
+				radial_thick[s]["std"][c_size]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
 		#order param
 		if args.perturb == 2 or args.perturb == 3:
 			for l in ["lower","upper"]:
 				for s in op_lipids_handled[l] + ["all species"]:
-					radial_op[l][s]["avg"][c_size][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-					radial_op[l][s]["std"][c_size][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-					radial_op[l][s]["avg"]["all sizes"][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-					radial_op[l][s]["std"]["all sizes"][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
+					radial_op[l][s]["avg"][c_size]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
+					radial_op[l][s]["std"][c_size]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
 
-	#update size groups data structures
-	#==================================
+	#initialise size groups data structures
+	#======================================
 	if args.cluster_groups_file != "no":
-		radial_groups[f_nb] = sorted(list(numpy.unique(radial_groups[f_nb])))
-		for g_index in radial_groups[f_nb]:
+		radial_groups["current"] = sorted(list(numpy.unique(radial_groups["current"])))
+		for g_index in radial_groups["current"]:
 			#add group if necessary
 			#----------------------
 			if g_index not in radial_groups["all frames"]:
@@ -1736,21 +1692,19 @@ def calculate_radial(f_nb):												#partly optimised
 			#density
 			for l in ["lower","upper"]:
 				for s in leaflet_species[l] + ["all species"]:
-					radial_density[l][s]["groups"][g_index]["nb"][f_nb] = numpy.zeros(args.radial_nb_bins)
-					radial_density[l][s]["groups"][g_index]["pc"][f_nb] = numpy.zeros(args.radial_nb_bins)
-
+					radial_density[l][s]["groups"][g_index]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
+					radial_density[l][s]["groups"][g_index]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
 			#thickness
 			if args.perturb == 1 or args.perturb == 3:
 				for s in leaflet_species["both"] + ["all species"]:
-					radial_thick[s]["avg"]["groups"][g_index][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-					radial_thick[s]["std"]["groups"][g_index][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-
+					radial_thick[s]["avg"]["groups"][g_index]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
+					radial_thick[s]["std"]["groups"][g_index]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
 			#order param
 			if args.perturb == 2 or args.perturb == 3:
 				for l in ["lower","upper"]:
 					for s in op_lipids_handled[l] + ["all species"]:
-						radial_op[l][s]["avg"]["groups"][g_index][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
-						radial_op[l][s]["std"]["groups"][g_index][f_nb] = {n: [] for n in range(0,args.radial_nb_bins)}
+						radial_op[l][s]["avg"]["groups"][g_index]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
+						radial_op[l][s]["std"]["groups"][g_index]["current"] = {n: [] for n in range(0,args.radial_nb_bins)}
 
 	#deal with lipids around them
 	#============================
@@ -1758,7 +1712,7 @@ def calculate_radial(f_nb):												#partly optimised
 		tmp_resnames = leaflet_sele[l]["all species"].resnames()
 		tmp_resnums = numpy.zeros((1,leaflet_sele[l]["all species"].numberOfResidues()))
 		tmp_resnums[0,:] = leaflet_sele[l]["all species"].resnums()
-		for c_size in radial_sizes[f_nb]:
+		for c_size in radial_sizes["current"]:
 			for c_sele in tmp_cluster_selections[c_size]:
 				#retrieve COG coords of current cluster
 				tmp_c_cog = numpy.zeros((1,3))
@@ -1780,17 +1734,17 @@ def calculate_radial(f_nb):												#partly optimised
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
-						radial_density[l][r_specie][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l][r_specie]["all sizes"]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"]["all sizes"]["nb"][f_nb][r_bin] += 1
+						radial_density[l][r_specie][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l][r_specie]["all sizes"]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"]["all sizes"]["nb"]["current"][r_bin] += 1
 						radial_density[l][r_specie][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
-							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
+							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 				
@@ -1804,34 +1758,34 @@ def calculate_radial(f_nb):												#partly optimised
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
-						radial_density[l][r_specie][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l][r_specie]["all sizes"]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"]["all sizes"]["nb"][f_nb][r_bin] += 1
+						radial_density[l][r_specie][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l][r_specie]["all sizes"]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"]["all sizes"]["nb"]["current"][r_bin] += 1
 						radial_density[l][r_specie][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
-							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
+							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 
 						#thickness
-						radial_thick["all species"]["avg"][c_size][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick["all species"]["avg"]["all sizes"][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"][c_size][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"]["all sizes"][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
+						radial_thick["all species"]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 						if args.cluster_groups_file != "no":
-							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
+							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 
 				#case: density + order parameters
 				elif args.perturb == 2:
@@ -1843,35 +1797,35 @@ def calculate_radial(f_nb):												#partly optimised
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 
 						#density
-						radial_density[l][r_specie][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l][r_specie]["all sizes"]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"]["all sizes"]["nb"][f_nb][r_bin] += 1
+						radial_density[l][r_specie][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l][r_specie]["all sizes"]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"]["all sizes"]["nb"]["current"][r_bin] += 1
 						radial_density[l][r_specie][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
-							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
+							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 					
 						#order parameters
 						if r_specie in op_lipids_handled[l]:
-							radial_op[l][r_specie]["avg"][c_size][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l][r_specie]["avg"]["all sizes"][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"][c_size][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"]["all sizes"][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
+							radial_op[l][r_specie]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l][r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 							if args.cluster_groups_file != "no":
-								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
+								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 				
 				#case: density + thickness + order parameters
 				else:
@@ -1883,178 +1837,181 @@ def calculate_radial(f_nb):												#partly optimised
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
-						radial_density[l][r_specie][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l][r_specie]["all sizes"]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"][c_size]["nb"][f_nb][r_bin] += 1
-						radial_density[l]["all species"]["all sizes"]["nb"][f_nb][r_bin] += 1
+						radial_density[l][r_specie][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l][r_specie]["all sizes"]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"][c_size]["nb"]["current"][r_bin] += 1
+						radial_density[l]["all species"]["all sizes"]["nb"]["current"][r_bin] += 1
 						radial_density[l][r_specie][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
-							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"][f_nb][r_bin] += 1
+							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
+							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][groups_sizes_dict[c_size]]["nb"]["all frames"][r_bin] += 1
 													
 						#thickness
-						radial_thick["all species"]["avg"][c_size][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick["all species"]["avg"]["all sizes"][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"][c_size][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"]["all sizes"][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
+						radial_thick["all species"]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 						if args.cluster_groups_file != "no":
-							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
-							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie][f_nb])
+							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick[r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 
 						#order parameters
 						if r_specie in op_lipids_handled[l]:
-							radial_op[l][r_specie]["avg"][c_size][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l][r_specie]["avg"]["all sizes"][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"][c_size][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"]["all sizes"][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
+							radial_op[l][r_specie]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l][r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 							if args.cluster_groups_file != "no":
-								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]][f_nb][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
-								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie][f_nb])
+								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+								radial_op[l][r_specie]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+								radial_op[l]["all species"]["avg"]["groups"][groups_sizes_dict[c_size]]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
+
+	#produce outputs if necessary
+	#============================
+	if f_write:
+		calculate_radial_data("current")
+		radial_density_frame_xvg_write("current", f_time)
+		radial_density_frame_xvg_graph("current", f_time)
+		if args.perturb == 1 or args.perturb == 3:
+			radial_thick_frame_xvg_write("current", f_time)
+			radial_thick_frame_xvg_graph("current", f_time)
+		if args.perturb == 2 or args.perturb == 3:
+			radial_op_frame_xvg_write("current", f_time)
+			radial_op_frame_xvg_graph("current", f_time)
 	
 	return
-def calculate_radial_data():
+def calculate_radial_data(f_nb):										#partly optimised
 	
-	#case: density
-	#=============
+	#NB: f_nb is either set to "current" (for on the fly outputting) or to "all frames" (for post-processing statistics)
+	
+	#density
+	#-------
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
-			#individual sizes
-			for c_size in radial_sizes["all frames"] + ["all sizes"]:
-				for f_nb in radial_density[l][s][c_size]["nb"].keys():			#f_nb can be "all frames"...
-					for n in range(0,args.radial_nb_bins):								
-						if radial_density[l]["all species"][c_size]["nb"][f_nb][n] != 0:
-							radial_density[l][s][c_size]["pc"][f_nb][n] = radial_density[l][s][c_size]["nb"][f_nb][n] / float(radial_density[l]["all species"][c_size]["nb"][f_nb][n])*100
-			#size groups
+			for c_size in radial_sizes[f_nb] + ["all sizes"]:
+				radial_density[l][s][c_size]["pc"][f_nb] = map(lambda n: radial_density[l][s][c_size]["nb"][f_nb][n] / float(radial_density[l]["all species"][c_size]["nb"][f_nb][n])*100 if radial_density[l]["all species"][c_size]["nb"][f_nb][n] != 0 else 0, range(0,args.radial_nb_bins))
 			if args.cluster_groups_file != "no":
-				if groups_number in radial_groups["all frames"]:
+				if groups_number in radial_groups[f_nb]:
 					group_max = groups_number + 1
 				else:
 					group_max = groups_number
 				for g_index in range(0, group_max):
-					for f_nb in radial_density[l][s]["groups"][g_index]["nb"].keys():			#f_nb can be "all frames"...
-						for n in range(0,args.radial_nb_bins):								
-							if radial_density[l]["all species"]["groups"][g_index]["nb"][f_nb][n] != 0:
-								radial_density[l][s]["groups"][g_index]["pc"][f_nb][n] = radial_density[l][s]["groups"][g_index]["nb"][f_nb][n] / float(radial_density[l]["all species"]["groups"][g_index]["nb"][f_nb][n])*100							
+					radial_density[l][s]["groups"][g_index]["pc"][f_nb] = map(lambda n:radial_density[l][s]["groups"][g_index]["nb"][f_nb][n] / float(radial_density[l]["all species"]["groups"][g_index]["nb"][f_nb][n])*100 if radial_density[l]["all species"]["groups"][g_index]["nb"][f_nb][n] != 0 else 0, range(0,args.radial_nb_bins))
 												
-	#case: thickness
-	#===============
+	#thickness
+	#---------
 	if args.perturb == 1 or args.perturb == 3:		
 		for s in leaflet_species["both"] + ["all species"]:
 			#individual sizes
-			for c_size in radial_sizes["all frames"] + ["all sizes"]:
-				for f_nb in radial_thick[s]["avg"][c_size].keys():			#f_nb can be "all frames"...
-					for n in range(0,args.radial_nb_bins):			
-						if s != "all species":
-							if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s][c_size]["nb"][f_nb][n] == 0 and radial_density["upper"][s][c_size]["nb"][f_nb][n] == 0):
-								radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
-								radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
-							elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s][c_size]["nb"][f_nb][n] == 0 :
-								radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
-								radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
-							elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s][c_size]["nb"][f_nb][n] == 0 :
-								radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
-								radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
-							else:
-								tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_nb][n])
-								tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_nb][n])
-								radial_thick[s]["avg"][c_size][f_nb][n] = tmp_avg
-								radial_thick[s]["std"][c_size][f_nb][n] = tmp_std
+			for c_size in radial_sizes[f_nb] + ["all sizes"]:
+				for n in range(0,args.radial_nb_bins):
+					if s != "all species":
+						if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s][c_size]["nb"][f_nb][n] == 0 and radial_density["upper"][s][c_size]["nb"][f_nb][n] == 0):
+							radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
+							radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
+						elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s][c_size]["nb"][f_nb][n] == 0 :
+							radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
+							radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
+						elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s][c_size]["nb"][f_nb][n] == 0 :
+							radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
+							radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
 						else:
-							if radial_density["lower"]["all species"][c_size]["nb"][f_nb][n] == 0 and radial_density["upper"]["all species"][c_size]["nb"][f_nb][n] == 0:
-								radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
-								radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
-							else:
-								tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_nb][n])
-								tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_nb][n])
-								radial_thick[s]["avg"][c_size][f_nb][n] = tmp_avg
-								radial_thick[s]["std"][c_size][f_nb][n] = tmp_std
+							tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_nb][n])
+							tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_nb][n])
+							radial_thick[s]["avg"][c_size][f_nb][n] = tmp_avg
+							radial_thick[s]["std"][c_size][f_nb][n] = tmp_std
+					else:
+						if radial_density["lower"]["all species"][c_size]["nb"][f_nb][n] == 0 and radial_density["upper"]["all species"][c_size]["nb"][f_nb][n] == 0:
+							radial_thick[s]["avg"][c_size][f_nb][n] = numpy.nan
+							radial_thick[s]["std"][c_size][f_nb][n] = numpy.nan
+						else:
+							tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_nb][n])
+							tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_nb][n])
+							radial_thick[s]["avg"][c_size][f_nb][n] = tmp_avg
+							radial_thick[s]["std"][c_size][f_nb][n] = tmp_std
 							
 			#size groups
 			if args.cluster_groups_file != "no":
-				if groups_number in radial_groups["all frames"]:
+				if groups_number in radial_groups[f_nb]:
 					group_max = groups_number + 1
 				else:
 					group_max = groups_number
 				for g_index in range(0, group_max):
-					for f_nb in radial_thick[s]["avg"]["groups"][g_index].keys():			#f_nb can be "all frames"...
-						for n in range(0,args.radial_nb_bins):								
-							if s != "all species":
-								if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s]["groups"][g_index]["nb"][f_nb][n] == 0 and radial_density["upper"][s]["groups"][g_index]["nb"][f_nb][n] == 0):
-									radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
-									radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
-								elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s]["groups"][g_index]["nb"][f_nb][n] == 0 :
-									radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
-									radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
-								elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s]["groups"][g_index]["nb"][f_nb][n] == 0 :
-									radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
-									radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
-								else:
-									tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
-									tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
-									radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = tmp_avg
-									radial_thick[s]["std"]["groups"][g_index][f_nb][n] = tmp_std
+					for n in range(0,args.radial_nb_bins):								
+						if s != "all species":
+							if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s]["groups"][g_index]["nb"][f_nb][n] == 0 and radial_density["upper"][s]["groups"][g_index]["nb"][f_nb][n] == 0):
+								radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
+								radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
+							elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s]["groups"][g_index]["nb"][f_nb][n] == 0 :
+								radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
+								radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
+							elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s]["groups"][g_index]["nb"][f_nb][n] == 0 :
+								radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
+								radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
 							else:
-								if radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_nb][n] == 0 and radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_nb][n] == 0:
-									radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
-									radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
-								else:
-									tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
-									tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
-									radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = tmp_avg
-									radial_thick[s]["std"]["groups"][g_index][f_nb][n] = tmp_std
+								tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
+								tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
+								radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = tmp_avg
+								radial_thick[s]["std"]["groups"][g_index][f_nb][n] = tmp_std
+						else:
+							if radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_nb][n] == 0 and radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_nb][n] == 0:
+								radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
+								radial_thick[s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
+							else:
+								tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
+								tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_nb][n])
+								radial_thick[s]["avg"]["groups"][g_index][f_nb][n] = tmp_avg
+								radial_thick[s]["std"]["groups"][g_index][f_nb][n] = tmp_std
 								
-	#case: order parameters
-	#======================
+	#order parameters
+	#----------------
 	if args.perturb == 2 or args.perturb == 3:
 		for l in ["lower","upper"]:
 			for s in op_lipids_handled[l] + ["all species"]:
 				#individual sizes
-				for c_size in radial_sizes["all frames"] + ["all sizes"]:
-					for f_nb in radial_op[l][s]["avg"][c_size].keys():			#f_nb can be "all frames"...
-						for n in range(0,args.radial_nb_bins):			
-							if radial_density[l][s][c_size]["nb"][f_nb][n] == 0:
-								radial_op[l][s]["avg"][c_size][f_nb][n] = numpy.nan
-								radial_op[l][s]["std"][c_size][f_nb][n] = numpy.nan
-							else:
-								tmp_avg = numpy.average(radial_op[l][s]["avg"][c_size][f_nb][n])
-								tmp_std = numpy.std(radial_op[l][s]["avg"][c_size][f_nb][n])
-								radial_op[l][s]["avg"][c_size][f_nb][n] = tmp_avg
-								radial_op[l][s]["std"][c_size][f_nb][n] = tmp_std
+				for c_size in radial_sizes[f_nb] + ["all sizes"]:
+					for n in range(0,args.radial_nb_bins):			
+						if radial_density[l][s][c_size]["nb"][f_nb][n] == 0:
+							radial_op[l][s]["avg"][c_size][f_nb][n] = numpy.nan
+							radial_op[l][s]["std"][c_size][f_nb][n] = numpy.nan
+						else:
+							tmp_avg = numpy.average(radial_op[l][s]["avg"][c_size][f_nb][n])
+							tmp_std = numpy.std(radial_op[l][s]["avg"][c_size][f_nb][n])
+							radial_op[l][s]["avg"][c_size][f_nb][n] = tmp_avg
+							radial_op[l][s]["std"][c_size][f_nb][n] = tmp_std
 
 				#size groups
 				if args.cluster_groups_file != "no":
-					if groups_number in radial_groups["all frames"]:
+					if groups_number in radial_groups[f_nb]:
 						group_max = groups_number + 1
 					else:
 						group_max = groups_number
 					for g_index in range(0, group_max):
-						for f_nb in radial_op[l][s]["avg"]["groups"][g_index].keys():			#f_nb can be "all frames"...
-							for n in range(0,args.radial_nb_bins):
-								if radial_density[l][s]["groups"][g_index]["nb"][f_nb][n] == 0:
-									radial_op[l][s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
-									radial_op[l][s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
-								else:
-									tmp_avg = numpy.average(radial_op[l][s]["avg"]["groups"][g_index][f_nb][n])
-									tmp_std = numpy.std(radial_op[l][s]["avg"]["groups"][g_index][f_nb][n])
-									radial_op[l][s]["avg"]["groups"][g_index][f_nb][n] = tmp_avg
-									radial_op[l][s]["std"]["groups"][g_index][f_nb][n] = tmp_std
+						for n in range(0,args.radial_nb_bins):
+							if radial_density[l][s]["groups"][g_index]["nb"][f_nb][n] == 0:
+								radial_op[l][s]["avg"]["groups"][g_index][f_nb][n] = numpy.nan
+								radial_op[l][s]["std"]["groups"][g_index][f_nb][n] = numpy.nan
+							else:
+								tmp_avg = numpy.average(radial_op[l][s]["avg"]["groups"][g_index][f_nb][n])
+								tmp_std = numpy.std(radial_op[l][s]["avg"]["groups"][g_index][f_nb][n])
+								radial_op[l][s]["avg"]["groups"][g_index][f_nb][n] = tmp_avg
+								radial_op[l][s]["std"]["groups"][g_index][f_nb][n] = tmp_std
 	
 	return
 def calculate_thickness(f_time, f_write):								#partly optimised
@@ -2207,40 +2164,36 @@ def calculate_order_parameters(f_time, f_write):						#partly optimised
 			lipids_op_ff_tails[l_index]["all frames"].append(numpy.average(lipids_op_ff_tailA[l_index]["current"], lipids_op_ff_tailB[l_index]["current"]))
 
 	return
-def detect_clusters_connectivity(dist, box_dim):
+def detect_clusters_connectivity(dist, box_dim):						#unchanged
 	
 	#use networkx algorithm
-	connected=(dist<args.cutoff_connect)
-	network=nx.Graph(connected)
-	groups=nx.connected_components(network)
+	connected = (dist<args.cutoff_connect)
+	network = nx.Graph(connected)
+	groups = nx.connected_components(network)
 	
 	return groups
-def detect_clusters_density(dist, box_dim):
+def detect_clusters_density(dist, box_dim):								#optimised
 	
 	#run DBSCAN algorithm
-	dbscan_output=DBSCAN(eps=args.dbscan_dist,metric='precomputed',min_samples=args.dbscan_nb).fit(dist)
+	dbscan_output = DBSCAN(eps=args.dbscan_dist,metric='precomputed',min_samples=args.dbscan_nb).fit(dist)
 
 	#build 'groups' structure i.e. a list whose element are all the clusters identified
-	groups=[]
+	groups = []
 	for c_lab in numpy.unique(dbscan_output.labels_):
-		tmp_pos=numpy.argwhere(dbscan_output.labels_==c_lab)
-		if c_lab==-1:
-			for p in tmp_pos:
-				groups.append([p[0]])
+		tmp_pos = numpy.argwhere(dbscan_output.labels_ == c_lab)
+		if c_lab == -1:
+			groups += map(lambda p:p[0] , tmp_pos)
 		else:
-			g=[]
-			for p in tmp_pos:
-				g.append(p[0])
-			groups.append(g)
+			groups.append(map(lambda p:p[0] , tmp_pos))
 
 	return groups
-def rolling_avg(loc_list):
+def rolling_avg(loc_list):												#unchanged	
 	
-	loc_arr=numpy.asarray(loc_list)
-	shape=(loc_arr.shape[-1]-args.nb_smoothing+1,args.nb_smoothing)
-	strides=(loc_arr.strides[-1],loc_arr.strides[-1])   	
+	loc_arr = numpy.asarray(loc_list)
+	shape = (loc_arr.shape[-1]-args.nb_smoothing+1,args.nb_smoothing)
+	strides = (loc_arr.strides[-1],loc_arr.strides[-1])   	
 	return numpy.average(numpy.lib.stride_tricks.as_strided(loc_arr, shape=shape, strides=strides), -1)
-def update_colours_sizes():
+def update_colours_sizes():												#unchanged	
 	global colours_sizes
 	colours_sizes = {}
 	tmp_cmap = cm.get_cmap('jet')
@@ -2252,13 +2205,13 @@ def update_colours_sizes():
 	return
 def smooth_data():														#updated
 	
-	global frames_time_smooth
-	global z_upper_smooth
-	global z_lower_smooth
-	global z_ff_smooth
+	global frames_time_smoothed
+	global z_upper_smoothed
+	global z_lower_smoothed
+	global z_ff_smoothed
 	
 	#time
-	frames_time_smooth = rolling_avg(frames_time)
+	frames_time_smoothed = rolling_avg(frames_time)
 
 	#thickness
 	if args.perturb == 1 or args.perturb == 3:
@@ -2273,15 +2226,14 @@ def smooth_data():														#updated
 				for tail in ["tailA","tailB","tails"]:
 					lipids_op_nff["smoothed"]["avg"][tail][l][s] = rolling_avg(lipids_op_nff["sorted"]["avg"][tail][l][s])
 					lipids_op_nff["smoothed"]["std"][tail][l][s] = rolling_avg(lipids_op_nff["sorted"]["avg"][tail][l][s])
-
 		if args.selection_file_ff!= "no":
-			z_upper_smooth = rolling_avg(z_upper)
-			z_lower_smooth = rolling_avg(z_lower)
+			z_upper_smoothed = rolling_avg(z_upper)
+			z_lower_smoothed = rolling_avg(z_lower)
 			for l_index in range(0,lipids_ff_nb):
-				z_ff_smooth[l_index] = rolling_avg(z_ff[l_index])
-				lipids_op_ff_tailA_smooth[l_index] = rolling_avg(lipids_op_ff_tailA[l_index])
-				lipids_op_ff_tailB_smooth[l_index] = rolling_avg(lipids_op_ff_tailB[l_index])
-				lipids_op_ff_tails_smooth[l_index] = rolling_avg(lipids_op_ff_tails[l_index])
+				z_ff_smoothed[l_index] = rolling_avg(z_ff[l_index])
+				lipids_op_ff_tailA_smoothed[l_index] = rolling_avg(lipids_op_ff_tailA[l_index]["all frames"])
+				lipids_op_ff_tailB_smoothed[l_index] = rolling_avg(lipids_op_ff_tailB[l_index]["all frames"])
+				lipids_op_ff_tails_smoothed[l_index] = rolling_avg(lipids_op_ff_tails[l_index]["all frames"])
 
 	return
 
@@ -2290,7 +2242,7 @@ def smooth_data():														#updated
 #=========================================================================================
 
 #thickness
-def thick_xvg_write():
+def thick_xvg_write():													#updated
 	
 	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/xvg/1_2_thickness_species.txt'
 	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/xvg/1_2_thickness_species.xvg'
@@ -2318,17 +2270,17 @@ def thick_xvg_write():
 		output_xvg.write("@ s" + str(len(leaflet_species["both"])+s_index) + " legend \"" + str(s) + " (std)\"\n")
 		output_txt.write("1_2_thickness_species.xvg," + str(len(leaflet_species["both"])+s_index+1) + "," + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
 	output_txt.close()
-	for f_nb in sorted(time_stamp.iterkeys()):
-		results = str(time_stamp[f_nb])
+	for f_index in range(0,len(frames_time)):
+		results = str(frames_time[f_index])
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(numpy.average(lipids_thick_nff["data"][s][f_nb]),2))
+			results += "	" + str(round(numpy.average(lipids_thick_nff["data"][s]["all frames"][f_index]),2))
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(numpy.std(lipids_thick_nff["data"][s][f_nb]),2))
+			results += "	" + str(round(numpy.std(lipids_thick_nff["data"][s]["all frames"][f_index]),2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def thick_xvg_write_smoothed():
+def thick_xvg_write_smoothed():											#updated
 	
 	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/xvg/1_4_thickness_species_smoothed.txt'
 	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/xvg/1_4_thickness_species_smoothed.xvg'
@@ -2356,17 +2308,17 @@ def thick_xvg_write_smoothed():
 		output_xvg.write("@ s" + str(len(leaflet_species["both"]) + s_index) + " legend \"" + str(s) + " (std)\"\n")
 		output_txt.write("1_4_thickness_species_smoothed.xvg," + str(len(leaflet_species["both"]) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
 	output_txt.close()
-	for t_index in range(0, len(frames_time_smoothed)):
-		results = str(frames_time_smoothed[t_index])
+	for f_index in range(0, len(frames_time_smoothed)):
+		results = str(frames_time_smoothed[f_index])
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(lipids_thick_nff["smoothed"]["avg"][s][t_index],2))
+			results += "	" + str(round(lipids_thick_nff["smoothed"]["avg"][s][f_index],2))
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(lipids_thick_nff["smoothed"]["std"][s][t_index],2))
+			results += "	" + str(round(lipids_thick_nff["smoothed"]["std"][s][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def thick_xvg_graph():
+def thick_xvg_graph():													#unchanged
 	
 	#create filenames
 	#----------------
@@ -2402,7 +2354,7 @@ def thick_xvg_graph():
 	plt.close()
 	
 	return
-def thick_xvg_graph_smoothed():
+def thick_xvg_graph_smoothed():											#unchanged
 	
 	#create filenames
 	#----------------
@@ -2554,7 +2506,7 @@ def thick_xtc_write_annotation():
 	return
 
 #order parameters
-def op_xvg_ff_write():
+def op_xvg_ff_write():													#updated
 	
 	#flipflops: upper to lower
 	if numpy.size(lipids_ff_u2l_index)>0:
@@ -2582,10 +2534,10 @@ def op_xvg_ff_write():
 			output_txt.write("4_3_order_param_ff_u2l.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
 			output_txt.write("4_3_order_param_ff_u2l.xvg," + str((3*l_index+2)+1) +"," + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
 		output_txt.close()
-		for f_nb in sorted(time_stamp.iterkeys()):
-			results = str(time_stamp[f_nb])
+		for f_index in range(0,len(frames_time)):
+			results = str(frames_time[f_index])
 			for l in lipids_ff_u2l_index:
-				results += "	" + str(round(lipids_op_ff_tailA[l][f_nb],2)) + "	" + str(round(lipids_op_ff_tailB[l][f_nb],2)) + "	" + str(round(lipids_op_ff_tails[l][f_nb],2))
+				results += "	" + str(round(lipids_op_ff_tailA[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tailB[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tails[l]["all frames"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 	
@@ -2615,15 +2567,15 @@ def op_xvg_ff_write():
 			output_txt.write("4_3_order_param_ff_l2u.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
 			output_txt.write("4_3_order_param_ff_l2u.xvg," + str((3*l_index+2)+1) +"," + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
 		output_txt.close()
-		for f_nb in sorted(time_stamp.iterkeys()):
-			results = str(time_stamp[f_nb])
+		for f_index in range(0,len(frames_time)):
+			results = str(frames_time[f_index])
 			for l in lipids_ff_l2u_index:
-				results+= "	" + str(round(lipids_op_ff_tailA[l][f_nb],2)) + "	" + str(round(lipids_op_ff_tailB[l][f_nb],2)) + "	" + str(round(lipids_op_ff_tails[l][f_nb],2))
+				results+= "	" + str(round(lipids_op_ff_tailA[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tailB[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tails[l]["all frames"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
 	return
-def op_xvg_ff_write_smoothed():
+def op_xvg_ff_write_smoothed():											#updated
 
 	#flipflops: upper to lower
 	if numpy.size(lipids_ff_u2l_index)>0:
@@ -2651,10 +2603,10 @@ def op_xvg_ff_write_smoothed():
 			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
 			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str((3*l_index+2)+1) +"," + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
 		output_txt.close()
-		for t_index in range(0, numpy.size(frames_time_smooth)):
-			results = str(frames_time_smooth[t_index])
+		for f_index in range(0, len(frames_time_smoothed)):
+			results = str(frames_time_smoothed[f_index])
 			for l in lipids_ff_u2l_index:
-				results+= "	" + str(round(lipids_op_ff_tailA_smooth[l][t_index],2)) + "	" + str(round(lipids_op_ff_tailB_smooth[l][t_index],2)) + "	" + str(round(lipids_op_ff_tails_smooth[l][t_index],2))
+				results+= "	" + str(round(lipids_op_ff_tailA_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tailB_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tails_smoothed[l][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 	
@@ -2684,15 +2636,15 @@ def op_xvg_ff_write_smoothed():
 			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
 			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str((3*l_index+2)+1) +"," + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
 		output_txt.close()
-		for t_index in range(0, numpy.size(frames_time_smooth)):
-			results = str(frames_time_smooth[t_index])
+		for f_index in range(0, len(frames_time_smoothed)):
+			results = str(frames_time_smoothed[f_index])
 			for l in lipids_ff_l2u_index:
-				results+= "	" + str(round(lipids_op_ff_tailA_smooth[l][t_index],2)) + "	" + str(round(lipids_op_ff_tailB_smooth[l][t_index],2)) + "	" + str(round(lipids_op_ff_tails_smooth[l][t_index],2))
+				results+= "	" + str(round(lipids_op_ff_tailA_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tailB_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tails_smoothed[l][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
 	return
-def op_xvg_ff_graph():
+def op_xvg_ff_graph():													#updated
 
 	#upper to lower flipflops
 	#========================
@@ -2700,38 +2652,20 @@ def op_xvg_ff_graph():
 
 		#create filenames
 		#----------------
-		filename_png=os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/png/4_2_order_param_ff_u2l.png'
-		filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/4_2_order_param_ff_u2l.svg'
+		filename_png = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/png/4_2_order_param_ff_u2l.png'
+		filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/4_2_order_param_ff_u2l.svg'
 		
 		#create figure
 		#-------------
-		fig=plt.figure(figsize=(8, 6.2))
+		fig = plt.figure(figsize=(8, 6.2))
 		fig.suptitle("Flipflopping lipids: upper to lower")
-	
-		#create data
-		#-----------
-		tmp_time=[]
-		tmp_z_ff={}
-		tmp_z_upper=[]
-		tmp_z_lower=[]
-		tmp_lipids_op_ff_tails={}
-		for l in lipids_ff_u2l_index:
-			tmp_z_ff[l]=[]
-			tmp_lipids_op_ff_tails[l]=[]
-		for f_nb in sorted(time_stamp.iterkeys()):
-			tmp_time.append(time_stamp[f_nb])
-			tmp_z_upper.append(z_upper[f_nb])
-			tmp_z_lower.append(z_lower[f_nb])
-			for l in lipids_ff_u2l_index:
-				tmp_z_ff[l].append(z_ff[l][f_nb])
-				tmp_lipids_op_ff_tails[l].append(lipids_op_ff_tails[l][f_nb])
 	
 		#plot data: order parameter
 		#--------------------------
 		ax1 = fig.add_subplot(211)
-		p_upper={}
+		p_upper = {}
 		for l in lipids_ff_u2l_index:
-			p_upper[l]=plt.plot(tmp_time, tmp_lipids_op_ff_tails[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_upper[l] = plt.plot(frames_time, lipids_op_ff_tails[l]["all frames"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2740,11 +2674,11 @@ def op_xvg_ff_graph():
 		#plot data: z coordinate
 		#-----------------------
 		ax2 = fig.add_subplot(212)
-		p_lower={}
-		p_lower["upper"]=plt.plot(tmp_time, tmp_z_upper, linestyle='dashed', color='k')
-		p_lower["lower"]=plt.plot(tmp_time, tmp_z_lower, linestyle='dashed', color='k')
+		p_lower = {}
+		p_lower["upper"] = plt.plot(frames_time, z_upper, linestyle='dashed', color='k')
+		p_lower["lower"] = plt.plot(frames_time, z_lower, linestyle='dashed', color='k')
 		for l in lipids_ff_u2l_index:
-			p_lower[l]=plt.plot(tmp_time, tmp_z_ff[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_lower[l] = plt.plot(frames_time, z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2771,38 +2705,20 @@ def op_xvg_ff_graph():
 
 		#create filenames
 		#----------------
-		filename_png=os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/png/4_2_order_param_ff_l2u.png'
-		filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/4_2_order_param_ff_l2u.svg'
+		filename_png = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/png/4_2_order_param_ff_l2u.png'
+		filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/4_2_order_param_ff_l2u.svg'
 		
 		#create figure
 		#-------------
-		fig=plt.figure(figsize=(8, 6.2))
-		fig.suptitle("Flipflopping lipids: upper to lower")
-	
-		#create data
-		#-----------
-		tmp_time=[]
-		tmp_z_ff={}
-		tmp_z_upper=[]
-		tmp_z_lower=[]
-		tmp_lipids_op_ff_tails={}
-		for l in lipids_ff_l2u_index:
-			tmp_z_ff[l]=[]
-			tmp_lipids_op_ff_tails[l]=[]
-		for f_nb in sorted(time_stamp.iterkeys()):
-			tmp_time.append(time_stamp[f_nb])
-			tmp_z_upper.append(z_upper[f_nb])
-			tmp_z_lower.append(z_lower[f_nb])
-			for l in lipids_ff_l2u_index:
-				tmp_z_ff[l].append(z_ff[l][f_nb])
-				tmp_lipids_op_ff_tails[l].append(lipids_op_ff_tails[l][f_nb])
-	
+		fig = plt.figure(figsize=(8, 6.2))
+		fig.suptitle("Flipflopping lipids: lower to upper")
+		
 		#plot data: order paramter
 		#-------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper={}
 		for l in lipids_ff_l2u_index:
-			p_upper[l]=plt.plot(tmp_time, tmp_lipids_op_ff_tails[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_upper[l] = plt.plot(frames_time, lipids_op_ff_tails[l]["all frames"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2811,11 +2727,11 @@ def op_xvg_ff_graph():
 		#plot data: z coordinate
 		#-----------------------
 		ax2 = fig.add_subplot(212)
-		p_lower={}
-		p_lower["upper"]=plt.plot(tmp_time, tmp_z_upper, linestyle='dashed', color='k')
-		p_lower["lower"]=plt.plot(tmp_time, tmp_z_lower, linestyle='dashed', color='k')
+		p_lower = {}
+		p_lower["upper"] = plt.plot(frames_time, z_upper, linestyle = 'dashed', color = 'k')
+		p_lower["lower"] = plt.plot(frames_time, z_lower, linestyle = 'dashed', color = 'k')
 		for l in lipids_ff_l2u_index:
-			p_lower[l]=plt.plot(tmp_time, tmp_z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_lower[l] = plt.plot(frames_time, z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2837,7 +2753,7 @@ def op_xvg_ff_graph():
 		plt.close()
 
 	return
-def op_xvg_ff_graph_smoothed():
+def op_xvg_ff_graph_smoothed():											#updated
 	
 	#upper to lower flipflops
 	#========================
@@ -2845,38 +2761,20 @@ def op_xvg_ff_graph_smoothed():
 
 		#create filenames
 		#----------------
-		filename_png=os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/png/4_4_order_param_ff_u2l_smoothed.png'
-		filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/4_4_order_param_ff_u2l_smoothed.svg'
+		filename_png = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/png/4_4_order_param_ff_u2l_smoothed.png'
+		filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/4_4_order_param_ff_u2l_smoothed.svg'
 		
 		#create figure
 		#-------------
 		fig=plt.figure(figsize=(8, 6.2))
 		fig.suptitle("Flipflopping lipids: upper to lower")
-	
-		#create data
-		#-----------
-		tmp_time=[]
-		tmp_z_ff={}
-		tmp_z_upper=[]
-		tmp_z_lower=[]
-		tmp_lipids_op_ff_tails={}
-		for l in lipids_ff_u2l_index:
-			tmp_z_ff[l]=[]
-			tmp_lipids_op_ff_tails[l]=[]
-		for t_index in range(0, numpy.size(frames_time_smooth)):
-			tmp_time.append(frames_time_smooth[t_index])
-			tmp_z_upper.append(z_upper_smooth[t_index])
-			tmp_z_lower.append(z_lower_smooth[t_index])
-			for l in lipids_ff_u2l_index:
-				tmp_z_ff[l].append(z_ff_smooth[l][t_index])
-				tmp_lipids_op_ff_tails[l].append(lipids_op_ff_tails_smooth[l][t_index])
-		
-		#plot data: order paramter
-		#-------------------------
+			
+		#plot data: order parameter
+		#--------------------------
 		ax1 = fig.add_subplot(211)
-		p_upper={}
+		p_upper = {}
 		for l in lipids_ff_u2l_index:
-			p_upper[l]=plt.plot(tmp_time, tmp_lipids_op_ff_tails[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_upper[l] = plt.plot(frames_time_smoothed, lipids_op_ff_tails_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2885,11 +2783,11 @@ def op_xvg_ff_graph_smoothed():
 		#plot data: z coordinate
 		#-----------------------
 		ax2 = fig.add_subplot(212)
-		p_lower={}
-		p_lower["upper"]=plt.plot(tmp_time, tmp_z_upper, linestyle='dashed', color='k')
-		p_lower["lower"]=plt.plot(tmp_time, tmp_z_lower, linestyle='dashed', color='k')
+		p_lower = {}
+		p_lower["upper"] = plt.plot(frames_time_smoothed, z_upper, linestyle = 'dashed', color = 'k')
+		p_lower["lower"] = plt.plot(frames_time_smoothed, z_lower, linestyle = 'dashed', color = 'k')
 		for l in lipids_ff_u2l_index:
-			p_lower[l]=plt.plot(tmp_time, tmp_z_ff[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_lower[l] = plt.plot(frames_time_smoothed, z_ff_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2922,32 +2820,14 @@ def op_xvg_ff_graph_smoothed():
 		#create figure
 		#-------------
 		fig=plt.figure(figsize=(8, 6.2))
-		fig.suptitle("Flipflopping lipids: lower to lower")
+		fig.suptitle("Flipflopping lipids: lower to upper")
 		
-		#create data
-		#-----------
-		tmp_time=[]
-		tmp_z_ff={}
-		tmp_z_upper=[]
-		tmp_z_lower=[]
-		tmp_lipids_op_ff_tails={}
-		for l in lipids_ff_l2u_index:
-			tmp_z_ff[l]=[]
-			tmp_lipids_op_ff_tails[l]=[]
-		for t_index in range(0, numpy.size(frames_time_smooth)):
-			tmp_time.append(frames_time_smooth[t_index])
-			tmp_z_upper.append(z_upper_smooth[t_index])
-			tmp_z_lower.append(z_lower_smooth[t_index])
-			for l in lipids_ff_l2u_index:
-				tmp_z_ff[l].append(z_ff_smooth[l][t_index])
-				tmp_lipids_op_ff_tails[l].append(lipids_op_ff_tails_smooth[l][t_index])
-
-		#plot data: order paramter
-		#-------------------------
+		#plot data: order parameter
+		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper={}
 		for l in lipids_ff_l2u_index:
-			p_upper[l]=plt.plot(tmp_time, tmp_lipids_op_ff_tails[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_upper[l] = plt.plot(frames_time_smoothed, lipids_op_ff_tails_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2956,11 +2836,11 @@ def op_xvg_ff_graph_smoothed():
 		#plot data: z coordinate
 		#-----------------------
 		ax2 = fig.add_subplot(212)
-		p_lower={}
-		p_lower["upper"]=plt.plot(tmp_time, tmp_z_upper, linestyle='dashed', color='k')
-		p_lower["lower"]=plt.plot(tmp_time, tmp_z_lower, linestyle='dashed', color='k')
+		p_lower ={}
+		p_lower["upper"] = plt.plot(frames_time_smoothed, z_upper_smoothed, linestyle = 'dashed', color = 'k')
+		p_lower["lower"] = plt.plot(frames_time_smoothed, z_lower_smoothed, linestyle = 'dashed', color = 'k')
 		for l in lipids_ff_l2u_index:
-			p_lower[l]=plt.plot(tmp_time, tmp_z_ff[l], label=str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+			p_lower[l] = plt.plot(frames_time_smoothed, z_ff_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2982,7 +2862,7 @@ def op_xvg_ff_graph_smoothed():
 		plt.close()
 
 	return
-def op_xvg_nff_write():
+def op_xvg_nff_write():													#updated
 	
 	#lipids in upper leaflet
 	filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/order_param/1_nff/xvg/1_3_order_param_nff_upper.txt'
@@ -3017,14 +2897,14 @@ def op_xvg_nff_write():
 		output_txt.write("1_3_order_param_nff_upper.xvg," + str(3*len(op_lipids_handled["upper"])+(3*s_index+1)+1) +"," + str(op_lipids_handled["upper"][s_index]) + " tail B (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["upper"][s_index])]) + "\n")
 		output_txt.write("1_3_order_param_nff_upper.xvg," + str(3*len(op_lipids_handled["upper"])+(3*s_index+2)+1) +"," + str(op_lipids_handled["upper"][s_index]) + " both (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["upper"][s_index])]) + "\n")
 	output_txt.close()
-	for f_nb in sorted(time_stamp.iterkeys()):
-		results=str(time_stamp[f_nb])
+	for f_index in range(0,len(frames_time)):
+		results = str(frames_time[f_index])
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["upper"][s][f_nb]),2))
+				results += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["upper"][s]["all frames"][f index]),2))
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["upper"][s][f_nb]),2))
+				results += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["upper"][s]["all frames"][f index]),2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
@@ -3061,19 +2941,19 @@ def op_xvg_nff_write():
 		output_txt.write("1_3_order_param_nff_lower.xvg," + str(3*len(op_lipids_handled["lower"])+(3*s_index+1)+1) +"," + str(op_lipids_handled["lower"][s_index]) + " tail B (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["lower"][s_index])]) + "\n")
 		output_txt.write("1_3_order_param_nff_lower.xvg," + str(3*len(op_lipids_handled["lower"])+(3*s_index+2)+1) +"," + str(op_lipids_handled["lower"][s_index]) + " both (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["lower"][s_index])]) + "\n")
 	output_txt.close()
-	for f_nb in sorted(time_stamp.iterkeys()):
-		results=str(time_stamp[f_nb])
+	for f_index in range(0,len(frames_time)):
+		results = str(frames_time[f_index])
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["lower"][s][f_nb]),2))
+				results += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["lower"][s]["all frames"][f index]),2))
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["lower"][s][f_nb]),2))
+				results += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["lower"][s]["all frames"][f index]),2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def op_xvg_nff_write_smoothed():
+def op_xvg_nff_write_smoothed():										#updated
 	
 	#lipids in upper leaflet
 	filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/order_param/1_nff/smoothed/xvg/1_5_order_param_nff_upper_smoothed.txt'
@@ -3108,14 +2988,14 @@ def op_xvg_nff_write_smoothed():
 		output_txt.write("1_3_order_param_nff_upper_smoothed.xvg," + str(3*len(op_lipids_handled["upper"])+(3*s_index+1)+1) +"," + str(op_lipids_handled["upper"][s_index]) + " tail B (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["upper"][s_index])]) + "\n")
 		output_txt.write("1_3_order_param_nff_upper_smoothed.xvg," + str(3*len(op_lipids_handled["upper"])+(3*s_index+2)+1) +"," + str(op_lipids_handled["upper"][s_index]) + " both (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["upper"][s_index])]) + "\n")
 	output_txt.close()
-	for t_index in range(0, numpy.size(frames_time_smooth)):
-		results=str(frames_time_smooth[t_index])
+	for f_index in range(0, len(frames_time_smoothed)):
+		results = str(frames_time_smoothed[f_index])
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["avg"][tail]["upper"][s][t_index],2))
+				results += "	" + str(round(lipids_op_nff["smoothed"]["avg"][tail]["upper"][s][f_index],2))
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["std"][tail]["upper"][s][t_index],2))
+				results += "	" + str(round(lipids_op_nff["smoothed"]["std"][tail]["upper"][s][f_index],2))
 		output_xvg.write(results)
 	output_xvg.close()
 
@@ -3152,19 +3032,19 @@ def op_xvg_nff_write_smoothed():
 		output_txt.write("1_3_order_param_nff_lower_smoothed.xvg," + str(3*len(op_lipids_handled["lower"])+(3*s_index+1)+1) +"," + str(op_lipids_handled["lower"][s_index]) + " tail B (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["lower"][s_index])]) + "\n")
 		output_txt.write("1_3_order_param_nff_lower_smoothed.xvg," + str(3*len(op_lipids_handled["lower"])+(3*s_index+2)+1) +"," + str(op_lipids_handled["lower"][s_index]) + " both (std)," + mcolors.rgb2hex(colours_lipids[str(op_lipids_handled["lower"][s_index])]) + "\n")
 	output_txt.close()
-	for t_index in range(0, numpy.size(frames_time_smooth)):
-		results=str(frames_time_smooth[t_index])
+	for f_index in range(0, len(frames_time_smoothed)):
+		results = str(frames_time_smoothed[f_index])
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["avg"][tail]["lower"][s][t_index],2))
+				results += "	" + str(round(lipids_op_nff["smoothed"]["avg"][tail]["lower"][s][f_index],2))
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["std"][tail]["lower"][s][t_index],2))
+				results += "	" + str(round(lipids_op_nff["smoothed"]["std"][tail]["lower"][s][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def op_xvg_nff_graph():
+def op_xvg_nff_graph():													#unchanged
 	
 	#create filenames
 	#----------------
@@ -3220,7 +3100,7 @@ def op_xvg_nff_graph():
 	plt.close()
 	
 	return
-def op_xvg_nff_graph_smoothed():
+def op_xvg_nff_graph_smoothed():										#unchanged
 	
 	#create filenames
 	#----------------
@@ -3502,7 +3382,7 @@ def op_xtc_write_annotation():
 #=========================================================================================
 
 #density
-def radial_density_frame_xvg_write(f_nb, f_time):	
+def radial_density_frame_xvg_write(f_nb, f_time):						#unchanged
 	global radial_step
 	
 	#individual sizes
@@ -3825,7 +3705,7 @@ def radial_density_frame_xvg_write(f_nb, f_time):
 			output_xvg.close()	
 		
 	return
-def radial_density_frame_xvg_graph(f_nb, f_time):
+def radial_density_frame_xvg_graph(f_nb, f_time):						#unchanged
 	
 	global radial_step
 	
@@ -4139,7 +4019,7 @@ def radial_density_frame_xvg_graph(f_nb, f_time):
 	return
 
 #thickness
-def radial_thick_frame_xvg_write(f_nb, f_time):	
+def radial_thick_frame_xvg_write(f_nb, f_time):							#unchanged
 	
 	global radial_step
 	
@@ -4406,7 +4286,7 @@ def radial_thick_frame_xvg_write(f_nb, f_time):
 			output_xvg.close()	
 	
 	return
-def radial_thick_frame_xvg_graph(f_nb, f_time):
+def radial_thick_frame_xvg_graph(f_nb, f_time):							#unchanged
 
 	global radial_step
 	
@@ -4667,7 +4547,7 @@ def radial_thick_frame_xvg_graph(f_nb, f_time):
 	return
 
 #order parameters
-def radial_op_frame_xvg_write(f_nb, f_time):	
+def radial_op_frame_xvg_write(f_nb, f_time):							#unchanged
 	
 	global radial_step
 	
@@ -5018,7 +4898,7 @@ def radial_op_frame_xvg_write(f_nb, f_time):
 			output_xvg.close()	
 
 	return
-def radial_op_frame_xvg_graph(f_nb, f_time):
+def radial_op_frame_xvg_graph(f_nb, f_time):							#unchanged
 	
 	global radial_step
 	
@@ -5423,61 +5303,63 @@ print "\nCalculating bilayer perturbations..."
 #==============
 if args.xtcfilename == "no":
 	time_stamp[1]=0
+	#bilayer properties
 	if args.perturb == 1 or args.perturb == 3:
-		calculate_thickness(1)
+		calculate_thickness(0, False)
 	if args.perturb == 2 or args.perturb == 3:
-		calculate_order_parameters(1)
+		calculate_order_parameters(0, False)
+	
+	#radial perturbations	
 	if args.radial:
 		calculate_radial(1)
+
 #case: xtc file
 #==============
 else:
-	for ts in U.trajectory:
-		if ts.time/float(1000) < args.t_start:
+	#create list of frame to process
+	#-------------------------------
+	f_start = 0
+	if args.t_start > 0:
+		for ts in U.trajectory:
 			progress = '\r -skipping frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '        '
 			sys.stdout.flush()
 			sys.stdout.write(progress)
-
-		elif ts.time/float(1000) > args.t_start and ts.time/float(1000) < args.t_end:
-			progress = '\r -processing frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '                      '  
-			sys.stdout.flush()
-			sys.stdout.write(progress)
-			if ((ts.frame-1) % args.frames_dt) == 0:
-				#frame details
-				f_time = ts.time/float(1000)
-				frames_nb.append(ts.frame)
-				frames_time.append(f_time)
-				if ((nb_frames_processed) % args.frames_write_dt) == 0 or nb_frames_processed == (nb_frames_xtc // args.frames_write_dt):
-					f_write = True
-				else:
-					f_write = False
-				#thickness
-				if args.perturb == 1 or args.perturb == 3:
-					calculate_thickness(f_time, f_write)
-				#order parameters
-				if args.perturb == 2 or args.perturb == 3:
-					calculate_order_parameters(f_time, f_write)
-
-				#radial perturbations
-				if args.radial:
-					calculate_radial()
-					if f_write:
-						#density
-						radial_density_frame_xvg_write("current", f_time)
-						radial_density_frame_xvg_graph("current", f_time)
-						#thickness
-						if args.perturb == 1 or args.perturb == 3:
-							radial_thick_frame_xvg_write("current", f_time)
-							radial_thick_frame_xvg_graph("current", f_time)
-						#order parameter
-						if args.perturb == 2 or args.perturb == 3:
-							radial_op_frame_xvg_write("current", f_time)
-							radial_op_frame_xvg_graph("current", f_time)
-				
-				nb_frames_processed += 1
-
-		elif ts.time/float(1000)>args.t_end:
+			if ts.time/float(1000) < args.t_start:
+				f_start = ts.frame-1
+				break
+	frames = map(lambda f:f_start + args.frames_dt*f, range(0,(nb_frames_xtc - f_start)//args.frames_dt))
+	
+	#process frames
+	#--------------
+	for frame in frames:
+		ts = U.trajectory[frame]
+		if ts.time/float(1000) > args.t_end:
 			break
+		progress = '\r -processing frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '                      '  
+		sys.stdout.flush()
+		sys.stdout.write(progress)
+		
+		#frame properties
+		f_time = ts.time/float(1000)
+		frames_nb.append(ts.frame)
+		frames_time.append(f_time)
+		if ((nb_frames_processed) % args.frames_write_dt) == 0 or nb_frames_processed == (nb_frames_xtc // args.frames_write_dt):
+			f_write = True
+		else:
+			f_write = False
+		
+		#bilayer properties
+		if args.perturb == 1 or args.perturb == 3:
+			calculate_thickness(f_time, f_write)
+		if args.perturb == 2 or args.perturb == 3:
+			calculate_order_parameters(f_time, f_write)
+
+		#radial perturbations
+		if args.radial:
+			calculate_radial(f_time, f_write)
+		
+		nb_frames_processed += 1
+
 	print ''
 
 #=========================================================================================
