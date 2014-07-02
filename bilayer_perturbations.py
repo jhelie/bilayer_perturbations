@@ -5364,7 +5364,7 @@ else:
 #=========================================================================================
 # process data
 #=========================================================================================
-print "\nProcessing results..."
+print "\nCalculating statistics..."
 if args.radial:
 	calculate_radial_data()
 	update_colours_sizes()
