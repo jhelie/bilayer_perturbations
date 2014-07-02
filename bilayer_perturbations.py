@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.5-dev2"
+version_nb="0.1.5-dev4"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -437,6 +437,10 @@ if args.beadsfilename != "no" and not os.path.isfile(args.beadsfilename):
 if args.tailsfilename != "no" and not os.path.isfile(args.tailsfilename):
 	print "Error: file " + str(args.tailsfilename) + " not found."
 	sys.exit(1)
+if args.t_end < args.t_start:
+	print "Error: the starting time (" + str(args.t_start) + "ns) for analysis is later than the ending time (" + str(args.t_end) + "ns)."
+	sys.exit(1)
+
 
 if args.xtcfilename=="no":
 	if '-t' in sys.argv:
@@ -864,7 +868,7 @@ def load_MDA_universe():
 			print "Error: the trajectory duration (" + str(U.trajectory.time/float(1000)) + "ns) is shorted than the starting stime specified (" + str(args.t_start) + "ns)."
 			sys.exit(1)
 		if U.trajectory.numframes < args.frames_dt:
-			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) ") than the frame step specified (" + str(args.frames_dt) + ")."
+			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) + ") than the frame step specified (" + str(args.frames_dt) + ")."
 	
 	#check the leaflet selection string is valid
 	test_beads = U.selectAtoms(leaflet_sele_string)
@@ -2273,9 +2277,9 @@ def thick_xvg_write():													#updated
 	for f_index in range(0,len(frames_time)):
 		results = str(frames_time[f_index])
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(numpy.average(lipids_thick_nff["data"][s]["all frames"][f_index]),2))
+			results += "	" + str(round(lipids_thick_nff["sorted"]["avg"][s][f_index],2))
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(numpy.std(lipids_thick_nff["data"][s]["all frames"][f_index]),2))
+			results += "	" + str(round(lipids_thick_nff["sorted"]["std"][s][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
@@ -2475,7 +2479,7 @@ def thick_frame_write_annotation(f_nb, f_time):							#optimised
 	output_stat.close()
 
 	return
-def thick_xtc_write_annotation():
+def thick_xtc_write_annotation():										#updated
 	
 	#create file
 	filename_details=os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
@@ -2485,22 +2489,19 @@ def thick_xtc_write_annotation():
 	tmp_sele_string = ""
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
-			for r_index in range(0,leaflet_sele[l][s].numberOfResidues()):
-				tmp_sele_string += "." + lipids_sele_nff_VMD_string[l][s][r_index]
+			tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
 	output_stat.write(tmp_sele_string[1:] + "\n")
 
 	#write min and max boundaries of thickness
 	output_stat.write(str(round(numpy.min(lipids_thick_nff["data"]["all species"]["all frames"]),2)) + ";" + str(round(numpy.max(lipids_thick_nff["data"]["all species"]["all frames"]),2)) + "\n")
 	
 	#ouptut thickness for each lipid
-	for f_nb in sorted(time_stamp.iterkeys()):
-		tmp_thick = str(f_nb)
+	for f_index in range(0,len(frames_time)):
+		tmp_thick = str(frames_nb[f_index])
 		for l in ["lower","upper"]:
 			for s in leaflet_species[l]:
-				for r_index in range(0,leaflet_sele[l][s].numberOfResidues()):
-					tmp_thick += ";" + str(round(lipids_thick_nff[l][s][r_index][f_nb],2))
+				tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index]["all frames"][f_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
 		output_stat.write(tmp_thick + "\n")
-			
 	output_stat.close()
 
 	return
@@ -2901,10 +2902,10 @@ def op_xvg_nff_write():													#updated
 		results = str(frames_time[f_index])
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["upper"][s]["all frames"][f index]),2))
+				results += "	" + str(round(lipids_op_nff["sorted"]["avg"][tail]["upper"][s][f_index],2))
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["upper"][s]["all frames"][f index]),2))
+				results += "	" + str(round(lipids_op_nff["sorted"]["std"][tail]["upper"][s][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
@@ -2945,10 +2946,10 @@ def op_xvg_nff_write():													#updated
 		results = str(frames_time[f_index])
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["lower"][s]["all frames"][f index]),2))
+				results += "	" + str(round(lipids_op_nff["sorted"]["avg"][tail]["lower"][s][f_index],2))
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["lower"][s]["all frames"][f index]),2))
+				results += "	" + str(round(lipids_op_nff["sorted"]["std"][tail]["lower"][s][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
@@ -3351,8 +3352,7 @@ def op_xtc_write_annotation():
 	tmp_sele_string=""
 	for l in ["lower","upper"]:
 		for s in op_lipids_handled[l]:
-			for r_index in range(0,leaflet_sele_atoms[l][s].numberOfResidues()):
-				tmp_sele_string+="." + lipids_sele_nff_VMD_string[l][s][r_index]
+			tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
 	#ff lipids
 	if args.selection_file_ff!="no":
 		for l in range(0,lipids_ff_nb):
@@ -3361,17 +3361,16 @@ def op_xtc_write_annotation():
 	
 	#ouptut order param for each lipid
 	#---------------------------------
-	for f_nb in sorted(time_stamp.iterkeys()):
-		tmp_ops = str(f_nb)
+	for f_index in range(0,len(frames_time)):
+		tmp_ops = str(frames_nb[f_index])
 		#nff lipids
 		for l in ["lower","upper"]:
 			for s in op_lipids_handled[l]:
-				for r_index in lipids_op_nff[l][s]:
-					tmp_ops += ";" + str(round(lipids_op_nff[l][s][r_index][f_nb],2))
+				tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s][r_index]["all frames"][f_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
 		#ff lipids
 		if args.selection_file_ff!="no":
 			for l in range(0,lipids_ff_nb):
-				tmp_ops += ";" + str(round(lipids_op_ff_tails[l][f_nb],2))
+				tmp_ops += ";" + str(round(lipids_op_ff_tails[l]["all frames"][f_index],2))
 		output_stat.write(tmp_ops + "\n")
 	output_stat.close()
 
@@ -5389,11 +5388,11 @@ if args.xtcfilename == "no":
 	#write annotation files for VMD
 	print " -writing VMD annotation files..."
 	if args.perturb == 1 or args.perturb == 3:
-		thick_frame_write_snapshot(1, 0)
-		thick_frame_write_annotation(1, 0)
+		thick_frame_write_snapshot("all frames", 0)
+		thick_frame_write_annotation("all frames", 0)
 	if args.perturb == 2 or args.perturb == 3:
-		op_frame_write_snapshot(1, 0)
-		op_frame_write_annotation(1, 0)
+		op_frame_write_snapshot("all frames", 0)
+		op_frame_write_annotation("all frames", 0)
 
 	#radials plots
 	if args.radial:
