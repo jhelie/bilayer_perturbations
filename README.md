@@ -25,3 +25,10 @@ Features
 - customisable lipids selection and definition
 - different leaflet identifications method (1 suitable for very large systems)
 - calculation of TM clusters center of geometry take pbc into account
+
+To do
+-----
+- add bead definition for flipflopping lipids to track z coordinate (in the --flipflops file add a 4th field)
+- browse xtc in a clever way by going straight to the relevant frames (find the first one then jump)
+- counter for creation of lipids individual selections
+- memory use management and optimisation (on the fly outputting?)
