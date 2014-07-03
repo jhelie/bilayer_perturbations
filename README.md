@@ -27,9 +27,4 @@ Features
 - calculation of TM clusters center of geometry take pbc into account
 - on the fly outputting
 
-To do
------
-- add bead definition for flipflopping lipids to track z coordinate (in the --flipflops file add a 4th field)
-- profile code to see where it's slow
-
 
