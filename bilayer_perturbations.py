@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.6-dev1"
+version_nb="0.1.7"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -910,15 +910,19 @@ def identify_ff():
 	global lipids_ff_u2l_index
 	global lipids_ff_l2u_index
 	global lipids_sele_ff
+	global lipids_sele_ff_bead
+	global lipids_sele_ff_bonds
 	global lipids_sele_ff_VMD_string
 	global leaflet_sele_string
 	lipids_ff_nb = 0
 	lipids_ff_info = {}
 	lipids_ff_resnames = []
 	lipids_ff_leaflet = []
-	lipids_ff_u2l_index=[]
-	lipids_ff_l2u_index=[]
-	lipids_sele_ff={}
+	lipids_ff_u2l_index = []
+	lipids_ff_l2u_index = []
+	lipids_sele_ff = {}
+	lipids_sele_ff_bead = {}
+	lipids_sele_ff_bonds = {}
 	lipids_sele_ff_VMD_string={}
 		
 	with open(args.selection_file_ff) as f:
@@ -968,6 +972,7 @@ def identify_ff():
 
 			#create selections
 			lipids_sele_ff[l_index] = U.selectAtoms("resname " + str(lip_resname) + " and resnum " + str(lip_resnum))
+			lipids_sele_ff_bead[l_index] = lipids_sele_ff[l_index].selectAtoms("name " + str(lip_bead))
 			lipids_sele_ff_VMD_string[l_index]="resname " + str(lipids_ff_info[l_index][0]) + " and resid " + str(lipids_ff_info[l_index][1])
 			if lipids_sele_ff[l_index].numberOfAtoms() == 0:
 				print "Error:"
@@ -1095,7 +1100,6 @@ def identify_leaflets():
 	#declare variables
 	global leaflet_sele
 	global leaflet_sele_atoms
-	global leaflet_sele_total_nb_atoms
 	leaflet_sele = {}
 	leaflet_sele_atoms = {}
 	for l in ["lower","upper","both"]:
@@ -1128,12 +1132,12 @@ def identify_leaflets():
 			leaflet_sele["upper"]["all species"] = L.group(1)
 			leaflet_sele["lower"]["all species"] = L.group(0)
 		leaflet_sele["both"]["all species"] = leaflet_sele["lower"]["all species"] + leaflet_sele["upper"]["all species"]
-		if numpy.shape(L.groups())[0]==2:
+		if numpy.shape(L.groups())[0] == 2:
 			print " -found 2 leaflets: ", leaflet_sele["upper"]["all species"].numberOfResidues(), '(upper) and ', leaflet_sele["lower"]["all species"].numberOfResidues(), '(lower) lipids'
 		else:
 			other_lipids=0
 			for g in range(2, numpy.shape(L.groups())[0]):
-				other_lipids+=L.group(g).numberOfResidues()
+				other_lipids += L.group(g).numberOfResidues()
 			print " -found " + str(numpy.shape(L.groups())[0]) + " groups: " + str(leaflet_sele["upper"]["all species"].numberOfResidues()) + "(upper), " + str(leaflet_sele["lower"]["all species"].numberOfResidues()) + "(lower) and " + str(other_lipids) + " (others) lipids respectively"
 	else:
 		leaflet_sele["both"]["all species"] = U.selectAtoms(leaflet_sele_string)
@@ -1145,10 +1149,7 @@ def identify_leaflets():
 	#store full selections
 	for l in ["lower","upper","both"]:
 		leaflet_sele_atoms[l]["all species"] = leaflet_sele[l]["all species"].residues.atoms
-		
-	#overal lipids selection
-	leaflet_sele_total_nb_atoms = leaflet_sele["both"]["all species"].numberOfAtoms()
-
+	
 	return
 def identify_species():													#partly optimised
 	print "\nIdentifying membrane composition..."
@@ -1159,17 +1160,24 @@ def identify_species():													#partly optimised
 	global membrane_comp
 	global leaflet_ratio
 	global leaflet_species
+	global leaflet_sele_bonds
 	global lipids_sele_nff
 	global lipids_sele_nff_VMD_string
-	global lipids_resnums_list
+	global lipids_resnums2rindex
+	global lipids_rindex2resnums
+	global lipids_rindex2rspecie
+	
 	op_bonds = {}
 	op_lipids_handled = {}
 	membrane_comp = {}
 	leaflet_ratio = {}
 	leaflet_species = {}
+	leaflet_sele_bonds = {}
 	lipids_sele_nff = {}
 	lipids_sele_nff_VMD_string = {}
-	lipids_resnums_list = {}
+	lipids_resnums2rindex = {}
+	lipids_rindex2resnums = {}
+	lipids_rindex2rspecie = {}
 	
 	#specie identification
 	for l in ["lower","upper","both"]:
@@ -1226,7 +1234,7 @@ def identify_species():													#partly optimised
 			op_bonds[s] = []
 			for bond_name in bond_names[s].split():
 				op_bonds[s].append(bond_name.split("-"))
-
+		
 		#check that flipflopping lipids are handled (if specified)
 		if args.selection_file_ff != "no":
 			for l_index in range(0, lipids_ff_nb):
@@ -1252,14 +1260,36 @@ def identify_species():													#partly optimised
 						print "->cannot calculate tail order parameters, choose a different --perturb option or use different inputs."
 						sys.exit(1)
 
+		#create bond selections
+		for l in ["lower","upper"]:
+			leaflet_sele_bonds[l] = {}
+			for s in op_lipids_handled[l]:
+				tail_A_start = tail_boundaries[s][0]
+				tail_B_start = tail_boundaries[s][2]
+				tail_A_length = tail_boundaries[s][1]
+				tail_B_length = tail_boundaries[s][3]
+				leaflet_sele_bonds[l][s] = {b_index: {k: leaflet_sele_atoms[l][s].selectAtoms("name " + str(op_bonds[s][b_index][k])) for k in [0,1]} for b_index in range(tail_A_start,tail_A_start+tail_A_length) + range(tail_B_start,tail_B_start+tail_B_length)}
+
+		if args.selection_file_ff != "no":
+			for l_index in range(0, lipids_ff_nb):
+				s = lipids_ff_info[l_index][0]
+				tail_A_start = tail_boundaries[s][0]
+				tail_B_start = tail_boundaries[s][2]
+				tail_A_length = tail_boundaries[s][1]
+				tail_B_length = tail_boundaries[s][3]
+				lipids_sele_ff_bonds[l_index] = {b_index: {k: lipids_sele_ff[l_index].selectAtoms("name " + str(op_bonds[s][b_index][k])) for k in [0,1]} for b_index in range(tail_A_start,tail_A_start+tail_A_length) + range(tail_B_start,tail_B_start+tail_B_length)}
+				
 	#create list of residues for each lipid specie		
 	for l in ["lower","upper"]:
-		lipids_resnums_list[l] = {}
-		lipids_resnums_list[l]["all species"] = list(leaflet_sele[l]["all species"].resnums())
-		for s in leaflet_species[l]:
-			lipids_resnums_list[l][s] = list(leaflet_sele[l][s].resnums())
+		lipids_resnums2rindex[l] = {}
+		lipids_rindex2resnums[l] = {}
+		lipids_rindex2rspecie[l] = {}
+		for s in leaflet_species[l] + ["all species"]:
+			lipids_resnums2rindex[l][s] = {r_num: list(leaflet_sele[l][s].resnums()).index(r_num) for r_num in leaflet_sele[l][s].resnums()}
+			lipids_rindex2resnums[l][s] = {r_index: leaflet_sele[l][s].resnums()[r_index] for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}			#for efficiency's sake (faster than calling resnums() every time)
+			lipids_rindex2rspecie[l][s] = {r_index: leaflet_sele[l][s].resnames()[r_index] for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}			#for efficiency's sake (faster than calling resnums() every time)
 		if args.perturb == 2 or args.perturb == 3:
-			lipids_resnums_list[l]["op"] = list(leaflet_sele[l]["op"].resnums())
+			lipids_resnums2rindex[l]["op"] = {r_num: list(leaflet_sele[l]["op"].resnums()).index(r_num) for r_num in leaflet_sele[l]["op"].resnums()}
 	
 	return
 def initialise_colours_and_groups():
@@ -1395,6 +1425,11 @@ def initialise_colours_and_groups():
 			tmp_end = bb[1]
 			for tmp_size in range(tmp_beg, tmp_end+1):
 				groups_sizes_dict[tmp_size] = g_index
+		for tmp_size in list(set(range(1,max(groups_sizes_dict.keys()))) - set(groups_sizes_dict.keys())): 		#this handles potentially unaccounted for sizes up to the maximum specified by the user
+			groups_sizes_dict[tmp_size] = groups_number
+		if max(groups_sizes_dict.keys())!= 100000:															    #this handles potentially unaccounted for sizes above the maximum specified by the user (in case it's not an open group)
+			for tmp_size in range(max(groups_sizes_dict.keys())+1,100001):
+				groups_sizes_dict[tmp_size] = groups_number
 
 		#check whether a colour map was specified
 		if groups_number > 1 and len(numpy.unique(colours_groups.values())) == 1:
@@ -1592,12 +1627,14 @@ def data_struct_op_nff():												#partly optimised
 #=========================================================================================
 
 def get_z_coords():														#updated
-
-	z_middle_instant = leaflet_sele_atoms["lower"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2]+(leaflet_sele_atoms["upper"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2]-leaflet_sele_atoms["lower"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2])/float(2)
-	z_upper.append(leaflet_sele_atoms["upper"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2]-z_middle_instant)
-	z_lower.append(leaflet_sele_atoms["lower"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2]-z_middle_instant)
+	
+	tmp_zu = leaflet_sele_atoms["upper"]["all species"].centerOfGeometry()[2]
+	tmp_zl = leaflet_sele_atoms["lower"]["all species"].centerOfGeometry()[2]
+	tmp_zm = tmp_zl + (tmp_zu - tmp_zl)/float(2)
+	z_upper.append(tmp_zu - tmp_zm)
+	z_lower.append(tmp_zl - tmp_zm)
 	for l in range(0,lipids_ff_nb):	
-		z_ff[l].append(lipids_sele_ff[l].selectAtoms("name " + str(lipids_ff_info[l][3])).centerOfGeometry()[2]-z_middle_instant)
+		z_ff[l].append(lipids_sele_ff_bead[l].centerOfGeometry()[2] - tmp_zm)
 
 	return
 def get_distances(box_dim):												#optimised
@@ -1621,10 +1658,10 @@ def calculate_cog(sele, box_dim):										#optimised
 	
 	#this method allows to take pbc into account when calculcating the center of geometry 
 	#see: http://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
-	
 	cog_coord = numpy.zeros(3)
+	tmp_coords = sele.coordinates()
 	for n in range(0,3):
-		tet = map(lambda part_index:sele.coordinates()[part_index,n]*2*math.pi/float(box_dim[n]) , range(0,sele.numberOfAtoms()))
+		tet = map(lambda part_index:tmp_coords[part_index,n]*2*math.pi/float(box_dim[n]) , range(0,sele.numberOfAtoms()))
 		xsi = map(lambda part_index:math.cos(tet[part_index]) , range(0,sele.numberOfAtoms()))
 		zet = map(lambda part_index:math.sin(tet[part_index]) , range(0,sele.numberOfAtoms()))
 		tet_avg = math.atan2(-numpy.average(zet),-numpy.average(xsi)) + math.pi
@@ -1673,7 +1710,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 
 			#store new cluster size group if necessary
 			if args.cluster_groups_file != "no":
-				cluster_group = get_size_group(cluster_size)
+				cluster_group = groups_sizes_dict[cluster_size]
 				if cluster_group not in radial_groups["current"]:
 					radial_groups["current"].append(cluster_group)
 		
@@ -1764,7 +1801,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 				tmp_c_cog[0,:] = calculate_cog(c_sele, U.trajectory.ts.dimensions)
 
 				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
-				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].selectAtoms(leaflet_sele_string).coordinates(), U.trajectory.ts.dimensions)
+				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].coordinates(), U.trajectory.ts.dimensions)
 				r_num_within = list(tmp_resnums[lip_dist<args.radial_radius])
 
 				#drop data into the right radial bin for those lipids
@@ -1773,9 +1810,9 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 				if args.perturb == 0:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums_list[l]["all species"].index(r_num)
+						r_index = lipids_resnums2rindex[l]["all species"][r_num]
 						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums_list[l][r_specie].index(r_num)
+						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
@@ -1788,7 +1825,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							g_index = get_size_group(c_size)
+							g_index = groups_sizes_dict[c_size]
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["all frames"][r_bin] += 1
@@ -1798,9 +1835,9 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 				elif args.perturb == 1:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums_list[l]["all species"].index(r_num)
+						r_index = lipids_resnums2rindex[l]["all species"][r_num]
 						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums_list[l][r_specie].index(r_num)
+						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
@@ -1813,7 +1850,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							g_index = get_size_group(c_size)
+							g_index = groups_sizes_dict[c_size]
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["all frames"][r_bin] += 1
@@ -1829,7 +1866,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 						if args.cluster_groups_file != "no":
-							g_index = get_size_group(c_size)
+							g_index = groups_sizes_dict[c_size]
 							radial_thick[r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 							radial_thick["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 							radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
@@ -1839,9 +1876,9 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 				elif args.perturb == 2:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums_list[l]["all species"].index(r_num)
+						r_index = lipids_resnums2rindex[l]["all species"][r_num]
 						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums_list[l][r_specie].index(r_num)
+						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 
 						#density
@@ -1854,7 +1891,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							g_index = get_size_group(c_size)
+							g_index = groups_sizes_dict[c_size]
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["all frames"][r_bin] += 1
@@ -1871,7 +1908,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 							if args.cluster_groups_file != "no":
-								g_index = get_size_group(c_size)
+								g_index = groups_sizes_dict[c_size]
 								radial_op[l][r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 								radial_op[l]["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 								radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
@@ -1881,9 +1918,9 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 				else:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums_list[l]["all species"].index(r_num)
+						r_index = lipids_resnums2rindex[l]["all species"][r_num]
 						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums_list[l][r_specie].index(r_num)
+						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
@@ -1896,7 +1933,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						if args.cluster_groups_file != "no":
-							g_index = get_size_group(c_size)
+							g_index = groups_sizes_dict[c_size]
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l]["all species"]["groups"][g_index]["nb"]["current"][r_bin] += 1
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["all frames"][r_bin] += 1
@@ -1912,7 +1949,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 						if args.cluster_groups_file != "no":
-							g_index = get_size_group(c_size)
+							g_index = groups_sizes_dict[c_size]
 							radial_thick[r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 							radial_thick["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
 							radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
@@ -1929,7 +1966,7 @@ def calculate_radial(f_time, f_write):									#partly optimised => POTENTIAL BI
 							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 							if args.cluster_groups_file != "no":
-								g_index = get_size_group(c_size)
+								g_index = groups_sizes_dict[c_size]
 								radial_op[l][r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 								radial_op[l]["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
 								radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie]["current"])
@@ -2075,9 +2112,9 @@ def calculate_thickness(f_time, f_write):								#partly optimised
 		
 	#beads in upper leaflet
 	for r_index in range(0,leaflet_sele["upper"]["all species"].numberOfResidues()):
-		r_num = leaflet_sele["upper"]["all species"].resnums()[r_index]
-		r_specie = leaflet_sele["upper"]["all species"].resnames()[r_index]
-		r_index_specie = lipids_resnums_list["upper"][r_specie].index(r_num)		
+		r_num = lipids_rindex2resnums["upper"]["all species"][r_index]
+		r_specie = lipids_rindex2rspecie["upper"]["all species"][r_index]
+		r_index_specie = lipids_resnums2rindex["upper"][r_specie][r_num]
 		#lipids
 		lipids_thick_nff["upper"][r_specie][r_index_specie]["current"] = tmp_dist_t2b_avg[r_index,0]
 		lipids_thick_nff["upper"][r_specie][r_index_specie]["all frames"].append(tmp_dist_t2b_avg[r_index,0])
@@ -2089,9 +2126,9 @@ def calculate_thickness(f_time, f_write):								#partly optimised
 		
 	#beads in lower leaflet
 	for r_index in range(0,leaflet_sele["lower"]["all species"].numberOfResidues()):
-		r_num = leaflet_sele["lower"]["all species"].resnums()[r_index]
-		r_specie = leaflet_sele["lower"]["all species"].resnames()[r_index]
-		r_index_specie = lipids_resnums_list["lower"][r_specie].index(r_num)
+		r_num = lipids_rindex2resnums["lower"]["all species"][r_index]
+		r_specie = lipids_rindex2rspecie["lower"]["all species"][r_index]
+		r_index_specie = lipids_resnums2rindex["lower"][r_specie][r_num]
 		#lipids
 		lipids_thick_nff["lower"][r_specie][r_index_specie]["current"] = tmp_dist_b2t_avg[r_index,0]
 		lipids_thick_nff["lower"][r_specie][r_index_specie]["all frames"].append(tmp_dist_b2t_avg[r_index,0])
@@ -2131,17 +2168,17 @@ def calculate_order_parameters(f_time, f_write):						#partly optimised
 			tail_B_length = tail_boundaries[s][3]
 								
 			#calculate 'op' for each bond in lipid tails
-			b_index = 0
+			b_array_index = 0
 			tmp_bond_array = numpy.zeros((leaflet_sele[l][s].numberOfResidues(),tail_A_length + tail_B_length))
-			for bond in op_bonds[s][tail_A_start:tail_A_start+tail_A_length] + op_bonds[s][tail_B_start:tail_B_start+tail_B_length]:
+			for b_index in range(tail_A_start,tail_A_start+tail_A_length) + range(tail_B_start,tail_B_start+tail_B_length):
 				v = numpy.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),3))
 				v_norm2 = numpy.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),1))
-				v[:,0] = leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[0])).coordinates()[:,0] - leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[1])).coordinates()[:,0]
-				v[:,1] = leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[0])).coordinates()[:,1] - leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[1])).coordinates()[:,1]
-				v[:,2] = leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[0])).coordinates()[:,2] - leaflet_sele_atoms[l][s].selectAtoms("name " + str(bond[1])).coordinates()[:,2]
+				v[:,0] = leaflet_sele_bonds[l][s][b_index][0].coordinates()[:,0] - leaflet_sele_bonds[l][s][b_index][1].coordinates()[:,0]
+				v[:,1] = leaflet_sele_bonds[l][s][b_index][0].coordinates()[:,1] - leaflet_sele_bonds[l][s][b_index][1].coordinates()[:,1]
+				v[:,2] = leaflet_sele_bonds[l][s][b_index][0].coordinates()[:,2] - leaflet_sele_bonds[l][s][b_index][1].coordinates()[:,2]
 				v_norm2[:,0] = v[:,0]**2 + v[:,1]**2 + v[:,2]**2
-				tmp_bond_array[:,b_index] = 0.5*(3*(v[:,2]**2)/v_norm2[:,0]-1)
-				b_index += 1
+				tmp_bond_array[:,b_array_index] = 0.5*(3*(v[:,2]**2)/v_norm2[:,0]-1)
+				b_array_index += 1
 
 			#calculate order parameters
 			tmp_op_tails_array = numpy.zeros((leaflet_sele[l][s].numberOfResidues(),3))  #tail A / tail B / both
@@ -2186,10 +2223,10 @@ def calculate_order_parameters(f_time, f_write):						#partly optimised
 
 			#calculate order parameters
 			tmp_bond_array = []
-			for bond in op_bonds[tmp_s][tail_A_start:tail_A_start+tail_A_length] + op_bonds[tmp_s][tail_B_start:tail_B_start+tail_B_length]:
-				vx = lipids_sele_ff[l_index].selectAtoms("name " + str(bond[0])).coordinates()[0,0] - lipids_sele_ff[l_index].selectAtoms("name " + str(bond[1])).coordinates()[0,0]
-				vy = lipids_sele_ff[l_index].selectAtoms("name " + str(bond[0])).coordinates()[0,1] - lipids_sele_ff[l_index].selectAtoms("name " + str(bond[1])).coordinates()[0,1]
-				vz = lipids_sele_ff[l_index].selectAtoms("name " + str(bond[0])).coordinates()[0,2] - lipids_sele_ff[l_index].selectAtoms("name " + str(bond[1])).coordinates()[0,2]
+			for b_index in range(tail_A_start,tail_A_start+tail_A_length) + range(tail_B_start,tail_B_start+tail_B_length):
+				vx = lipids_sele_ff_bonds[l_index][b_index][0].coordinates()[0,0] - lipids_sele_ff_bonds[l_index][b_index][1].coordinates()[0,0]
+				vy = lipids_sele_ff_bonds[l_index][b_index][0].coordinates()[0,1] - lipids_sele_ff_bonds[l_index][b_index][1].coordinates()[0,1]
+				vz = lipids_sele_ff_bonds[l_index][b_index][0].coordinates()[0,2] - lipids_sele_ff_bonds[l_index][b_index][1].coordinates()[0,2]
 				v_norm2 = vx**2 + vy**2 + vz**2
 				tmp_bond_array.append(0.5*(3*(vz**2)/float(v_norm2)-1))
 			
@@ -2276,13 +2313,6 @@ def get_size_colour(c_size):
 	else:
 		col = colours_sizes[c_size]
 	return col
-def get_size_group(c_size):
-	global groups_number
-	if c_size in groups_sizes_dict.keys():
-		grp = groups_sizes_dict[c_size]
-	else:
-		grp = groups_number
-	return grp
 
 #=========================================================================================
 # outputs
