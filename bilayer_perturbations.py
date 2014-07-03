@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.5-dev5"
+version_nb="0.1.6"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -177,8 +177,9 @@ The following python modules are needed :
 
 4. In case lipids flipflop during the trajectory, a file listing them can be supplied with
    the --flipflops option. Each line of this file should follow the format:
-    -> 'resname,resid,starting_leaflet'
-   where starting_leaflet is either 'upper' or 'lower' - e.g. 'POPC,145,lower'
+    -> 'resname,resid,starting_leaflet,z_bead'
+   where starting_leaflet is either 'upper' or 'lower' - e.g. 'POPC,145,lower,PO4'. The
+   z_bead is used to track the position of the lipid.
    If flipflopping lipids are not specified they may add significant noise to the results.
 
 5. In addition to specifying custom lipid characteristics via the --beads and --tails
@@ -930,11 +931,17 @@ def identify_ff():
 		if line[-1] == "\n":
 			line = line[:-1]
 		try:
+			line_content = line.split(',')
+			if len(line_content) != 4:
+				print "Error: wrong format for line " + str(l_index+1) + " in " + str(args.selection_file_ff) + ", see note 4 in bilayer_perturbations --help."
+				print " ->", line
+				sys.exit(1)
 			#read current lipid details
-			lip_resname = line.split(',')[0]
-			lip_resnum = int(line.split(',')[1])
-			lip_leaflet = line.split(',')[2]
-			lipids_ff_info[l_index] = [lip_resname,lip_resnum,lip_leaflet]
+			lip_resname = line_content[0]
+			lip_resnum = int(line_content[1])
+			lip_leaflet = line_content[2]
+			lip_bead = line_content[3]
+			lipids_ff_info[l_index] = [lip_resname,lip_resnum,lip_leaflet,lip_bead]
 						
 			#update: starting leaflets
 			if lip_leaflet not in lipids_ff_leaflet:
@@ -946,7 +953,7 @@ def identify_ff():
 			elif lip_leaflet == "lower":
 				lipids_ff_l2u_index.append(l_index)
 			else:
-				print "unknown starting leaflet '" + str(lip_leaflet) + "'."
+				print "->unknown starting leaflet '" + str(lip_leaflet) + "'."
 				sys.exit(1)
 			
 			#update: resnames
@@ -968,7 +975,7 @@ def identify_ff():
 				print "-> no such lipid found."
 				sys.exit(1)	
 		except:
-			print "Error: invalid flipflopping lipid selection string on line " + str(l_index+1) + ": '" + lines[l_index] + "'"
+			print "Error: invalid flipflopping lipid selection string on line " + str(l_index+1) + ": '" + line + "'"
 			sys.exit(1)
 	leaflet_sele_string+=")"		
 
@@ -1590,7 +1597,7 @@ def get_z_coords():														#updated
 	z_upper.append(leaflet_sele_atoms["upper"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2]-z_middle_instant)
 	z_lower.append(leaflet_sele_atoms["lower"]["all species"].selectAtoms(leaflet_sele_string).centerOfGeometry()[2]-z_middle_instant)
 	for l in range(0,lipids_ff_nb):	
-		z_ff[l].append(lipids_sele_ff[l].selectAtoms("name PO4").centerOfGeometry()[2]-z_middle_instant)
+		z_ff[l].append(lipids_sele_ff[l].selectAtoms("name " + str(lipids_ff_info[l][3])).centerOfGeometry()[2]-z_middle_instant)
 
 	return
 def get_distances(box_dim):												#optimised
