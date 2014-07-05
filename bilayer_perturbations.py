@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.8-dev1"
+version_nb="0.1.8-dev2"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1679,15 +1679,15 @@ def calculate_radial(f_type, f_time, f_write):
 	
 	global radial_step
 	
-	#detect protein clusters
-	#=======================
 	#identify clusters
-	if args.m_algorithm!="density":
+	#=================
+	if args.m_algorithm != "density":
 		clusters = detect_clusters_connectivity(get_distances(U.trajectory.ts.dimensions), U.trajectory.ts.dimensions)
 	else:
 		clusters = detect_clusters_density(get_distances(U.trajectory.ts.dimensions), U.trajectory.ts.dimensions)
 	
-	#store cluster size and selection
+	#process each cluster
+	#====================
 	radial_sizes["current"] = []
 	radial_groups["current"] = []
 	tmp_cluster_selections = {}
@@ -1700,9 +1700,9 @@ def calculate_radial(f_type, f_time, f_write):
 		
 		#check whether the cluster is TM
 		#find closest PO4 particles for each particles of clusters, if all are in the same leaflet then it's surfacic [NB: this is done at the CLUSTER level (the same criteria at the protein level would probably fail)]
-		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(tmp_cluster_sele.coordinates(), leaflet_sele["lower"]["all species"].coordinates(), U.trajectory.ts.dimensions),axis=1)
-		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(tmp_cluster_sele.coordinates(), leaflet_sele["upper"]["all species"].coordinates(), U.trajectory.ts.dimensions),axis=1)
-		dist = dist_min_upper-dist_min_lower
+		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(tmp_cluster_sele.coordinates(), leaflet_sele["lower"]["all species"].coordinates(), U.trajectory.ts.dimensions), axis = 1)
+		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(tmp_cluster_sele.coordinates(), leaflet_sele["upper"]["all species"].coordinates(), U.trajectory.ts.dimensions), axis = 1)
+		dist = dist_min_upper - dist_min_lower
 
 		#store current cluster details if it is a TM cluster
 		if numpy.size(dist[dist>0]) != numpy.size(dist) and numpy.size(dist[dist>0]) !=0:
@@ -2029,8 +2029,8 @@ def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 	tmp_dist_b2t_avg = numpy.average(tmp_dist_b2t_dist, axis=1)
 	
 	#current data for each lipid
-	lipids_thick_nff["max"] = -1
-	lipids_thick_nff["min"] = 1000000
+	lipids_thick_nff["max"] = float("-inf")
+	lipids_thick_nff["min"] = float("inf")
 	for s in leaflet_species["upper"] + ["all species"]:
 		lipids_thick_nff["upper"][s] = tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]
 		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], numpy.min(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
@@ -3740,10 +3740,8 @@ def radial_density_frame_xvg_write(f_type, f_time):
 			output_xvg.close()	
 		
 	return
-def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
-	
-	global radial_step
-	
+def radial_density_frame_xvg_graph(f_type, f_time):						#DONE
+		
 	#individual sizes
 	#================
 	#by specie
@@ -3760,30 +3758,13 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
 		fig.suptitle("radial evolution of lipids density")
-		
-		#create data
-		loc_radial_bins=[]
-		for n in range(0,args.radial_nb_bins):
-			loc_radial_bins.append(n*radial_step)
-		tmp_radial={}
-		for l in ["lower","upper"]:
-			tmp_radial[l] = {}
-			for c_size in radial_sizes[f_type]:
-				tmp_radial[l][c_size]=numpy.zeros(args.radial_nb_bins)
-				if s in leaflet_species[l]:
-					if f_type in radial_density[l][s][c_size]["pc"].keys():
-						for n in range(0,args.radial_nb_bins):
-							tmp_radial[l][c_size][n] = radial_density[l][s][c_size]["pc"][f_type][n]
-					else:
-						for n in range(0,args.radial_nb_bins):
-							tmp_radial[l][c_size][n] = numpy.nan
-
+				
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
-		p_upper={}
+		p_upper = {}
 		if s in leaflet_species["upper"]:
 			for c_size in radial_sizes[f_type]:
-				p_upper[c_size]=plt.plot(loc_radial_bins, tmp_radial["upper"][c_size], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
+				p_upper[c_size] = plt.plot(radial_bins, radial_density["upper"][s][c_size]["pc"][f_type], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
@@ -3792,10 +3773,10 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 		
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
-		p_lower={}
+		p_lower = {}
 		if s in leaflet_species["lower"]:
 			for c_size in radial_sizes[f_type]:
-				p_lower[c_size]=plt.plot(loc_radial_bins, tmp_radial["lower"][c_size], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
+				p_lower[c_size] = plt.plot(radial_bins, radial_density["lower"][s][c_size]["pc"][f_type], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
@@ -3843,27 +3824,11 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 		fig=plt.figure(figsize=(8, 6.2))
 		fig.suptitle("radial evolution of lipids density")
 		
-		#create data
-		loc_radial_bins=[]
-		for n in range(0,args.radial_nb_bins):
-			loc_radial_bins.append(n*radial_step)
-		tmp_radial = {}
-		for l in ["lower","upper"]:
-			tmp_radial[l]={}
-			for s in leaflet_species[l]:
-				tmp_radial[l][s] = numpy.zeros(args.radial_nb_bins)
-				if f_type in radial_density[l][s][c_size]["pc"].keys():
-					for n in range(0,args.radial_nb_bins):
-						tmp_radial[l][s][n] = radial_density[l][s][c_size]["pc"][f_type][n]
-				else:
-					for n in range(0,args.radial_nb_bins):
-						tmp_radial[l][s][n] = numpy.nan					
-
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
-		p_upper={}
+		p_upper = {}
 		for s in leaflet_species["upper"]:
-			p_upper[s] = plt.plot(loc_radial_bins, tmp_radial["upper"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
+			p_upper[s] = plt.plot(radial_bins, radial_density["upper"][s][c_size]["pc"][f_type], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
@@ -3872,9 +3837,9 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 		
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
-		p_lower={}
+		p_lower = {}
 		for s in leaflet_species["lower"]:
-			p_lower[s] = plt.plot(loc_radial_bins, tmp_radial["lower"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
+			p_lower[s] = plt.plot(radial_bins, radial_density["lower"][s][c_size]["pc"][f_type], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
@@ -3917,29 +3882,12 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 			fig=plt.figure(figsize=(8, 6.2))
 			fig.suptitle("radial evolution of lipids density")
 			
-			#create data
-			loc_radial_bins=[]
-			for n in range(0,args.radial_nb_bins):
-				loc_radial_bins.append(n*radial_step)
-			tmp_radial={}
-			for l in ["lower","upper"]:
-				tmp_radial[l] = {}
-				for g_index in radial_groups[f_type]:
-					tmp_radial[l][g_index] = numpy.zeros(args.radial_nb_bins)
-					if s in leaflet_species[l]:
-						if f_type in radial_density[l][s]["groups"][g_index]["pc"].keys():
-							for n in range(0,args.radial_nb_bins):
-								tmp_radial[l][g_index][n] = radial_density[l][s]["groups"][g_index]["pc"][f_type][n]
-						else:
-							for n in range(0,args.radial_nb_bins):
-								tmp_radial[l][g_index][n] = numpy.nan
-	
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
 			p_upper={}
 			if s in leaflet_species["upper"]:
 				for g_index in radial_groups[f_type]:
-					p_upper[g_index] = plt.plot(loc_radial_bins, tmp_radial["upper"][g_index], color = colours_groups[g_index], linewidth=3.0, label = str(groups_labels[g_index]))
+					p_upper[g_index] = plt.plot(radial_bins, radial_density["upper"][s]["groups"][g_index]["pc"][f_type], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
@@ -3951,7 +3899,7 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 			p_lower={}
 			if s in leaflet_species["lower"]:
 				for g_index in radial_groups[f_type]:
-					p_lower[g_index] = plt.plot(loc_radial_bins, tmp_radial["lower"][g_index], color = colours_groups[g_index], linewidth=3.0, label = str(groups_labels[g_index]))
+					p_lower[g_index] = plt.plot(radial_bins, radial_density["lower"][s]["groups"][g_index]["pc"][f_type], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
@@ -3994,28 +3942,12 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 			#create figure
 			fig=plt.figure(figsize=(8, 6.2))
 			fig.suptitle("radial evolution of lipids density")
-			
-			#create data
-			loc_radial_bins=[]
-			for n in range(0,args.radial_nb_bins):
-				loc_radial_bins.append(n*radial_step)
-			tmp_radial = {}
-			for l in ["lower","upper"]:
-				tmp_radial[l]={}
-				for s in leaflet_species[l]:
-					tmp_radial[l][s] = numpy.zeros(args.radial_nb_bins)
-					if f_type in radial_density[l][s]["groups"][g_index]["pc"].keys():
-						for n in range(0,args.radial_nb_bins):
-							tmp_radial[l][s][n] = radial_density[l][s]["groups"][g_index]["pc"][f_type][n]
-					else:
-						for n in range(0,args.radial_nb_bins):
-							tmp_radial[l][s][n] = numpy.nan					
-	
+				
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
-			p_upper={}
+			p_upper = {}
 			for s in leaflet_species["upper"]:
-				p_upper[s] = plt.plot(loc_radial_bins, tmp_radial["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+				p_upper[s] = plt.plot(radial_bins, radial_density["upper"][s]["groups"][g_index]["pc"][f_type], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
@@ -4024,9 +3956,9 @@ def radial_density_frame_xvg_graph(f_type, f_time):						#TO DO
 			
 			#plot data: lower leafet
 			ax2 = fig.add_subplot(212)
-			p_lower={}
+			p_lower = {}
 			for s in leaflet_species["lower"]:
-				p_lower[s] = plt.plot(loc_radial_bins, tmp_radial["lower"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+				p_lower[s] = plt.plot(radial_bins, radial_density["lower"][s]["groups"][g_index]["pc"][f_type], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
@@ -4323,7 +4255,8 @@ def radial_thick_frame_xvg_write(f_type, f_time):
 	return
 def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 
-	global radial_bins
+	tmp_min = float("inf")
+	tmp_max = float("-inf")
 	
 	#individual sizes
 	#================
@@ -4359,6 +4292,8 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 					tmp_thick_avg[c_size][n] =  numpy.nan
 				if tmp_thick_std[c_size][n] == 0:
 					tmp_thick_std[c_size][n] =  numpy.nan
+			tmp_min = min(tmp_min, numpy.nanmin(radial_thick[s]["avg"][c_size][f_type]) - numpy.nanmax(radial_thick[s]["std"][c_size][f_type]))
+			tmp_max = max(tmp_max, numpy.nanmax(radial_thick[s]["avg"][c_size][f_type]) + numpy.nanmax(radial_thick[s]["std"][c_size][f_type]))
 
 		#plot data
 		ax1 = fig.add_subplot(111)
@@ -4373,9 +4308,9 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 		
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)
-		ax1.set_ylim(numpy.min(radial_thick["all species"]["avg"]["all sizes"][f_type]) + numpy.max(radial_thick["all species"]["std"]["all sizes"][f_type]), numpy.max(radial_thick["all species"]["avg"]["all sizes"][f_type]) + numpy.max(radial_thick["all species"]["std"]["all sizes"][f_type]))
+		ax1.set_ylim(tmp_min, tmp_max)
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 		fig.savefig(filename_png)
@@ -4428,9 +4363,9 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 			
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)		
-		ax1.set_ylim(numpy.min(radial_thick["all species"]["avg"]["all sizes"][f_type]) + numpy.max(radial_thick["all species"]["std"]["all sizes"][f_type]), numpy.max(radial_thick["all species"]["avg"]["all sizes"][f_type]) + numpy.max(radial_thick["all species"]["std"]["all sizes"][f_type]))
+		ax1.set_ylim(tmp_min, tmp_max)
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 		fig.savefig(filename_png)
@@ -4486,9 +4421,9 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 			
 			#save figure
 			ax1.set_xlim(0, args.radial_radius)
-			ax1.set_ylim(numpy.average(radial_thick["all species"]["avg"]["all sizes"][f_type]) - numpy.average(radial_thick["all species"]["std"]["all sizes"][f_type]) - 5, numpy.average(radial_thick["all species"]["avg"]["all sizes"][f_type]) + numpy.average(radial_thick["all species"]["std"]["all sizes"][f_type]) + 5)
+			ax1.set_ylim(tmp_min, tmp_max)
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 			fig.savefig(filename_png)
@@ -4539,9 +4474,9 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 			#save figure
 			ax1.set_xlim(0, args.radial_radius)		
 			ax1.set_xlim(0, args.radial_radius)
-			ax1.set_ylim(numpy.average(radial_thick["all species"]["avg"]["all sizes"][f_type]) - numpy.average(radial_thick["all species"]["std"]["all sizes"][f_type]) - 5, numpy.average(radial_thick["all species"]["avg"]["all sizes"][f_type]) + numpy.average(radial_thick["all species"]["std"]["all sizes"][f_type]) + 5)
+			ax1.set_ylim(tmp_min, tmp_max)
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 			fig.savefig(filename_png)
@@ -4902,9 +4837,7 @@ def radial_op_frame_xvg_write(f_type, f_time):
 			output_xvg.close()	
 
 	return
-def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
-	
-	global radial_step
+def radial_op_frame_xvg_graph(f_type, f_time):							#DONE
 	
 	#individual sizes
 	#================
@@ -4932,34 +4865,22 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 		fig.suptitle("radial evolution of lipid tails order parameter")
 		
 		#create data
-		loc_radial_bins=[]
-		for n in range(0,args.radial_nb_bins):
-			loc_radial_bins.append(n*radial_step)
-		tmp_op_avg={}
-		tmp_op_std={}
+		tmp_op_avg = {}
+		tmp_op_std = {}
 		for l in ["lower","upper"]:
-			tmp_op_avg[l]={}
-			tmp_op_std[l]={}
-			for c_size in radial_sizes[f_type]:
-				tmp_op_avg[l][c_size] = numpy.zeros(args.radial_nb_bins)
-				tmp_op_std[l][c_size] = numpy.zeros(args.radial_nb_bins)
-				if s in op_lipids_handled[l] or (s == "all species" and len(op_lipids_handled[l]) > 0):
-					if f_type in radial_op[l][s]["avg"][c_size].keys():
-						for n in range(0,args.radial_nb_bins):
-							tmp_op_avg[l][c_size][n] = radial_op[l][s]["avg"][c_size][f_type][n]
-							tmp_op_std[l][c_size][n] = radial_op[l][s]["std"][c_size][f_type][n]
-					else:
-						for n in range(0,args.radial_nb_bins):
-							tmp_op_avg[l][c_size][n] = numpy.nan
-							tmp_op_std[l][c_size][n] = numpy.nan
+			tmp_op_avg[l] = {}
+			tmp_op_std[l] = {}
+			if s in op_lipids_handled[l] or (s == "all species" and len(op_lipids_handled[l]) > 0):
+				tmp_op_avg[l] = {c_size: radial_op[l][s]["avg"][c_size][f_type] for c_size in radial_sizes[f_type] + ["all sizes"]}
+				tmp_op_std[l] = {c_size: radial_op[l][s]["std"][c_size][f_type] for c_size in radial_sizes[f_type] + ["all sizes"]}		
 
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
-		p_upper={}
+		p_upper = {}
 		if s in op_lipids_handled["upper"] or ( s == "all species" and len(op_lipids_handled["upper"]) > 0):
 			for c_size in radial_sizes[f_type]:
-				p_upper[c_size]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
-				p_upper[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][c_size]-tmp_op_std["upper"][c_size], tmp_op_avg["upper"][c_size]+tmp_op_std["upper"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
+				p_upper[c_size] = plt.plot(radial_bins, tmp_op_avg["upper"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
+				p_upper[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_op_avg["upper"][c_size]-tmp_op_std["upper"][c_size], tmp_op_avg["upper"][c_size]+tmp_op_std["upper"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
@@ -4968,11 +4889,11 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 		
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
-		p_lower={}
+		p_lower = {}
 		if s in op_lipids_handled["lower"] or ( s == "all species" and len(op_lipids_handled["lower"]) > 0):
 			for c_size in radial_sizes[f_type]:
-				p_lower[c_size]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
-				p_lower[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][c_size]-tmp_op_std["lower"][c_size], tmp_op_avg["lower"][c_size]+tmp_op_std["lower"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
+				p_lower[c_size] = plt.plot(radial_bins, tmp_op_avg["lower"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
+				p_lower[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_op_avg["lower"][c_size]-tmp_op_std["lower"][c_size], tmp_op_avg["lower"][c_size]+tmp_op_std["lower"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
@@ -5021,32 +4942,18 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 		fig.suptitle("radial evolution of lipid tails order parameter")
 		
 		#create data
-		loc_radial_bins=[]
-		for n in range(0,args.radial_nb_bins):
-			loc_radial_bins.append(n*radial_step)
-		tmp_op_avg={}
-		tmp_op_std={}
+		tmp_op_avg = {}
+		tmp_op_std = {}
 		for l in ["lower","upper"]:
-			tmp_op_avg[l]={}
-			tmp_op_std[l]={}
-			for s in op_lipids_handled[l]:
-				tmp_op_avg[l][s] = numpy.zeros(args.radial_nb_bins)
-				tmp_op_std[l][s] = numpy.zeros(args.radial_nb_bins)
-				if f_type in radial_op[l][s]["avg"][c_size].keys():
-					for n in range(0,args.radial_nb_bins):
-						tmp_op_avg[l][s][n] = radial_op[l][s]["avg"][c_size][f_type][n]
-						tmp_op_std[l][s][n] = radial_op[l][s]["std"][c_size][f_type][n]
-				else:
-					for n in range(0,args.radial_nb_bins):
-						tmp_op_avg[l][s][n] = numpy.nan
-						tmp_op_std[l][s][n] = numpy.nan
-
+			tmp_op_avg[l] = {s: radial_op[l][s]["avg"][c_size][f_type] for s in op_lipids_handled[l]}
+			tmp_op_std[l] = {s: radial_op[l][s]["std"][c_size][f_type] for s in op_lipids_handled[l]}
+		
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
-		p_upper={}
+		p_upper = {}
 		for s in op_lipids_handled["upper"]:
-			p_upper[s]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-			p_upper[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
+			p_upper[s] = plt.plot(radial_bins, tmp_op_avg["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+			p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		if len(op_lipids_handled["upper"]) > 0:
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
@@ -5056,10 +4963,10 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 		
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
-		p_lower={}
+		p_lower = {}
 		for s in op_lipids_handled["lower"]:
-			p_lower[s]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-			p_lower[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
+			p_lower[s] = plt.plot(radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+			p_lower[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		if len(op_lipids_handled["lower"]) > 0:
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
@@ -5112,34 +5019,22 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 			fig.suptitle("radial evolution of lipid tails order parameter")
 			
 			#create data
-			loc_radial_bins=[]
-			for n in range(0,args.radial_nb_bins):
-				loc_radial_bins.append(n*radial_step)
 			tmp_op_avg = {}
 			tmp_op_std = {}
 			for l in ["lower","upper"]:
 				tmp_op_avg[l] = {}
 				tmp_op_std[l] = {}
-				for g_index in radial_groups[f_type]:
-					tmp_op_avg[l][g_index] = numpy.zeros(args.radial_nb_bins)
-					tmp_op_std[l][g_index] = numpy.zeros(args.radial_nb_bins)
-					if s in op_lipids_handled[l] or (s == "all species" and len(op_lipids_handled[l]) > 0):
-						if f_type in radial_op[l][s]["avg"]["groups"][g_index].keys():
-							for n in range(0,args.radial_nb_bins):
-								tmp_op_avg[l][g_index][n] = radial_op[l][s]["avg"]["groups"][g_index][f_type][n]
-								tmp_op_std[l][g_index][n] = radial_op[l][s]["std"]["groups"][g_index][f_type][n]
-						else:
-							for n in range(0,args.radial_nb_bins):
-								tmp_op_avg[l][g_index][n] = numpy.nan
-								tmp_op_std[l][g_index][n] = numpy.nan
+				if s in op_lipids_handled[l] or (s == "all species" and len(op_lipids_handled[l]) > 0):
+					tmp_op_avg[l] = {g_index: radial_op[l][s]["avg"]["groups"][g_index][f_type] for g_index in radial_groups[f_type]}
+					tmp_op_std[l] = {g_index: radial_op[l][s]["std"]["groups"][g_index][f_type] for g_index in radial_groups[f_type]}
 	
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
-			p_upper={}
+			p_upper = {}
 			if s in op_lipids_handled["upper"] or (s == "all species" and len(op_lipids_handled["upper"]) > 0):
 				for g_index in radial_groups[f_type]:
-					p_upper[g_index]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
-					p_upper[str(g_index) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][g_index]-tmp_op_std["upper"][g_index], tmp_op_avg["upper"][g_index]+tmp_op_std["upper"][g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
+					p_upper[g_index]=plt.plot(radial_bins, tmp_op_avg["upper"][g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
+					p_upper[str(g_index) + "_err"] = plt.fill_between(radial_bins, tmp_op_avg["upper"][g_index]-tmp_op_std["upper"][g_index], tmp_op_avg["upper"][g_index]+tmp_op_std["upper"][g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
@@ -5148,11 +5043,11 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 			
 			#plot data: lower leafet
 			ax2 = fig.add_subplot(212)
-			p_lower={}
+			p_lower = {}
 			if s in op_lipids_handled["lower"] or ( s == "all species" and len(op_lipids_handled["lower"]) > 0):
 				for g_index in radial_groups[f_type]:
-					p_lower[g_index]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
-					p_lower[str(g_index) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][g_index]-tmp_op_std["lower"][g_index], tmp_op_avg["lower"][g_index]+tmp_op_std["lower"][g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
+					p_lower[g_index] = plt.plot(radial_bins, tmp_op_avg["lower"][g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
+					p_lower[str(g_index) + "_err"] = plt.fill_between(radial_bins, tmp_op_avg["lower"][g_index]-tmp_op_std["lower"][g_index], tmp_op_avg["lower"][g_index]+tmp_op_std["lower"][g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
@@ -5198,32 +5093,21 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 			fig.suptitle("radial evolution of lipid tails order parameter")
 			
 			#create data
-			loc_radial_bins = []
-			for n in range(0,args.radial_nb_bins):
-				loc_radial_bins.append(n*radial_step)
 			tmp_op_avg = {}
 			tmp_op_std = {}
 			for l in ["lower","upper"]:
 				tmp_op_avg[l] = {}
-				tmp_op_std[l] ={ }
-				for s in op_lipids_handled[l]:
-					tmp_op_avg[l][s] = numpy.zeros(args.radial_nb_bins)
-					tmp_op_std[l][s] = numpy.zeros(args.radial_nb_bins)
-					if f_type in radial_op[l][s]["avg"]["groups"][g_index].keys():
-						for n in range(0,args.radial_nb_bins):
-							tmp_op_avg[l][s][n] = radial_op[l][s]["avg"]["groups"][g_index][f_type][n]
-							tmp_op_std[l][s][n] = radial_op[l][s]["std"]["groups"][g_index][f_type][n]
-					else:
-						for n in range(0,args.radial_nb_bins):
-							tmp_op_avg[l][s][n] = numpy.nan
-							tmp_op_std[l][s][n] = numpy.nan
+				tmp_op_std[l] = {}
+				if s in op_lipids_handled[l] or (s == "all species" and len(op_lipids_handled[l]) > 0):
+					tmp_op_avg[l] = {s: radial_op[l][s]["avg"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
+					tmp_op_std[l] = {s: radial_op[l][s]["std"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
 	
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
-			p_upper={}
+			p_upper = {}
 			for s in op_lipids_handled["upper"]:
-				p_upper[s] = plt.plot(loc_radial_bins, tmp_op_avg["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
-				p_upper[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
+				p_upper[s] = plt.plot(radial_bins, tmp_op_avg["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+				p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			if len(op_lipids_handled["upper"]) > 0:
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
@@ -5233,10 +5117,10 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#TO DO
 			
 			#plot data: lower leafet
 			ax2 = fig.add_subplot(212)
-			p_lower={}
+			p_lower = {}
 			for s in op_lipids_handled["lower"]:
-				p_lower[s] = plt.plot(loc_radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label=str(s))
-				p_lower[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
+				p_lower[s] = plt.plot(radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label=str(s))
+				p_lower[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			if len(op_lipids_handled["lower"]) > 0:
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
