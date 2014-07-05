@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.9"
+version_nb="0.1.10"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1237,12 +1237,24 @@ def identify_species():													#DONE
 	print membrane_comp["lower"]
 	
 	#create individual lipid selections
+	print "\nPre-processing: creating lipids selections..."
+	tmp_l = 0
+	tmp_l_tot = leaflet_sele["lower"]["all species"].numberOfResidues() + leaflet_sele["upper"]["all species"].numberOfResidues()
 	for l in ["lower","upper"]:
 		lipids_sele_nff[l] = {}
 		lipids_sele_nff_VMD_string[l] = {}
 		for s in leaflet_species[l]:
-			lipids_sele_nff[l][s] = {r_index: leaflet_sele[l][s].selectAtoms("resnum " + str(leaflet_sele[l][s].resnums()[r_index])).residues.atoms for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}
-			lipids_sele_nff_VMD_string[l][s] = {r_index: "resname " + str(s) + " and resid " + str(leaflet_sele[l][s].resnums()[r_index]) for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}
+			lipids_sele_nff[l][s] = {}
+			lipids_sele_nff_VMD_string[l][s] = {}
+			tmp_rnums = leaflet_sele[l][s].resnums()
+			for r_index in range(0,leaflet_sele[l][s].numberOfResidues()):
+				tmp_l += 1
+				progress = '\r -lipid ' + str(tmp_l) + '/' + str(tmp_l_tot) + '                      '  
+				sys.stdout.flush()
+				sys.stdout.write(progress)
+				lipids_sele_nff[l][s][r_index] = leaflet_sele[l][s].selectAtoms("resnum " + str(tmp_rnums[r_index])).residues.atoms
+				lipids_sele_nff_VMD_string[l][s][r_index] = "resname " + str(s) + " and resid " + str(tmp_rnums[r_index])
+	print ''
 	
 	#case: need to calculate order parameters
 	if args.perturb == 2 or args.perturb == 3:
