@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.8"
+version_nb="0.1.8-dev1"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -37,7 +37,9 @@ lipid species and transmembrane protein clusters size.
 
 The metrics can be calculated for a single frame or for an entire trajectory - and in case
 a trajectory is supplied the data for individual frame snapshots can also be produced at a
-frequency specified by the option -w.
+frequency specified by the option -w (if you don't specify an argument to -w snapshots
+will only be written for the first and last frame). Note that writing files to disk will
+considerably slow down the execution of the script.
 
 The perturbations calculated can also be visualised in VMD.
 
@@ -287,7 +289,7 @@ parser.add_argument('-o', nargs=1, dest='output_folder', default=['no'], help=ar
 parser.add_argument('-b', nargs=1, dest='t_start', default=[-1], type=int, help=argparse.SUPPRESS)
 parser.add_argument('-e', nargs=1, dest='t_end', default=[10000000000000], type=int, help=argparse.SUPPRESS)
 parser.add_argument('-t', nargs=1, dest='frames_dt', default=[10], type=int, help=argparse.SUPPRESS)
-parser.add_argument('-w', nargs=1, dest='frames_write_dt', default=[1000000000000000], type=int, help=argparse.SUPPRESS)
+parser.add_argument('-w', nargs='?', dest='frames_write_dt', const=1000000000000000, default="no", help=argparse.SUPPRESS)
 parser.add_argument('--radial', dest='radial', action='store_true', help=argparse.SUPPRESS)
 parser.add_argument('--smooth', nargs=1, dest='nb_smoothing', default=[0], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--perturb', dest='perturb', choices=['0','1','2','3'], default='1', help=argparse.SUPPRESS)
@@ -328,7 +330,6 @@ args.output_folder = args.output_folder[0]
 args.t_start = args.t_start[0]
 args.t_end = args.t_end[0]
 args.frames_dt = args.frames_dt[0]
-args.frames_write_dt = args.frames_write_dt[0]
 args.nb_smoothing = args.nb_smoothing[0]
 args.perturb = int(args.perturb[0])
 #lipids identification
@@ -362,16 +363,15 @@ if args.radial:
 	radial_step = args.radial_radius/float(args.radial_nb_bins)
 	if args.selection_file_prot == 'no':
 		args.selection_file_prot = 'auto' 
-
+if args.frames_write_dt != "no":
+	args.frames_write_dt = int(args.frames_write_dt)
 global xtc_thick
 global xtc_order_param
 global colours_sizes_range
 global lipids_ff_nb
-global nb_frames_processed
 xtc_thick = ""
 xtc_order_param = ""
 lipids_ff_nb = 0
-nb_frames_processed = 0
 tmp_col_size = args.colours_sizes.split(',')
 if len(tmp_col_size) != 2:
 	print "Error: wrong format for the option --colours_sizes, it should be 'min,max' (see bilayer_perturbations --help, note 8)."
@@ -865,28 +865,32 @@ def set_lipids_tails():
 			for s in replaced.keys():
 				print " -" + str(s) + ":" + str(bond_names[s]) + " " + str(tail_boundaries[s][0]) + " " + str(tail_boundaries[s][1]) + " " + str(tail_boundaries[s][2]) + " " + str(tail_boundaries[s][3])
 	return
-def load_MDA_universe():
+def load_MDA_universe():												#DONE
 	
 	global U
 	global all_atoms
 	global nb_atoms
 	global nb_frames_xtc
-	global nb_frames_processed
-
+	global frames_to_process
+	global frames_to_write
+	global nb_frames_to_process
+	global f_start
+	f_start = 0
 	if args.xtcfilename == "no":
 		print "\nLoading file..."
 		U = Universe(args.grofilename)
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = 1
-		nb_frames_processed = 1
+		frames_to_process = [0]
+		frames_to_write = [True]
+		nb_frames_to_process = 1
 	else:
 		print "\nLoading trajectory..."
 		U = Universe(args.grofilename, args.xtcfilename)
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
-		nb_frames_processed = 0
 		U.trajectory.rewind()
 		#sanity check
 		if U.trajectory.time/float(1000) < args.t_start:
@@ -894,7 +898,31 @@ def load_MDA_universe():
 			sys.exit(1)
 		if U.trajectory.numframes < args.frames_dt:
 			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) + ") than the frame step specified (" + str(args.frames_dt) + ")."
+
+		#create list of index of frames to process
+		if args.t_start > 0:
+			for ts in U.trajectory:
+				#debug
+				print ts.frame
+				progress = '\r -skipping frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '        '
+				sys.stdout.flush()
+				sys.stdout.write(progress)
+				if ts.time/float(1000) < args.t_start:
+					f_start = ts.frame-1
+					break
+		if (nb_frames_xtc - f_start)%args.frames_dt == 0:
+			tmp_offset = 0
+		else:
+			tmp_offset = 1
+		frames_to_process = map(lambda f:f_start + args.frames_dt*f, range(0,(nb_frames_xtc - f_start)//args.frames_dt+tmp_offset))
+		nb_frames_to_process = len(frames_to_process)
 	
+		#create list of frames to write
+		if args.frames_write_dt == "no":
+			frames_to_write = [False for f_index in range(0, nb_frames_to_process)]
+		else:
+			frames_to_write = [True if (f_index % args.frames_write_dt == 0 or f_index == (nb_frames_xtc - f_start)//args.frames_dt) else False for f_index in range(0, nb_frames_to_process)]
+		
 	#check the leaflet selection string is valid
 	test_beads = U.selectAtoms(leaflet_sele_string)
 	if test_beads.numberOfAtoms() == 0:
@@ -1155,7 +1183,7 @@ def identify_leaflets():
 		leaflet_sele_atoms[l]["all species"] = leaflet_sele[l]["all species"].residues.atoms
 	
 	return
-def identify_species():													#partly optimised
+def identify_species():													#DONE
 	print "\nIdentifying membrane composition..."
 	
 	#declare variables
@@ -1167,10 +1195,11 @@ def identify_species():													#partly optimised
 	global leaflet_sele_bonds
 	global lipids_sele_nff
 	global lipids_sele_nff_VMD_string
-	global lipids_resnums2rindex
-	global lipids_rindex2resnums
-	global lipids_rindex2rspecie
-	
+	global lipids_resnum2rindex
+	global lipids_rindex2resnum
+	global lipids_rindex2specie
+	global lipids_specie2rindex
+	global lipids_resnum2specie
 	op_bonds = {}
 	op_lipids_handled = {}
 	membrane_comp = {}
@@ -1179,9 +1208,11 @@ def identify_species():													#partly optimised
 	leaflet_sele_bonds = {}
 	lipids_sele_nff = {}
 	lipids_sele_nff_VMD_string = {}
-	lipids_resnums2rindex = {}
-	lipids_rindex2resnums = {}
-	lipids_rindex2rspecie = {}
+	lipids_resnum2rindex = {}
+	lipids_resnum2specie = {}
+	lipids_rindex2resnum = {}
+	lipids_rindex2specie = {}
+	lipids_specie2rindex = {}
 	
 	#specie identification
 	for l in ["lower","upper","both"]:
@@ -1285,15 +1316,23 @@ def identify_species():													#partly optimised
 				
 	#create list of residues for each lipid specie		
 	for l in ["lower","upper"]:
-		lipids_resnums2rindex[l] = {}
-		lipids_rindex2resnums[l] = {}
-		lipids_rindex2rspecie[l] = {}
+		lipids_resnum2specie[l] = {}
+		lipids_resnum2rindex[l] = {}
+		lipids_rindex2resnum[l] = {}
+		lipids_rindex2specie[l] = {}
+		lipids_specie2rindex[l] = {}
 		for s in leaflet_species[l] + ["all species"]:
-			lipids_resnums2rindex[l][s] = {r_num: list(leaflet_sele[l][s].resnums()).index(r_num) for r_num in leaflet_sele[l][s].resnums()}
-			lipids_rindex2resnums[l][s] = {r_index: leaflet_sele[l][s].resnums()[r_index] for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}			#for efficiency's sake (faster than calling resnums() every time)
-			lipids_rindex2rspecie[l][s] = {r_index: leaflet_sele[l][s].resnames()[r_index] for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}			#for efficiency's sake (faster than calling resnums() every time)
+			lipids_resnum2rindex[l][s] = {r_num: list(leaflet_sele[l][s].resnums()).index(r_num) for r_num in leaflet_sele[l][s].resnums()}
+			lipids_rindex2resnum[l][s] = {r_index: leaflet_sele[l][s].resnums()[r_index] for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}			#for efficiency's sake (faster than calling resnums() every time)
+			lipids_rindex2specie[l][s] = {r_index: leaflet_sele[l][s].resnames()[r_index] for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}			#for efficiency's sake (faster than calling resnums() every time)
+		#list of r_index of given specie amongst the all species r_indices
+		lipids_specie2rindex[l]["all species"] = [r_index for r_index in range(0,leaflet_sele[l]["all species"].numberOfResidues()) ]
+		for s in leaflet_species[l]:	
+			lipids_specie2rindex[l][s] = [r_index for r_index in range(0,leaflet_sele[l]["all species"].numberOfResidues()) if leaflet_sele[l]["all species"].resnames()[r_index] == s ]
+		#given a residue number get the specie
+		lipids_resnum2specie[l] = {r_num: lipids_rindex2specie[l]["all species"][lipids_resnum2rindex[l]["all species"][r_num]] for r_num in leaflet_sele[l]["all species"].resnums()}
 		if args.perturb == 2 or args.perturb == 3:
-			lipids_resnums2rindex[l]["op"] = {r_num: list(leaflet_sele[l]["op"].resnums()).index(r_num) for r_num in leaflet_sele[l]["op"].resnums()}
+			lipids_resnum2rindex[l]["op"] = {r_num: list(leaflet_sele[l]["op"].resnums()).index(r_num) for r_num in leaflet_sele[l]["op"].resnums()}
 	
 	return
 def initialise_colours_and_groups():
@@ -1470,15 +1509,15 @@ def initialise_colours_and_groups():
 # data structures
 #=========================================================================================
 
-def data_struct_time():													#updated
+def data_struct_time():													
 
 	global frames_nb
 	global frames_time
-	frames_nb = []
-	frames_time = []
+	frames_nb = numpy.zeros(nb_frames_to_process)
+	frames_time = numpy.zeros(nb_frames_to_process)
 
 	return
-def data_struct_radial():												#optimised
+def data_struct_radial():												
 		
 	#density
 	#-------
@@ -1489,10 +1528,8 @@ def data_struct_radial():												#optimised
 		for s in leaflet_species[l] + ["all species"]:
 			radial_density[l][s] = {}
 			radial_density[l][s]["all sizes"] = {}
-			radial_density[l][s]["all sizes"]["nb"] = {}
-			radial_density[l][s]["all sizes"]["pc"] = {}
-			radial_density[l][s]["all sizes"]["nb"]["all frames"] = numpy.zeros(args.radial_nb_bins)
-			radial_density[l][s]["all sizes"]["pc"]["all frames"] = numpy.zeros(args.radial_nb_bins)
+			radial_density[l][s]["all sizes"]["nb"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+			radial_density[l][s]["all sizes"]["pc"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 			if args.cluster_groups_file != "no":
 				radial_density[l][s]["groups"] = {g_index: {k: {"all frames": numpy.zeros(args.radial_nb_bins)} for k in ["nb","pc"]} for g_index in range(0,groups_number+1)}
 					
@@ -1503,13 +1540,16 @@ def data_struct_radial():												#optimised
 		radial_thick = {}	
 		for s in leaflet_species["both"] + ["all species"]:
 			radial_thick[s] = {}
+			radial_thick[s]["nb"] = {}
+			radial_thick[s]["nb"]["all sizes"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 			radial_thick[s]["avg"] = {}
+			radial_thick[s]["avg"]["all sizes"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 			radial_thick[s]["std"] = {}
-			radial_thick[s]["avg"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
-			radial_thick[s]["std"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
+			radial_thick[s]["std"]["all sizes"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 			if args.cluster_groups_file != "no":
-				radial_thick[s]["avg"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
-				radial_thick[s]["std"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
+				radial_thick[s]["nb"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}				
+				radial_thick[s]["avg"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
+				radial_thick[s]["std"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
 
 	#order parameter
 	#---------------
@@ -1520,126 +1560,89 @@ def data_struct_radial():												#optimised
 			radial_op[l] = {}
 			for s in op_lipids_handled[l] + ["all species"]:
 				radial_op[l][s] = {}
+				radial_op[l][s]["nb"] = {}
+				radial_op[l][s]["nb"]["all sizes"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 				radial_op[l][s]["avg"] = {}
+				radial_op[l][s]["avg"]["all sizes"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 				radial_op[l][s]["std"] = {}
-				radial_op[l][s]["avg"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
-				radial_op[l][s]["std"]["all sizes"] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
+				radial_op[l][s]["std"]["all sizes"] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 				if args.cluster_groups_file != "no":
-					radial_op[l][s]["avg"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
-					radial_op[l][s]["std"]["groups"] = {g_index: {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}} for g_index in range(0,groups_number+1)}
+					radial_op[l][s]["nb"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}				
+					radial_op[l][s]["avg"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
+					radial_op[l][s]["std"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
 
 	return
-def data_struct_thick():												#partly optimised
+def data_struct_thick():												#DONE
 
 	global lipids_thick_nff
 	lipids_thick_nff = {}
 	
-	#thickness: each lipid
+	#temporary data for each lipid
 	for l in ["lower","upper"]:
 		lipids_thick_nff[l] = {}
-		for s in leaflet_species[l]:
-			lipids_thick_nff[l][s] = {r_index: {} for r_index in range(0,leaflet_sele[l][s].numberOfResidues())}
 
-	#thickness: each specie
-	lipids_thick_nff["data"] = {}
-	lipids_thick_nff["sorted"] = {}
-	lipids_thick_nff["sorted"]["avg"] = {}
-	lipids_thick_nff["sorted"]["std"] = {}
-	lipids_thick_nff["smoothed"] = {}
-	lipids_thick_nff["smoothed"]["avg"] = {}
-	lipids_thick_nff["smoothed"]["std"] = {}
+	#each specie
 	for s in leaflet_species["both"] + ["all species"]:
-		lipids_thick_nff["data"][s] = {}
-		lipids_thick_nff["data"][s]["all frames"] = []
-		lipids_thick_nff["sorted"]["avg"][s] = []
-		lipids_thick_nff["sorted"]["std"][s] = []
-	
-	return
-def data_struct_op_ff():												#updated
+		lipids_thick_nff[s] = {}
+		lipids_thick_nff[s]["raw"] = {}
+		lipids_thick_nff[s]["raw"]["avg"] = numpy.zeros(nb_frames_to_process)
+		lipids_thick_nff[s]["raw"]["std"] = numpy.zeros(nb_frames_to_process)
+		lipids_thick_nff[s]["smoothed"] = {}
 
-	#z coords
-	global z_lower
-	global z_upper
+	return
+def data_struct_op_ff():												#DONE
+
 	global z_ff
-	global lipids_op_ff_tailA
-	global lipids_op_ff_tailB
-	global lipids_op_ff_tails
-	global lipids_op_ff_tailA_smoothed
-	global lipids_op_ff_tailB_smoothed
-	global lipids_op_ff_tails_smoothed
+	global z_upper
+	global z_lower
+	global lipids_op_ff
 	
 	z_ff = {}
-	z_lower = []
-	z_upper = []
-	lipids_op_ff_tailA = {}
-	lipids_op_ff_tailB = {}
-	lipids_op_ff_tails = {}
-	lipids_op_ff_tailA_smoothed = {}
-	lipids_op_ff_tailB_smoothed = {}
-	lipids_op_ff_tails_smoothed = {}
+	lipids_op_ff = {}
+	z_upper = numpy.zeros(nb_frames_to_process)	
+	z_lower = numpy.zeros(nb_frames_to_process)
 	for l_index in range(0,lipids_ff_nb):
-		z_ff[l_index] = []
-		lipids_op_ff_tailA[l_index] = {}
-		lipids_op_ff_tailB[l_index] = {}
-		lipids_op_ff_tails[l_index] = {}
-		lipids_op_ff_tailA[l_index]["all frames"] = []
-		lipids_op_ff_tailB[l_index]["all frames"] = []
-		lipids_op_ff_tails[l_index]["all frames"] = []
+		z_ff[l_index] = numpy.zeros(nb_frames_to_process)
+		lipids_op_ff[l_index] = {}
+		for tail in ["tailA", "tailB", "tails"]:
+			lipids_op_ff[l_index][tail] = {}
+			lipids_op_ff[l_index][tail]["raw"] = numpy.zeros(nb_frames_to_process)
+			lipids_op_ff[l_index][tail]["smoothed"] = {}
 
 	return
-def data_struct_op_nff():												#partly optimised
+def data_struct_op_nff():												#DONE
 	
 	global lipids_op_nff
 	lipids_op_nff = {}
-
-	#op: each lipid
-	for l in ["lower","upper"]:
+	for l in ["lower", "upper"]:
 		lipids_op_nff[l] = {}
-	
-	#op: each specie
-	lipids_op_nff["data"] = {}
-	lipids_op_nff["sorted"] = {}
-	lipids_op_nff["sorted"]["avg"] = {}
-	lipids_op_nff["sorted"]["std"] = {}
-	lipids_op_nff["smoothed"] = {}
-	lipids_op_nff["smoothed"]["avg"] = {}
-	lipids_op_nff["smoothed"]["std"] = {}
-	for tail in ["tailA", "tailB", "tails"]:
-		lipids_op_nff["data"][tail] = {}
-		lipids_op_nff["sorted"]["avg"][tail] = {}	
-		lipids_op_nff["sorted"]["std"][tail] = {}		
-		lipids_op_nff["smoothed"]["avg"][tail] = {}
-		lipids_op_nff["smoothed"]["std"][tail] = {}
-		for l in ["lower", "upper"]:
-			lipids_op_nff["data"][tail][l] = {}
-			lipids_op_nff["sorted"]["avg"][tail][l] = {}	
-			lipids_op_nff["sorted"]["std"][tail][l] = {}	
-			lipids_op_nff["smoothed"]["avg"][tail][l] = {}
-			lipids_op_nff["smoothed"]["std"][tail][l] = {}
-			for s in op_lipids_handled[l] + ["all species"]:
-				lipids_op_nff["data"][tail][l][s] = {}
-				lipids_op_nff["data"][tail][l][s]["all frames"] = []
-				lipids_op_nff["sorted"]["avg"][tail][l][s] = []
-				lipids_op_nff["sorted"]["std"][tail][l][s] = []	
-	
+		for s in op_lipids_handled[l] + ["all species"]:
+			lipids_op_nff[l][s] = {}
+			for tail in ["tailA", "tailB", "tails"]:
+				lipids_op_nff[l][s][tail] = {}
+				lipids_op_nff[l][s][tail]["raw"] = {}
+				lipids_op_nff[l][s][tail]["raw"]["avg"] = numpy.zeros(nb_frames_to_process)
+				lipids_op_nff[l][s][tail]["raw"]["std"] = numpy.zeros(nb_frames_to_process)
+				lipids_op_nff[l][s][tail]["smoothed"] = {}
+					
 	return
 
 #=========================================================================================
 # core functions
 #=========================================================================================
 
-def get_z_coords():														#updated
+def get_z_coords(f_index):														
 	
 	tmp_zu = leaflet_sele_atoms["upper"]["all species"].centerOfGeometry()[2]
 	tmp_zl = leaflet_sele_atoms["lower"]["all species"].centerOfGeometry()[2]
 	tmp_zm = tmp_zl + (tmp_zu - tmp_zl)/float(2)
-	z_upper.append(tmp_zu - tmp_zm)
-	z_lower.append(tmp_zl - tmp_zm)
+	z_upper[f_index] = tmp_zu - tmp_zm
+	z_lower[f_index] = tmp_zl - tmp_zm
 	for l in range(0,lipids_ff_nb):	
-		z_ff[l].append(lipids_sele_ff_bead[l].centerOfGeometry()[2] - tmp_zm)
+		z_ff[l][f_index] = lipids_sele_ff_bead[l].centerOfGeometry()[2] - tmp_zm
 
 	return
-def get_distances(box_dim):												#optimised
+def get_distances(box_dim):												
 	
 	#method: use minimum distance between proteins
 	#---------------------------------------------
@@ -1656,7 +1659,7 @@ def get_distances(box_dim):												#optimised
 		dist_matrix = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_proteins_cogs), numpy.float32(tmp_proteins_cogs), box_dim)
 
 	return dist_matrix
-def calculate_cog(sele, box_dim):										#optimised
+def calculate_cog(sele, box_dim):										
 	
 	#this method allows to take pbc into account when calculcating the center of geometry 
 	#see: http://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
@@ -1670,7 +1673,8 @@ def calculate_cog(sele, box_dim):										#optimised
 		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
 	return cog_coord
-def calculate_radial(f_type, f_time, f_write):								#optimised
+@profile
+def calculate_radial(f_type, f_time, f_write):							
 	
 	global radial_step
 	
@@ -1732,17 +1736,19 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 			#thickness
 			if args.perturb == 1 or args.perturb == 3:
 				for s in leaflet_species["both"] + ["all species"]:
-					radial_thick[s]["avg"][c_size] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
-					radial_thick[s]["std"][c_size] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
+					radial_thick[s]["nb"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+					radial_thick[s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+					radial_thick[s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 			#order parameter
 			if args.perturb == 2 or args.perturb == 3:
 				for l in ["lower","upper"]:					
 					for s in op_lipids_handled[l] + ["all species"]:
-						radial_op[l][s]["avg"][c_size] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}
-						radial_op[l][s]["std"][c_size] = {"all frames": {n: [] for n in range(0,args.radial_nb_bins)}}					
+						radial_op[l][s]["nb"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+						radial_op[l][s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+						radial_op[l][s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 	
-		#add frame entry
-		#---------------
+		#reset containers to calculate current frame stats
+		#-------------------------------------------------
 		#density
 		for l in ["lower","upper"]:
 			for s in leaflet_species[l] + ["all species"]:
@@ -1771,8 +1777,8 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 				radial_groups["all frames"].append(g_index)
 				radial_groups["all frames"] = sorted(radial_groups["all frames"])				
 
-			#add frame entry
-			#---------------
+			#reset containers to calculate current frame stats
+			#-------------------------------------------------
 			#density
 			for l in ["lower","upper"]:
 				for s in leaflet_species[l] + ["all species"]:
@@ -1793,7 +1799,6 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 	#deal with lipids around them
 	#============================
 	for l in ["lower","upper"]:
-		tmp_resnames = leaflet_sele[l]["all species"].resnames()
 		tmp_resnums = numpy.zeros((1,leaflet_sele[l]["all species"].numberOfResidues()))
 		tmp_resnums[0,:] = leaflet_sele[l]["all species"].resnums()
 		for c_size in radial_sizes["current"]:
@@ -1804,7 +1809,7 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 
 				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
 				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].coordinates(), U.trajectory.ts.dimensions)
-				r_num_within = list(tmp_resnums[lip_dist<args.radial_radius])
+				r_num_within = list(tmp_resnums[lip_dist < args.radial_radius])
 
 				#drop data into the right radial bin for those lipids
 				#----------------------------------------------------
@@ -1812,9 +1817,9 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 				if args.perturb == 0:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums2rindex[l]["all species"][r_num]
-						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
+						r_index = lipids_resnum2rindex[l]["all species"][r_num]
+						r_specie = lipids_rindex2specie[l]["all species"][r_index]
+						r_index_specie = lipids_resnum2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
@@ -1837,9 +1842,9 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 				elif args.perturb == 1:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums2rindex[l]["all species"][r_num]
-						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
+						r_index = lipids_resnum2rindex[l]["all species"][r_num]
+						r_specie = lipids_rindex2specie[l]["all species"][r_index]
+						r_index_specie = lipids_resnum2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
@@ -1859,28 +1864,29 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 							radial_density[l]["all species"]["groups"][g_index]["nb"]["all frames"][r_bin] += 1
 
 						#thickness
-						radial_thick["all species"]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						tmp_thickness = lipids_thick_nff[l][r_specie][r_index_specie]
+						radial_thick["all species"]["avg"][c_size]["current"][r_bin].append(tmp_thickness)
+						radial_thick["all species"]["avg"]["all sizes"]["current"][r_bin].append(tmp_thickness)
+						radial_thick[r_specie]["avg"][c_size]["current"][r_bin].append(tmp_thickness)
+						radial_thick[r_specie]["avg"]["all sizes"]["current"][r_bin].append(tmp_thickness)
+						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(tmp_thickness)
+						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(tmp_thickness)
+						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(tmp_thickness)
+						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(tmp_thickness)
 						if args.cluster_groups_file != "no":
 							g_index = groups_sizes_dict[c_size]
-							radial_thick[r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-							radial_thick["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-							radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-							radial_thick["all species"]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick[r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_thickness)
+							radial_thick["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_thickness)
+							radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(tmp_thickness)
+							radial_thick["all species"]["avg"]["groups"][g_index]["all frames"][r_bin].append(tmp_thickness)
 
 				#case: density + order parameters
 				elif args.perturb == 2:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums2rindex[l]["all species"][r_num]
-						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
+						r_index = lipids_resnum2rindex[l]["all species"][r_num]
+						r_specie = lipids_rindex2specie[l]["all species"][r_index]
+						r_index_specie = lipids_resnum2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 
 						#density
@@ -1901,39 +1907,45 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 					
 						#order parameters
 						if r_specie in op_lipids_handled[l]:
-							radial_op[l][r_specie]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l][r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
+							tmp_orderparam = lipids_op_nff[l][r_specie]["current"][r_index_specie]
+							radial_op[l][r_specie]["avg"][c_size]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l][r_specie]["avg"]["all sizes"]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l]["all species"]["avg"][c_size]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l]["all species"]["avg"]["all sizes"]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(tmp_orderparam)
+							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(tmp_orderparam)
+							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(tmp_orderparam)
+							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(tmp_orderparam)
 							if args.cluster_groups_file != "no":
 								g_index = groups_sizes_dict[c_size]
-								radial_op[l][r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-								radial_op[l]["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-								radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-								radial_op[l]["all species"]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
+								radial_op[l][r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_orderparam)
+								radial_op[l]["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_orderparam)
+								radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(tmp_orderparam)
+								radial_op[l]["all species"]["avg"]["groups"][g_index]["all frames"][r_bin].append(tmp_orderparam)
 				
 				#case: density + thickness + order parameters
 				else:
 					for r_numf in r_num_within:
 						r_num = int(r_numf)
-						r_index = lipids_resnums2rindex[l]["all species"][r_num]
-						r_specie = tmp_resnames[r_index]
-						r_index_specie = lipids_resnums2rindex[l][r_specie][r_num]
+						r_index = lipids_resnum2rindex[l]["all species"][r_num]
+						r_specie = lipids_rindex2specie[l]["all species"][r_index]
+						r_index_specie = lipids_resnum2rindex[l][r_specie][r_num]
 						r_bin = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
 						
 						#density
+						#-------
 						radial_density[l][r_specie][c_size]["nb"]["current"][r_bin] += 1
 						radial_density[l][r_specie]["all sizes"]["nb"]["current"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["current"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["current"][r_bin] += 1
+						
 						radial_density[l][r_specie][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l][r_specie]["all sizes"]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"][c_size]["nb"]["all frames"][r_bin] += 1
 						radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][r_bin] += 1
+						
+						
+						
 						if args.cluster_groups_file != "no":
 							g_index = groups_sizes_dict[c_size]
 							radial_density[l][r_specie]["groups"][g_index]["nb"]["current"][r_bin] += 1
@@ -1942,37 +1954,104 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 							radial_density[l]["all species"]["groups"][g_index]["nb"]["all frames"][r_bin] += 1
 													
 						#thickness
-						radial_thick["all species"]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"][c_size]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+						#---------
+						tmp_thickness = lipids_thick_nff[l][r_specie][r_index_specie]
+						radial_thick["all species"]["avg"][c_size]["current"][r_bin].append(tmp_thickness)
+						radial_thick["all species"]["avg"]["all sizes"]["current"][r_bin].append(tmp_thickness)
+						radial_thick[r_specie]["avg"][c_size]["current"][r_bin].append(tmp_thickness)
+						radial_thick[r_specie]["avg"]["all sizes"]["current"][r_bin].append(tmp_thickness)
+												
+						#knuth algorithm for on the fly average and std (to divide by n-1) for current specie, current size
+						radial_thick[r_specie]["nb"][c_size]["all frames"][r_bin] += 1
+						delta = tmp_thickness - radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin]
+						radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin] += delta / float(radial_thick[r_specie]["nb"][c_size]["all frames"][r_bin])
+						radial_thick[r_specie]["std"][c_size]["all frames"][r_bin] += delta * (tmp_thickness - radial_thick[r_specie]["avg"][c_size]["all frames"][r_bin])
+
+						#knuth algorithm for on the fly average and std (to divide by n-1) for all specie, current size
+						radial_thick["all species"]["nb"][c_size]["all frames"][r_bin] += 1
+						delta = tmp_thickness - radial_thick["all species"]["avg"][c_size]["all frames"][r_bin]
+						radial_thick["all species"]["avg"][c_size]["all frames"][r_bin] += delta / float(radial_thick["all species"]["nb"][c_size]["all frames"][r_bin])
+						radial_thick["all species"]["std"][c_size]["all frames"][r_bin] += delta * (tmp_thickness - radial_thick["all species"]["avg"][c_size]["all frames"][r_bin])
+
+						#knuth algorithm for on the fly average and std (to divide by n-1) for current specie, all sizes
+						radial_thick[r_specie]["nb"]["all sizes"]["all frames"][r_bin] += 1
+						delta = tmp_thickness - radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin]
+						radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin] += delta / float(radial_thick[r_specie]["nb"]["all sizes"]["all frames"][r_bin])
+						radial_thick[r_specie]["std"]["all sizes"]["all frames"][r_bin] += delta * (tmp_thickness - radial_thick[r_specie]["avg"]["all sizes"]["all frames"][r_bin])
+
+						#knuth algorithm for on the fly average and std (to divide by n-1) for all specie, all sizes
+						radial_thick["all species"]["nb"]["all sizes"]["all frames"][r_bin] += 1
+						delta = tmp_thickness - radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin]
+						radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin] += delta / float(radial_thick["all species"]["nb"]["all sizes"]["all frames"][r_bin])
+						radial_thick["all species"]["std"]["all sizes"]["all frames"][r_bin] += delta * (tmp_thickness - radial_thick["all species"]["avg"]["all sizes"]["all frames"][r_bin])
+
 						if args.cluster_groups_file != "no":
 							g_index = groups_sizes_dict[c_size]
-							radial_thick[r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-							radial_thick["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-							radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
-							radial_thick["all species"]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_thick_nff[l][r_specie][r_index_specie]["current"])
+							radial_thick[r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_thickness)
+							radial_thick["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_thickness)
+
+							#knuth algorithm for on the fly average and std (to divide by n-1) for current specie
+							radial_thick[r_specie]["nb"]["groups"][g_index]["all frames"][r_bin] += 1
+							delta = tmp_thickness - radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin]
+							radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin] += delta / float(radial_thick[r_specie]["nb"]["groups"][g_index]["all frames"][r_bin])
+							radial_thick[r_specie]["std"]["groups"][g_index]["all frames"][r_bin] += delta * (tmp_thickness - radial_thick[r_specie]["avg"]["groups"][g_index]["all frames"][r_bin])
+
+							#knuth algorithm for on the fly average and std (to divide by n-1) for all specie
+							radial_thick["all species"]["nb"]["groups"][g_index]["all frames"][r_bin] += 1
+							delta = tmp_thickness - radial_thick["all species"]["avg"]["groups"][g_index]["all frames"][r_bin]
+							radial_thick["all species"]["avg"]["groups"][g_index]["all frames"][r_bin] += delta / float(radial_thick["all species"]["nb"]["groups"][g_index]["all frames"][r_bin])
+							radial_thick["all species"]["std"]["groups"][g_index]["all frames"][r_bin] += delta * (tmp_thickness - radial_thick["all species"]["avg"]["groups"][g_index]["all frames"][r_bin])
+
 
 						#order parameters
+						#----------------
 						if r_specie in op_lipids_handled[l]:
-							radial_op[l][r_specie]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l][r_specie]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"][c_size]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"]["all sizes"]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
+							tmp_orderparam = lipids_op_nff[l][r_specie]["current"][r_index_specie]
+							radial_op[l][r_specie]["avg"][c_size]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l][r_specie]["avg"]["all sizes"]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l]["all species"]["avg"][c_size]["current"][r_bin].append(tmp_orderparam)
+							radial_op[l]["all species"]["avg"]["all sizes"]["current"][r_bin].append(tmp_orderparam)
+
+							#knuth algorithm for on the fly average and std (to divide by n-1) for current specie, current size
+							radial_op[l][r_specie]["nb"][c_size]["all frames"][r_bin] += 1
+							delta = tmp_orderparam - radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin]
+							radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin] += delta / float(radial_op[l][r_specie]["nb"][c_size]["all frames"][r_bin])
+							radial_op[l][r_specie]["std"][c_size]["all frames"][r_bin] += delta * (tmp_orderparam - radial_op[l][r_specie]["avg"][c_size]["all frames"][r_bin])
+	
+							#knuth algorithm for on the fly average and std (to divide by n-1) for all specie, current size
+							radial_op[l]["all species"]["nb"][c_size]["all frames"][r_bin] += 1
+							delta = tmp_orderparam - radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin]
+							radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin] += delta / float(radial_op[l]["all species"]["nb"][c_size]["all frames"][r_bin])
+							radial_op[l]["all species"]["std"][c_size]["all frames"][r_bin] += delta * (tmp_orderparam - radial_op[l]["all species"]["avg"][c_size]["all frames"][r_bin])
+
+							#knuth algorithm for on the fly average and std (to divide by n-1) for current specie, all sizes
+							radial_op[l][r_specie]["nb"]["all sizes"]["all frames"][r_bin] += 1
+							delta = tmp_orderparam - radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin]
+							radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin] += delta / float(radial_op[l][r_specie]["nb"]["all sizes"]["all frames"][r_bin])
+							radial_op[l][r_specie]["std"]["all sizes"]["all frames"][r_bin] += delta * (tmp_orderparam - radial_op[l][r_specie]["avg"]["all sizes"]["all frames"][r_bin])
+	
+							#knuth algorithm for on the fly average and std (to divide by n-1) for all specie, all sizes
+							radial_op[l]["all species"]["nb"]["all sizes"]["all frames"][r_bin] += 1
+							delta = tmp_orderparam - radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin]
+							radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin] += delta / float(radial_op[l]["all species"]["nb"]["all sizes"]["all frames"][r_bin])
+							radial_op[l]["all species"]["std"]["all sizes"]["all frames"][r_bin] += delta * (tmp_orderparam - radial_op[l]["all species"]["avg"]["all sizes"]["all frames"][r_bin])
+
 							if args.cluster_groups_file != "no":
 								g_index = groups_sizes_dict[c_size]
-								radial_op[l][r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-								radial_op[l]["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-								radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
-								radial_op[l]["all species"]["avg"]["groups"][g_index]["all frames"][r_bin].append(lipids_op_nff[l][r_specie][r_index_specie])
+								radial_op[l][r_specie]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_orderparam)
+								radial_op[l]["all species"]["avg"]["groups"][g_index]["current"][r_bin].append(tmp_orderparam)
+								
+								#knuth algorithm for on the fly average and std (to divide by n-1) for current specie
+								radial_op[l][r_specie]["nb"]["groups"][g_index]["all frames"][r_bin] += 1
+								delta = tmp_orderparam - radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin]
+								radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin] += delta / float(radial_op[l][r_specie]["nb"]["groups"][g_index]["all frames"][r_bin])
+								radial_op[l][r_specie]["std"]["groups"][g_index]["all frames"][r_bin] += delta * (tmp_orderparam - radial_op[l][r_specie]["avg"]["groups"][g_index]["all frames"][r_bin])
+
+								#knuth algorithm for on the fly average and std (to divide by n-1) for all specie
+								radial_op[l]["all species"]["nb"]["groups"][g_index]["all frames"][r_bin] += 1
+								delta = tmp_orderparam - radial_op[l]["all species"]["avg"]["groups"][g_index]["all frames"][r_bin]
+								radial_op[l]["all species"]["avg"]["groups"][g_index]["all frames"][r_bin] += delta / float(radial_op[l]["all species"]["nb"]["groups"][g_index]["all frames"][r_bin])
+								radial_op[l]["all species"]["std"]["groups"][g_index]["all frames"][r_bin] += delta * (tmp_orderparam - radial_op[l]["all species"]["avg"]["groups"][g_index]["all frames"][r_bin])
 
 	#produce outputs if necessary
 	#============================
@@ -1988,12 +2067,12 @@ def calculate_radial(f_type, f_time, f_write):								#optimised
 			radial_op_frame_xvg_graph(f_type, f_time)
 	
 	return
-def calculate_radial_data(f_type):										#partly optimised
+def calculate_radial_data(f_type):										
 	
 	#NB: f_type is either set to "current" (for on the fly outputting) or to "all frames" (for post-processing statistics)
 	
 	#density
-	#-------
+	#=======
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
 			for c_size in radial_sizes[f_type] + ["all sizes"]:
@@ -2001,100 +2080,159 @@ def calculate_radial_data(f_type):										#partly optimised
 			if args.cluster_groups_file != "no":
 				for g_index in radial_groups[f_type]:
 					radial_density[l][s]["groups"][g_index]["pc"][f_type] = map(lambda n:radial_density[l][s]["groups"][g_index]["nb"][f_type][n] / float(radial_density[l]["all species"]["groups"][g_index]["nb"][f_type][n])*100 if radial_density[l]["all species"]["groups"][g_index]["nb"][f_type][n] != 0 else 0, range(0,args.radial_nb_bins))
-												
-	#thickness
-	#---------
-	if args.perturb == 1 or args.perturb == 3:		
-		for s in leaflet_species["both"] + ["all species"]:
-			#individual sizes
-			for c_size in radial_sizes[f_type] + ["all sizes"]:
-				for n in range(0,args.radial_nb_bins):
-					if s != "all species":
-						if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s][c_size]["nb"][f_type][n] == 0 and radial_density["upper"][s][c_size]["nb"][f_type][n] == 0):
-							radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
-							radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
-						elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s][c_size]["nb"][f_type][n] == 0 :
-							radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
-							radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
-						elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s][c_size]["nb"][f_type][n] == 0 :
-							radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
-							radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
-						else:
-							tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_type][n])
-							tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_type][n])
-							radial_thick[s]["avg"][c_size][f_type][n] = tmp_avg
-							radial_thick[s]["std"][c_size][f_type][n] = tmp_std
-					else:
-						if radial_density["lower"]["all species"][c_size]["nb"][f_type][n] == 0 and radial_density["upper"]["all species"][c_size]["nb"][f_type][n] == 0:
-							radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
-							radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
-						else:
-							tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_type][n])
-							tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_type][n])
-							radial_thick[s]["avg"][c_size][f_type][n] = tmp_avg
-							radial_thick[s]["std"][c_size][f_type][n] = tmp_std
-							
-			#size groups
-			if args.cluster_groups_file != "no":
-				for g_index in radial_groups[f_type]:
-					for n in range(0,args.radial_nb_bins):								
-						if s != "all species":
-							if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] == 0 and radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] == 0):
-								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
-								radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
-							elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] == 0 :
-								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
-								radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
-							elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] == 0 :
-								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
-								radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
-							else:
-								tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
-								tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
-								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = tmp_avg
-								radial_thick[s]["std"]["groups"][g_index][f_type][n] = tmp_std
-						else:
-							if radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_type][n] == 0 and radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_type][n] == 0:
-								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
-								radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
-							else:
-								tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
-								tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
-								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = tmp_avg
-								radial_thick[s]["std"]["groups"][g_index][f_type][n] = tmp_std
-								
-	#order parameters
-	#----------------
-	if args.perturb == 2 or args.perturb == 3:
-		for l in ["lower","upper"]:
-			for s in op_lipids_handled[l] + ["all species"]:
+
+	#perturbations
+	#=============
+	if f_type == "all frames":								
+		#thickness
+		#---------
+		if args.perturb == 1 or args.perturb == 3:		
+			for s in leaflet_species["both"] + ["all species"]:
 				#individual sizes
 				for c_size in radial_sizes[f_type] + ["all sizes"]:
-					for n in range(0,args.radial_nb_bins):			
-						if radial_density[l][s][c_size]["nb"][f_type][n] == 0:
-							radial_op[l][s]["avg"][c_size][f_type][n] = numpy.nan
-							radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
+					for n in range(0,args.radial_nb_bins):
+						if radial_thick[s]["nb"][c_size][f_type][n] == 0:
+							radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
+							radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
+						elif radial_thick[s]["nb"][c_size][f_type][n] == 1:
+							radial_thick[s]["std"][c_size][f_type][n] = 0
 						else:
-							tmp_avg = numpy.average(radial_op[l][s]["avg"][c_size][f_type][n])
-							tmp_std = numpy.std(radial_op[l][s]["avg"][c_size][f_type][n])
-							radial_op[l][s]["avg"][c_size][f_type][n] = tmp_avg
-							radial_op[l][s]["std"][c_size][f_type][n] = tmp_std
-
+							radial_thick[s]["std"][c_size][f_type][n] /= float(radial_thick[s]["nb"][c_size][f_type][n])
+								
 				#size groups
 				if args.cluster_groups_file != "no":
 					for g_index in radial_groups[f_type]:
-						for n in range(0,args.radial_nb_bins):
-							if radial_density[l][s]["groups"][g_index]["nb"][f_type][n] == 0:
-								radial_op[l][s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
-								radial_op[l][s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+						for n in range(0,args.radial_nb_bins):								
+							if radial_thick[s]["nb"]["groups"][g_index][f_type][n] == 0:
+								radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+								radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+							elif radial_thick[s]["nb"]["groups"][g_index][f_type][n] == 1:
+								radial_thick[s]["std"]["groups"][g_index][f_type][n] = 0
 							else:
-								tmp_avg = numpy.average(radial_op[l][s]["avg"]["groups"][g_index][f_type][n])
-								tmp_std = numpy.std(radial_op[l][s]["avg"]["groups"][g_index][f_type][n])
-								radial_op[l][s]["avg"]["groups"][g_index][f_type][n] = tmp_avg
-								radial_op[l][s]["std"]["groups"][g_index][f_type][n] = tmp_std
+								radial_thick[s]["std"]["groups"][g_index][f_type][n] /= float(radial_thick[s]["nb"]["groups"][g_index][f_type][n])
+									
+		#order parameters
+		#----------------
+		if args.perturb == 2 or args.perturb == 3:
+			for l in ["lower","upper"]:
+				for s in op_lipids_handled[l] + ["all species"]:
+					#individual sizes
+					for c_size in radial_sizes[f_type] + ["all sizes"]:
+						for n in range(0,args.radial_nb_bins):			
+							if radial_op[l][s]["nb"][c_size][f_type][n] == 0:
+								radial_op[l][s]["avg"][c_size][f_type][n] = numpy.nan
+								radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
+							elif radial_op[l][s]["nb"][c_size][f_type][n] == 1:
+								radial_op[l][s]["std"][c_size][f_type][n] = 0
+							else:
+								radial_op[l][s]["std"][c_size][f_type][n] /= float(radial_op[l][s]["nb"][c_size][f_type][n])
+	
+					#size groups
+					if args.cluster_groups_file != "no":
+						for g_index in radial_groups[f_type]:
+							for n in range(0,args.radial_nb_bins):
+								if radial_op[l][s]["nb"]["groups"][g_index][f_type][n] == 0:
+									radial_op[l][s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+									radial_op[l][s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+								elif radial_op[l][s]["nb"]["groups"][g_index][f_type][n] == 1:
+									radial_op[l][s]["std"]["groups"][g_index][f_type][n] = 0
+								else:
+									radial_op[l][s]["std"]["groups"][g_index][f_type][n] /= float(radial_op[l][s]["nb"]["groups"][g_index][f_type][n])
+
+	else:
+		#thickness
+		#---------
+		if args.perturb == 1 or args.perturb == 3:		
+			for s in leaflet_species["both"] + ["all species"]:
+				#individual sizes
+				for c_size in radial_sizes[f_type] + ["all sizes"]:
+					for n in range(0,args.radial_nb_bins):
+						if s != "all species":
+							if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s][c_size]["nb"][f_type][n] == 0 and radial_density["upper"][s][c_size]["nb"][f_type][n] == 0):
+								radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
+								radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
+							elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s][c_size]["nb"][f_type][n] == 0 :
+								radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
+								radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
+							elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s][c_size]["nb"][f_type][n] == 0 :
+								radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
+								radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
+							else:
+								tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_type][n])
+								tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_type][n])
+								radial_thick[s]["avg"][c_size][f_type][n] = tmp_avg
+								radial_thick[s]["std"][c_size][f_type][n] = tmp_std
+						else:
+							if radial_density["lower"]["all species"][c_size]["nb"][f_type][n] == 0 and radial_density["upper"]["all species"][c_size]["nb"][f_type][n] == 0:
+								radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
+								radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
+							else:
+								tmp_avg = numpy.average(radial_thick[s]["avg"][c_size][f_type][n])
+								tmp_std = numpy.std(radial_thick[s]["avg"][c_size][f_type][n])
+								radial_thick[s]["avg"][c_size][f_type][n] = tmp_avg
+								radial_thick[s]["std"][c_size][f_type][n] = tmp_std
+								
+				#size groups
+				if args.cluster_groups_file != "no":
+					for g_index in radial_groups[f_type]:
+						for n in range(0,args.radial_nb_bins):								
+							if s != "all species":
+								if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) and (radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] == 0 and radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] == 0):
+									radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+									radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+								elif (s in leaflet_species["lower"] and s not in leaflet_species["upper"]) and radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] == 0 :
+									radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+									radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+								elif (s not in leaflet_species["lower"] and s in leaflet_species["upper"]) and radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] == 0 :
+									radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+									radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+								else:
+									tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
+									tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
+									radial_thick[s]["avg"]["groups"][g_index][f_type][n] = tmp_avg
+									radial_thick[s]["std"]["groups"][g_index][f_type][n] = tmp_std
+							else:
+								if radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_type][n] == 0 and radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_type][n] == 0:
+									radial_thick[s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+									radial_thick[s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+								else:
+									tmp_avg = numpy.average(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
+									tmp_std = numpy.std(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
+									radial_thick[s]["avg"]["groups"][g_index][f_type][n] = tmp_avg
+									radial_thick[s]["std"]["groups"][g_index][f_type][n] = tmp_std
+									
+		#order parameters
+		#----------------
+		if args.perturb == 2 or args.perturb == 3:
+			for l in ["lower","upper"]:
+				for s in op_lipids_handled[l] + ["all species"]:
+					#individual sizes
+					for c_size in radial_sizes[f_type] + ["all sizes"]:
+						for n in range(0,args.radial_nb_bins):			
+							if radial_density[l][s][c_size]["nb"][f_type][n] == 0:
+								radial_op[l][s]["avg"][c_size][f_type][n] = numpy.nan
+								radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
+							else:
+								tmp_avg = numpy.average(radial_op[l][s]["avg"][c_size][f_type][n])
+								tmp_std = numpy.std(radial_op[l][s]["avg"][c_size][f_type][n])
+								radial_op[l][s]["avg"][c_size][f_type][n] = tmp_avg
+								radial_op[l][s]["std"][c_size][f_type][n] = tmp_std
+	
+					#size groups
+					if args.cluster_groups_file != "no":
+						for g_index in radial_groups[f_type]:
+							for n in range(0,args.radial_nb_bins):
+								if radial_density[l][s]["groups"][g_index]["nb"][f_type][n] == 0:
+									radial_op[l][s]["avg"]["groups"][g_index][f_type][n] = numpy.nan
+									radial_op[l][s]["std"]["groups"][g_index][f_type][n] = numpy.nan
+								else:
+									tmp_avg = numpy.average(radial_op[l][s]["avg"]["groups"][g_index][f_type][n])
+									tmp_std = numpy.std(radial_op[l][s]["avg"]["groups"][g_index][f_type][n])
+									radial_op[l][s]["avg"]["groups"][g_index][f_type][n] = tmp_avg
+									radial_op[l][s]["std"]["groups"][g_index][f_type][n] = tmp_std
 	
 	return
-def calculate_thickness(f_type, f_time, f_write, f_nb):								#optimised
+def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 	
 	#array of associated thickness
 	tmp_dist_t2b_dist = MDAnalysis.analysis.distances.distance_array(leaflet_sele["upper"]["all species"].coordinates(), leaflet_sele["lower"]["all species"].coordinates(), U.dimensions)
@@ -2103,71 +2241,42 @@ def calculate_thickness(f_type, f_time, f_write, f_nb):								#optimised
 	tmp_dist_b2t_dist.sort()
 	tmp_dist_t2b_dist = tmp_dist_t2b_dist[:,:args.thick_nb_neighbours]
 	tmp_dist_b2t_dist = tmp_dist_b2t_dist[:,:args.thick_nb_neighbours]
-	tmp_dist_t2b_avg = numpy.zeros((leaflet_sele["upper"]["all species"].numberOfResidues(),1))
-	tmp_dist_b2t_avg = numpy.zeros((leaflet_sele["lower"]["all species"].numberOfResidues(),1))
-	tmp_dist_t2b_avg[:,0] = numpy.average(tmp_dist_t2b_dist, axis=1)
-	tmp_dist_b2t_avg[:,0] = numpy.average(tmp_dist_b2t_dist, axis=1)
+	tmp_dist_t2b_avg = numpy.average(tmp_dist_t2b_dist, axis=1)
+	tmp_dist_b2t_avg = numpy.average(tmp_dist_b2t_dist, axis=1)
 	
-	#add frame entry
-	for s in leaflet_species["both"] + ["all species"]:
-		lipids_thick_nff["data"][s]["current"] = []
-		
-	#beads in upper leaflet
-	for r_index in range(0,leaflet_sele["upper"]["all species"].numberOfResidues()):
-		r_num = lipids_rindex2resnums["upper"]["all species"][r_index]
-		r_specie = lipids_rindex2rspecie["upper"]["all species"][r_index]
-		r_index_specie = lipids_resnums2rindex["upper"][r_specie][r_num]
-		#lipids
-		lipids_thick_nff["upper"][r_specie][r_index_specie]["current"] = tmp_dist_t2b_avg[r_index,0]
-		#species
-		lipids_thick_nff["data"][r_specie]["current"].append(tmp_dist_t2b_avg[r_index,0])
-		lipids_thick_nff["data"][r_specie]["all frames"].append(tmp_dist_t2b_avg[r_index,0])
-		lipids_thick_nff["data"]["all species"]["current"].append(tmp_dist_t2b_avg[r_index,0])
-		lipids_thick_nff["data"]["all species"]["all frames"].append(tmp_dist_t2b_avg[r_index,0])
-		
-	#beads in lower leaflet
-	for r_index in range(0,leaflet_sele["lower"]["all species"].numberOfResidues()):
-		r_num = lipids_rindex2resnums["lower"]["all species"][r_index]
-		r_specie = lipids_rindex2rspecie["lower"]["all species"][r_index]
-		r_index_specie = lipids_resnums2rindex["lower"][r_specie][r_num]
-		#lipids
-		lipids_thick_nff["lower"][r_specie][r_index_specie]["current"] = tmp_dist_b2t_avg[r_index,0]
-		#species
-		lipids_thick_nff["data"][r_specie]["current"].append(tmp_dist_b2t_avg[r_index,0])
-		lipids_thick_nff["data"][r_specie]["all frames"].append(tmp_dist_b2t_avg[r_index,0])
-		lipids_thick_nff["data"]["all species"]["current"].append(tmp_dist_b2t_avg[r_index,0])
-		lipids_thick_nff["data"]["all species"]["all frames"].append(tmp_dist_b2t_avg[r_index,0])
-		
-	#update data for plotting
-	for s in leaflet_species["both"] + ["all species"]:
-		lipids_thick_nff["sorted"]["avg"][s].append(numpy.average(lipids_thick_nff["data"][s]["current"]))
-		lipids_thick_nff["sorted"]["std"][s].append(numpy.std(lipids_thick_nff["data"][s]["current"]))
+	#current data for each lipid
+	lipids_thick_nff["max"] = -1
+	lipids_thick_nff["min"] = 1000000
+	for s in leaflet_species["upper"] + ["all species"]:
+		lipids_thick_nff["upper"][s] = tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]
+		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], numpy.min(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
+		lipids_thick_nff["max"] = max(lipids_thick_nff["max"], numpy.max(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
+	for s in leaflet_species["lower"] + ["all species"]:
+		lipids_thick_nff["lower"][s] = tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]
+		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], numpy.min(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]))
+		lipids_thick_nff["max"] = max(lipids_thick_nff["max"], numpy.max(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]))
 
+	#append species average
+	for s in leaflet_species["both"] + ["all species"]:
+		lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+		lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+	
 	#produce output if necessary
 	if f_write:
-		thick_frame_write_stat(f_type, f_time)
+		thick_frame_write_stat(f_type, f_time, f_index)
 		thick_frame_write_snapshot(f_time)
 		thick_frame_write_annotation(f_time)
 
 	#create annotation line for current frame
-	#----------------------------------------
-	if f_nb == -1:
-		tmp_thick = ""
-	else:
-		tmp_thick = str(f_nb)
-		for l in ["lower","upper"]:
-			for s in leaflet_species[l]:
-				tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index]["current"],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
-		tmp_thick += "\n"
+	tmp_thick = str(frames_nb[f_index])
+	for l in ["lower","upper"]:
+		for s in leaflet_species[l]:
+			tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
+	tmp_thick += "\n"
 	
 	return tmp_thick
-def calculate_order_parameters(f_type, f_time, f_write, f_nb):						#optimised
-	
-	#add frame entry
-	for tail in ["tailA", "tailB", "tails"]:
-		for l in ["lower", "upper"]:
-			lipids_op_nff["data"][tail][l]["all species"]["current"] = []	
-	
+def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
+		
 	#non flipflopping lipids
 	#=======================
 	for l in ["lower","upper"]:
@@ -2198,31 +2307,22 @@ def calculate_order_parameters(f_type, f_time, f_write, f_nb):						#optimised
 			tmp_op_tails_array[:,2] = numpy.average(tmp_op_tails_array[:,:2], axis=1)
 			
 			#store 'tails' value: each lipid
-			#for r_index in range(0,leaflet_sele[l][s].numberOfResidues()):
-			#	lipids_op_nff[l][s][r_index]["current"] = tmp_op_tails_array[r_index, 2]
-			lipids_op_nff[l][s] = tmp_op_tails_array[:, 2]
+			lipids_op_nff[l][s]["current"] = tmp_op_tails_array[:, 2]
 
 			#store value: species
 			tail_names = ["tailA", "tailB", "tails"]
 			for tail_index in range(0,3):
 				tail = tail_names[tail_index]				
-				lipids_op_nff["data"][tail][l][s]["current"] = list(tmp_op_tails_array[:, tail_index])
-				lipids_op_nff["data"][tail][l][s]["all frames"] += list(tmp_op_tails_array[:, tail_index])
-				lipids_op_nff["data"][tail][l]["all species"]["current"] += list(tmp_op_tails_array[:, tail_index])
-				lipids_op_nff["data"][tail][l]["all species"]["all frames"] += list(tmp_op_tails_array[:, tail_index])
-				
-	#update data for plotting
-	for l in ["lower","upper"]:
-		for s in op_lipids_handled[l]:
-			for tail in ["tailA","tailB","tails"]:
-				lipids_op_nff["sorted"]["avg"][tail][l][s].append(numpy.average(lipids_op_nff["data"][tail][l][s]["current"]))
-				lipids_op_nff["sorted"]["std"][tail][l][s].append(numpy.std(lipids_op_nff["data"][tail][l][s]["current"]))
+				lipids_op_nff[l][s][tail]["raw"]["avg"][f_index] = numpy.average(tmp_op_tails_array[:, tail_index])
+				lipids_op_nff[l][s][tail]["raw"]["std"][f_index] = numpy.std(tmp_op_tails_array[:, tail_index])
+				lipids_op_nff[l]["all species"][tail]["raw"]["avg"][f_index] += lipids_op_nff[l][s][tail]["raw"]["avg"][f_index] * leaflet_sele[l][s].numberOfResidues() / float(leaflet_sele[l]["all species"].numberOfResidues())
+				lipids_op_nff[l]["all species"][tail]["raw"]["std"][f_index] += lipids_op_nff[l][s][tail]["raw"]["std"][f_index] * leaflet_sele[l][s].numberOfResidues() / float(leaflet_sele[l]["all species"].numberOfResidues())
 
 	#flipflopping lipids
 	#===================
 	if args.selection_file_ff !="no" :
 		#retrieve coords of bilayer and ff lipids
-		get_z_coords()
+		get_z_coords(f_index)
 		
 		for l_index in range(0, lipids_ff_nb):
 			#retrieve lipid info
@@ -2241,36 +2341,33 @@ def calculate_order_parameters(f_type, f_time, f_write, f_nb):						#optimised
 				v_norm2 = vx**2 + vy**2 + vz**2
 				tmp_bond_array.append(0.5*(3*(vz**2)/float(v_norm2)-1))
 			
-			#append data
-			lipids_op_ff_tailA[l_index]["all frames"].append(numpy.average(tmp_bond_array[0:tail_A_length]))
-			lipids_op_ff_tailB[l_index]["all frames"].append(numpy.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length]))
-			lipids_op_ff_tails[l_index]["all frames"].append(numpy.average(numpy.average(tmp_bond_array[0:tail_A_length]), numpy.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length])))
+			#store data
+			lipids_op_ff[l_index]["tailA"]["raw"][f_index] = numpy.average(tmp_bond_array[0:tail_A_length])
+			lipids_op_ff[l_index]["tailB"]["raw"][f_index] = numpy.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length])
+			lipids_op_ff[l_index]["tails"]["raw"][f_index] = numpy.average(numpy.average(tmp_bond_array[0:tail_A_length]), numpy.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length]))
 
 	#produce output if necessary
 	#===========================
 	if f_write:
-		op_frame_write_stat(f_type, f_time)
-		op_frame_write_snapshot(f_time)
-		op_frame_write_annotation(f_time)
+		op_frame_write_stat(f_type, f_time, f_index)
+		op_frame_write_snapshot(f_time, f_index)
+		op_frame_write_annotation(f_time, f_index)
 
 	#create annotation line for current frame
 	#========================================
-	if f_nb == -1:
-		tmp_ops = ""
-	else:
-		tmp_ops = str(f_nb)
-		#nff lipids
-		for l in ["lower","upper"]:
-			for s in op_lipids_handled[l]:
-				tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
-		#ff lipids
-		if args.selection_file_ff!="no":
-			for l in range(0,lipids_ff_nb):
-				tmp_ops += ";" + str(round(lipids_op_ff_tails[l]["all frames"][-1],2))
-		tmp_ops += "\n"
+	tmp_ops = str(frames_nb[f_index])
+	#nff lipids
+	for l in ["lower","upper"]:
+		for s in op_lipids_handled[l]:
+			tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s]["current"][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
+	#ff lipids
+	if args.selection_file_ff != "no":
+		for l in range(0,lipids_ff_nb):
+			tmp_ops += ";" + str(round(lipids_op_ff[l_index]["tails"]["raw"][f_index],2))
+	tmp_ops += "\n"
 
 	return tmp_ops
-def detect_clusters_connectivity(dist, box_dim):						#unchanged
+def detect_clusters_connectivity(dist, box_dim):						
 	
 	#use networkx algorithm
 	connected = (dist<args.cutoff_connect)
@@ -2278,7 +2375,7 @@ def detect_clusters_connectivity(dist, box_dim):						#unchanged
 	groups = nx.connected_components(network)
 	
 	return groups
-def detect_clusters_density(dist, box_dim):								#optimised
+def detect_clusters_density(dist, box_dim):								
 	
 	#run DBSCAN algorithm
 	dbscan_output = DBSCAN(eps=args.dbscan_dist,metric='precomputed',min_samples=args.dbscan_nb).fit(dist)
@@ -2293,13 +2390,13 @@ def detect_clusters_density(dist, box_dim):								#optimised
 			groups.append(map(lambda p:p[0] , tmp_pos))
 
 	return groups
-def rolling_avg(loc_list):												#unchanged	
+def rolling_avg(loc_list):												
 	
 	loc_arr = numpy.asarray(loc_list)
 	shape = (loc_arr.shape[-1]-args.nb_smoothing+1,args.nb_smoothing)
 	strides = (loc_arr.strides[-1],loc_arr.strides[-1])   	
 	return numpy.average(numpy.lib.stride_tricks.as_strided(loc_arr, shape=shape, strides=strides), -1)
-def smooth_data():														#updated
+def smooth_data():														#DONE
 	
 	global frames_time_smoothed
 	global z_upper_smoothed
@@ -2312,25 +2409,24 @@ def smooth_data():														#updated
 	#thickness
 	if args.perturb == 1 or args.perturb == 3:
 		for s in leaflet_species["both"] + ["all species"]:
-			lipids_thick_nff["smoothed"]["avg"][s] = rolling_avg(lipids_thick_nff["sorted"]["avg"][s])
-			lipids_thick_nff["smoothed"]["std"][s] = rolling_avg(lipids_thick_nff["sorted"]["std"][s])
+			lipids_thick_nff[s]["smoothed"]["avg"] = rolling_avg(lipids_thick_nff[s]["raw"]["avg"])
+			lipids_thick_nff[s]["smoothed"]["std"] = rolling_avg(lipids_thick_nff[s]["raw"]["std"])
 	
 	#order parameter
 	if args.perturb == 2 or args.perturb == 3:
 		for l in ["lower","upper"]:
 			for s in op_lipids_handled[l]:
 				for tail in ["tailA","tailB","tails"]:
-					lipids_op_nff["smoothed"]["avg"][tail][l][s] = rolling_avg(lipids_op_nff["sorted"]["avg"][tail][l][s])
-					lipids_op_nff["smoothed"]["std"][tail][l][s] = rolling_avg(lipids_op_nff["sorted"]["avg"][tail][l][s])
+					lipids_op_nff[l][s][tail]["smoothed"]["avg"] = rolling_avg(lipids_op_nff[l][s][tail]["raw"]["avg"])
+					lipids_op_nff[l][s][tail]["smoothed"]["std"] = rolling_avg(lipids_op_nff[l][s][tail]["raw"]["std"])
 		if args.selection_file_ff != "no":
 			z_ff_smoothed = {}
 			z_upper_smoothed = rolling_avg(z_upper)
 			z_lower_smoothed = rolling_avg(z_lower)
 			for l_index in range(0,lipids_ff_nb):
 				z_ff_smoothed[l_index] = rolling_avg(z_ff[l_index])
-				lipids_op_ff_tailA_smoothed[l_index] = rolling_avg(lipids_op_ff_tailA[l_index]["all frames"])
-				lipids_op_ff_tailB_smoothed[l_index] = rolling_avg(lipids_op_ff_tailB[l_index]["all frames"])
-				lipids_op_ff_tails_smoothed[l_index] = rolling_avg(lipids_op_ff_tails[l_index]["all frames"])
+				for tail in ["tailA","tailB","tails"]:
+					lipids_op_ff[l_index][tail]["smoothed"] = rolling_avg(lipids_op_ff[l_index][tail]["raw"])
 
 	return
 def get_size_colour(c_size):
@@ -2347,7 +2443,7 @@ def get_size_colour(c_size):
 #=========================================================================================
 
 #thickness
-def thick_xvg_write():													#updated
+def thick_xvg_write():													#DONE
 	
 	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/xvg/1_2_thickness_species.txt'
 	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/xvg/1_2_thickness_species.xvg'
@@ -2378,14 +2474,14 @@ def thick_xvg_write():													#updated
 	for f_index in range(0,len(frames_time)):
 		results = str(frames_time[f_index])
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(lipids_thick_nff["sorted"]["avg"][s][f_index],2))
+			results += "	" + str(round(lipids_thick_nff[s]["raw"]["avg"][f_index],2))
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(lipids_thick_nff["sorted"]["std"][s][f_index],2))
+			results += "	" + str(round(lipids_thick_nff[s]["raw"]["std"][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def thick_xvg_write_smoothed():											#updated
+def thick_xvg_write_smoothed():											#DONE
 	
 	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/xvg/1_4_thickness_species_smoothed.txt'
 	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/xvg/1_4_thickness_species_smoothed.xvg'
@@ -2416,32 +2512,32 @@ def thick_xvg_write_smoothed():											#updated
 	for f_index in range(0, len(frames_time_smoothed)):
 		results = str(frames_time_smoothed[f_index])
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(lipids_thick_nff["smoothed"]["avg"][s][f_index],2))
+			results += "	" + str(round(lipids_thick_nff[s]["smoothed"]["avg"][f_index],2))
 		for s in leaflet_species["both"]:
-			results += "	" + str(round(lipids_thick_nff["smoothed"]["std"][s][f_index],2))
+			results += "	" + str(round(lipids_thick_nff[s]["smoothed"]["avg"][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def thick_xvg_graph():													#unchanged
+def thick_xvg_graph():													#DONE
 	
 	#create filenames
 	#----------------
-	filename_png=os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/png/1_1_thickness.png'
-	filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/1_1_thickness.svg'
+	filename_png = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/png/1_1_thickness.png'
+	filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/1_1_thickness.svg'
 	
 	#create figure
 	#-------------
-	fig=plt.figure(figsize=(8, 4))
+	fig = plt.figure(figsize=(8, 4))
 	fig.suptitle("Evolution of lipid bilayer thickness")
 					
 	#plot data:
 	#----------
 	ax1 = fig.add_subplot(111)
-	p_upper={}
+	p_upper = {}
 	for s in leaflet_species["both"]:
-		p_upper[s]=plt.plot(frames_time, lipids_thick_nff["sorted"]["avg"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-		p_upper[str(s + "_err")]=plt.fill_between(frames_time, numpy.asarray(lipids_thick_nff["sorted"]["avg"][s])-numpy.asarray(lipids_thick_nff["sorted"]["std"][s]), numpy.asarray(lipids_thick_nff["sorted"]["avg"][s])+numpy.asarray(lipids_thick_nff["sorted"]["std"][s]), color=colours_lipids[s], alpha=0.2)
+		p_upper[s] = plt.plot(frames_time, lipids_thick_nff[s]["raw"]["avg"], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+		p_upper[str(s + "_err")] = plt.fill_between(frames_time, lipids_thick_nff[s]["raw"]["avg"] - lipids_thick_nff[s]["raw"]["std"], lipids_thick_nff[s]["raw"]["avg"] + lipids_thick_nff[s]["raw"]["std"][f_index], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 	fontP.set_size("small")
 	ax1.legend(prop=fontP)
 	plt.xlabel('time (ns)', fontsize="small")
@@ -2449,7 +2545,7 @@ def thick_xvg_graph():													#unchanged
 	
 	#save figure
 	#-----------
-	ax1.set_ylim(numpy.average(lipids_thick_nff["sorted"]["avg"]["all species"]) - numpy.average(lipids_thick_nff["sorted"]["std"]["all species"]) - 5, numpy.average(lipids_thick_nff["sorted"]["avg"]["all species"]) + numpy.average(lipids_thick_nff["sorted"]["std"]["all species"]) + 5)
+	ax1.set_ylim(numpy.average(lipids_thick_nff["all species"]["raw"]["avg"]) - numpy.average(lipids_thick_nff["all species"]["raw"]["std"]) - 5, numpy.average(lipids_thick_nff["all species"]["raw"]["avg"]) + numpy.average(lipids_thick_nff["all species"]["raw"]["std"]) + 5)
 	ax1.xaxis.set_major_locator(MaxNLocator(nbins=5))
 	ax1.yaxis.set_major_locator(MaxNLocator(nbins=8, integer=True))
 	plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -2459,25 +2555,25 @@ def thick_xvg_graph():													#unchanged
 	plt.close()
 	
 	return
-def thick_xvg_graph_smoothed():											#unchanged
+def thick_xvg_graph_smoothed():											#DONE
 	
 	#create filenames
 	#----------------
-	filename_png=os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/png/1_3_thickness.png'
-	filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/1_3_thickness.svg'
+	filename_png = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/png/1_3_thickness.png'
+	filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/1_3_thickness.svg'
 	
 	#create figure
 	#-------------
-	fig=plt.figure(figsize=(8, 4))
+	fig = plt.figure(figsize=(8, 4))
 	fig.suptitle("Evolution of lipid bilayer thickness")
 					
 	#plot data:
 	#----------
 	ax1 = fig.add_subplot(111)
-	p_upper={}
+	p_upper = {}
 	for s in leaflet_species["both"]:
-		p_upper[s]=plt.plot(frames_time_smoothed, lipids_thick_nff["smoothed"]["avg"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-		p_upper[str(s + "_err")]=plt.fill_between(frames_time_smoothed, numpy.asarray(lipids_thick_nff["smoothed"]["avg"][s])-numpy.asarray(lipids_thick_nff["smoothed"]["std"][s]), numpy.asarray(lipids_thick_nff["smoothed"]["avg"][s])+numpy.asarray(lipids_thick_nff["smoothed"]["std"][s]), color=colours_lipids[s], alpha=0.2)
+		p_upper[s] = plt.plot(frames_time_smoothed, lipids_thick_nff[s]["smoothed"]["avg"], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+		p_upper[str(s + "_err")] = plt.fill_between(frames_time_smoothed, lipids_thick_nff[s]["smoothed"]["avg"] - lipids_thick_nff[s]["smoothed"]["std"], lipids_thick_nff[s]["smoothed"]["avg"] + lipids_thick_nff[s]["smoothed"]["std"], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 	fontP.set_size("small")
 	ax1.legend(prop=fontP)
 	plt.xlabel('time (ns)', fontsize="small")
@@ -2485,7 +2581,7 @@ def thick_xvg_graph_smoothed():											#unchanged
 	
 	#save figure
 	#-----------
-	ax1.set_ylim(numpy.average(lipids_thick_nff["smoothed"]["avg"]["all species"]) - numpy.average(lipids_thick_nff["smoothed"]["std"]["all species"]) - 5, numpy.average(lipids_thick_nff["smoothed"]["avg"]["all species"]) + numpy.average(lipids_thick_nff["smoothed"]["std"]["all species"]) + 5)
+	ax1.set_ylim(numpy.average(lipids_thick_nff["all species"]["smoothed"]["avg"]) - numpy.average(lipids_thick_nff["all species"]["smoothed"]["std"]) - 5, numpy.average(lipids_thick_nff["all species"]["smoothed"]["avg"]) + numpy.average(lipids_thick_nff["all species"]["smoothed"]["std"]) + 5)
 	ax1.xaxis.set_major_locator(MaxNLocator(nbins=5))
 	ax1.yaxis.set_major_locator(MaxNLocator(nbins=8, integer=True))
 	plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -2495,7 +2591,7 @@ def thick_xvg_graph_smoothed():											#unchanged
 	plt.close()
 	
 	return
-def thick_frame_write_stat(f_type, f_time):								#updated
+def thick_frame_write_stat(f_type, f_time, f_index):					#DONE
 
 	#create file
 	if f_type == "all frames":
@@ -2512,47 +2608,57 @@ def thick_frame_write_stat(f_type, f_time):								#updated
 	output_stat.write(membrane_comp["lower"][:-1] + "\n")	
 	if args.xtcfilename != "no":
 		output_stat.write("\n")
-		output_stat.write("2. nb frames processed:	" + str(nb_frames_processed) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
-	if f_type != "all frames":		
+		output_stat.write("2. nb frames processed:	" + str(nb_frames_to_process) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
+	if f_type != "all frames":
 		output_stat.write("\n")
-		output_stat.write("3. time: " + str(f_time) + "ns (frame " + str(frames_time[-1]) + "/" + str(nb_frames_xtc) + ")\n")		
+		output_stat.write("3. time: " + str(f_time) + "ns (frame " + str(frames_nb[f_index]) + "/" + str(nb_frames_xtc) + ")\n")		
 	output_stat.write("\n")
 	
 	#results data
 	output_stat.write("Bilayer thickness:\n")
 	output_stat.write("-----------------\n")
-	output_stat.write("avg=" + str(round(numpy.average(lipids_thick_nff["data"]["all species"][f_type]),2)) + "\n")
-	output_stat.write("std=" + str(round(numpy.std(lipids_thick_nff["data"]["all species"][f_type]),2)) + "\n")
-	output_stat.write("max=" + str(round(numpy.max(lipids_thick_nff["data"]["all species"][f_type]),2)) + "\n")
-	output_stat.write("min=" + str(round(numpy.min(lipids_thick_nff["data"]["all species"][f_type]),2)) + "\n")
+	if f_type != "all frames":
+		output_stat.write("avg = " + str(round(lipids_thick_nff["all species"]["raw"]["avg"][f_index],2)) + "\n")
+		output_stat.write("std = " + str(round(lipids_thick_nff["all species"]["raw"]["std"][f_index],2)) + "\n")
+		output_stat.write("max = " + str(round(lipids_thick_nff["max"],2)) + "\n")
+		output_stat.write("min = " + str(round(lipids_thick_nff["min"],2)) + "\n")
+	else:
+		output_stat.write("avg = " + str(round(numpy.average(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		output_stat.write("std = " + str(round(numpy.average(lipids_thick_nff["all species"]["raw"]["std"]),2)) + "\n")
+		output_stat.write("max = " + str(round(numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		output_stat.write("min = " + str(round(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+
 	output_stat.write("\n")
 	output_stat.write("Average bilayer thickness for each specie:\n")
 	output_stat.write("------------------------------------------\n")
 	for s in leaflet_species["both"]:
-		output_stat.write(str(s) + "	" + str(round(numpy.average(lipids_thick_nff["data"][s][f_type]),2)) + "	(" + str(round(numpy.std(lipids_thick_nff["data"][s][f_type]),2)) + ")\n")
+		if f_type != "all frames":
+			output_stat.write(str(s) + "	" + str(round(lipids_thick_nff[s]["raw"]["avg"][f_index],2)) + "	(" + str(round(lipids_thick_nff["all species"]["raw"]["std"][f_index],2)) + ")\n")
+		else:
+			output_stat.write(str(s) + "	" + str(round(numpy.average(lipids_thick_nff[s]["raw"]["avg"]),2)) + "	(" + str(round(numpy.average(lipids_thick_nff["all species"]["raw"]["std"]),2)) + ")\n")
 	output_stat.write("\n")
 	output_stat.close()		
 	
 	return
-def thick_frame_write_snapshot(f_time):										#optimised
+def thick_frame_write_snapshot(f_time):									#DONE
 
 	#store order parameter info in beta factor field
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
-			map(lambda r_index:lipids_sele_nff[l][s][r_index].set_bfactor(lipids_thick_nff[l][s][r_index]["current"]), range(0,leaflet_sele[l][s].numberOfResidues()))
+			map(lambda r_index:lipids_sele_nff[l][s][r_index].set_bfactor(lipids_thick_nff[l][s][r_index]), range(0,leaflet_sele[l][s].numberOfResidues()))
 				
 	#case: gro file
-	if args.xtcfilename=="no":
+	if args.xtcfilename == "no":
 		all_atoms.write(os.getcwd() + '/' + str(args.output_folder) + '/thickness/2_snapshots/' + args.grofilename[:-4] + '_annotated_thickness', format="PDB")
 
 	#case: xtc file
 	else:
-		tmp_name=os.getcwd() + "/" + str(args.output_folder) + '/thickness/2_snapshots/' + args.xtcfilename[:-4] + '_annotated_thickness_' + str(int(f_time)).zfill(5) + 'ns.pdb'
+		tmp_name = os.getcwd() + "/" + str(args.output_folder) + '/thickness/2_snapshots/' + args.xtcfilename[:-4] + '_annotated_thickness_' + str(int(f_time)).zfill(5) + 'ns.pdb'
 		W = Writer(tmp_name, nb_atoms)
 		W.write(all_atoms)
 	
 	return
-def thick_frame_write_annotation(f_time):									#optimised
+def thick_frame_write_annotation(f_time):								#DONE
 	
 	#create file
 	if args.xtcfilename == "no":
@@ -2569,18 +2675,18 @@ def thick_frame_write_annotation(f_time):									#optimised
 	output_stat.write(tmp_sele_string[1:] + "\n")
 
 	#write min and max boundaries of thickness
-	output_stat.write(str(round(numpy.min(lipids_thick_nff["data"]["all species"]["current"]),2)) + ";" + str(round(numpy.max(lipids_thick_nff["data"]["all species"]["current"]),2)) + "\n")
+	output_stat.write(str(round(lipids_thick_nff["min"],2)) + ";" + str(round(lipids_thick_nff["max"],2)) + "\n")
 	
 	#ouptut thickness for each lipid
 	tmp_thick = "1"
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
-			tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index]["current"],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
+			tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
 	output_stat.write(tmp_thick + "\n")			
 	output_stat.close()
 
 	return
-def thick_xtc_write_annotation():										#updated
+def thick_xtc_write_annotation():										#DONE
 	
 	#create file
 	filename_details=os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
@@ -2594,7 +2700,7 @@ def thick_xtc_write_annotation():										#updated
 	output_stat.write(tmp_sele_string[1:] + "\n")
 
 	#write min and max boundaries of thickness
-	output_stat.write(str(round(numpy.min(lipids_thick_nff["data"]["all species"]["all frames"]),2)) + ";" + str(round(numpy.max(lipids_thick_nff["data"]["all species"]["all frames"]),2)) + "\n")
+	output_stat.write(str(round(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
 	
 	#ouptut thickness for each lipid
 	output_stat.write(xtc_thick + "\n")
@@ -2603,7 +2709,7 @@ def thick_xtc_write_annotation():										#updated
 	return
 
 #order parameters
-def op_xvg_ff_write():													#updated
+def op_xvg_ff_write():													#DONE
 	
 	#flipflops: upper to lower
 	if numpy.size(lipids_ff_u2l_index)>0:
@@ -2634,7 +2740,8 @@ def op_xvg_ff_write():													#updated
 		for f_index in range(0,len(frames_time)):
 			results = str(frames_time[f_index])
 			for l in lipids_ff_u2l_index:
-				results += "	" + str(round(lipids_op_ff_tailA[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tailB[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tails[l]["all frames"][f_index],2))
+				for tail in ["tailA", "tailB", "tails"]:
+					results += "	" + str(round(lipids_op_ff[l_index][tail]["raw"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 	
@@ -2666,13 +2773,14 @@ def op_xvg_ff_write():													#updated
 		output_txt.close()
 		for f_index in range(0,len(frames_time)):
 			results = str(frames_time[f_index])
-			for l in lipids_ff_l2u_index:
-				results+= "	" + str(round(lipids_op_ff_tailA[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tailB[l]["all frames"][f_index],2)) + "	" + str(round(lipids_op_ff_tails[l]["all frames"][f_index],2))
+			for l in lipids_ff_u2l_index:
+				for tail in ["tailA", "tailB", "tails"]:
+					results += "	" + str(round(lipids_op_ff[l_index][tail]["raw"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
 	return
-def op_xvg_ff_write_smoothed():											#updated
+def op_xvg_ff_write_smoothed():											#DONE
 
 	#flipflops: upper to lower
 	if numpy.size(lipids_ff_u2l_index)>0:
@@ -2703,7 +2811,8 @@ def op_xvg_ff_write_smoothed():											#updated
 		for f_index in range(0, len(frames_time_smoothed)):
 			results = str(frames_time_smoothed[f_index])
 			for l in lipids_ff_u2l_index:
-				results+= "	" + str(round(lipids_op_ff_tailA_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tailB_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tails_smoothed[l][f_index],2))
+				for tail in ["tailA", "tailB", "tails"]:
+					results += "	" + str(round(lipids_op_ff[l_index][tail]["smoothed"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 	
@@ -2735,13 +2844,14 @@ def op_xvg_ff_write_smoothed():											#updated
 		output_txt.close()
 		for f_index in range(0, len(frames_time_smoothed)):
 			results = str(frames_time_smoothed[f_index])
-			for l in lipids_ff_l2u_index:
-				results+= "	" + str(round(lipids_op_ff_tailA_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tailB_smoothed[l][f_index],2)) + "	" + str(round(lipids_op_ff_tails_smoothed[l][f_index],2))
+			for l in lipids_ff_u2l_index:
+				for tail in ["tailA", "tailB", "tails"]:
+					results += "	" + str(round(lipids_op_ff[l_index][tail]["smoothed"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
 	return
-def op_xvg_ff_graph():													#updated
+def op_xvg_ff_graph():													#DONE												
 
 	#upper to lower flipflops
 	#========================
@@ -2761,8 +2871,8 @@ def op_xvg_ff_graph():													#updated
 		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
-		for l in lipids_ff_u2l_index:
-			p_upper[l] = plt.plot(frames_time, lipids_op_ff_tails[l]["all frames"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_u2l_index:
+			p_upper[l_index] = plt.plot(frames_time, lipids_op_ff[l_index]["tails"]["raw"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2774,8 +2884,8 @@ def op_xvg_ff_graph():													#updated
 		p_lower = {}
 		p_lower["upper"] = plt.plot(frames_time, z_upper, linestyle='dashed', color='k')
 		p_lower["lower"] = plt.plot(frames_time, z_lower, linestyle='dashed', color='k')
-		for l in lipids_ff_u2l_index:
-			p_lower[l] = plt.plot(frames_time, z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_nidex in lipids_ff_u2l_index:
+			p_lower[l_index] = plt.plot(frames_time, z_ff[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2814,8 +2924,8 @@ def op_xvg_ff_graph():													#updated
 		#-------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper={}
-		for l in lipids_ff_l2u_index:
-			p_upper[l] = plt.plot(frames_time, lipids_op_ff_tails[l]["all frames"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_l2u_index:
+			p_upper[l_index] = plt.plot(frames_time, lipids_op_ff[l_index]["tails"]["raw"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2827,8 +2937,8 @@ def op_xvg_ff_graph():													#updated
 		p_lower = {}
 		p_lower["upper"] = plt.plot(frames_time, z_upper, linestyle = 'dashed', color = 'k')
 		p_lower["lower"] = plt.plot(frames_time, z_lower, linestyle = 'dashed', color = 'k')
-		for l in lipids_ff_l2u_index:
-			p_lower[l] = plt.plot(frames_time, z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_l2u_index:
+			p_lower[l_index] = plt.plot(frames_time, z_ff[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2850,7 +2960,7 @@ def op_xvg_ff_graph():													#updated
 		plt.close()
 
 	return
-def op_xvg_ff_graph_smoothed():											#updated
+def op_xvg_ff_graph_smoothed():											#DONE
 	
 	#upper to lower flipflops
 	#========================
@@ -2870,8 +2980,8 @@ def op_xvg_ff_graph_smoothed():											#updated
 		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
-		for l in lipids_ff_u2l_index:
-			p_upper[l] = plt.plot(frames_time_smoothed, lipids_op_ff_tails_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_u2l_index:
+			p_upper[l_index] = plt.plot(frames_time_smoothed, lipids_op_ff[l_index]["tails"]["smoothed"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2883,8 +2993,8 @@ def op_xvg_ff_graph_smoothed():											#updated
 		p_lower = {}
 		p_lower["upper"] = plt.plot(frames_time_smoothed, z_upper_smoothed, linestyle = 'dashed', color = 'k')
 		p_lower["lower"] = plt.plot(frames_time_smoothed, z_lower_smoothed, linestyle = 'dashed', color = 'k')
-		for l in lipids_ff_u2l_index:
-			p_lower[l] = plt.plot(frames_time_smoothed, z_ff_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_u2l_index:
+			p_lower[l_index] = plt.plot(frames_time_smoothed, z_ff_smoothed[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2923,8 +3033,8 @@ def op_xvg_ff_graph_smoothed():											#updated
 		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper={}
-		for l in lipids_ff_l2u_index:
-			p_upper[l] = plt.plot(frames_time_smoothed, lipids_op_ff_tails_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_l2u_index:
+			p_upper[l_index] = plt.plot(frames_time_smoothed, lipids_op_ff[l_index]["tails"]["smoothed"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2936,8 +3046,8 @@ def op_xvg_ff_graph_smoothed():											#updated
 		p_lower ={}
 		p_lower["upper"] = plt.plot(frames_time_smoothed, z_upper_smoothed, linestyle = 'dashed', color = 'k')
 		p_lower["lower"] = plt.plot(frames_time_smoothed, z_lower_smoothed, linestyle = 'dashed', color = 'k')
-		for l in lipids_ff_l2u_index:
-			p_lower[l] = plt.plot(frames_time_smoothed, z_ff_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
+		for l_index in lipids_ff_l2u_index:
+			p_lower[l_index] = plt.plot(frames_time_smoothed, z_ff_smoothed[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2959,7 +3069,7 @@ def op_xvg_ff_graph_smoothed():											#updated
 		plt.close()
 
 	return
-def op_xvg_nff_write():													#updated
+def op_xvg_nff_write():													#DONE
 	
 	#lipids in upper leaflet
 	filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/order_param/1_nff/xvg/1_3_order_param_nff_upper.txt'
@@ -2998,10 +3108,10 @@ def op_xvg_nff_write():													#updated
 		results = str(frames_time[f_index])
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["sorted"]["avg"][tail]["upper"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["upper"][s][tail]["raw"]["avg"][f_index],2))
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["sorted"]["std"][tail]["upper"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["upper"][s][tail]["raw"]["std"][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
@@ -3042,15 +3152,15 @@ def op_xvg_nff_write():													#updated
 		results = str(frames_time[f_index])
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["sorted"]["avg"][tail]["lower"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["lower"][s][tail]["raw"]["avg"][f_index],2))
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["sorted"]["std"][tail]["lower"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["lower"][s][tail]["raw"]["std"][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def op_xvg_nff_write_smoothed():										#updated
+def op_xvg_nff_write_smoothed():										#DONE
 	
 	#lipids in upper leaflet
 	filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/order_param/1_nff/smoothed/xvg/1_5_order_param_nff_upper_smoothed.txt'
@@ -3089,10 +3199,10 @@ def op_xvg_nff_write_smoothed():										#updated
 		results = str(frames_time_smoothed[f_index])
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["avg"][tail]["upper"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["upper"][s][tail]["smoothed"]["avg"][f_index],2))
 		for s in op_lipids_handled["upper"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["std"][tail]["upper"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["upper"][s][tail]["smoothed"]["std"][f_index],2))
 		output_xvg.write(results)
 	output_xvg.close()
 
@@ -3133,15 +3243,15 @@ def op_xvg_nff_write_smoothed():										#updated
 		results = str(frames_time_smoothed[f_index])
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["avg"][tail]["lower"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["lower"][s][tail]["smoothed"]["avg"][f_index],2))
 		for s in op_lipids_handled["lower"]:
 			for tail in ["tailA", "tailB", "tails"]:
-				results += "	" + str(round(lipids_op_nff["smoothed"]["std"][tail]["lower"][s][f_index],2))
+				results += "	" + str(round(lipids_op_nff["lower"][s][tail]["smoothed"]["std"][f_index],2))
 		output_xvg.write(results + "\n")
 	output_xvg.close()
 
 	return
-def op_xvg_nff_graph():													#unchanged
+def op_xvg_nff_graph():													#DONE
 	
 	#create filenames
 	#----------------
@@ -3156,10 +3266,10 @@ def op_xvg_nff_graph():													#unchanged
 	#plot data: upper leafet
 	#-----------------------
 	ax1 = fig.add_subplot(211)
-	p_upper={}
+	p_upper = {}
 	for s in op_lipids_handled["upper"]:
-		p_upper[s] = plt.plot(frames_time, lipids_op_nff["sorted"]["avg"]["tails"]["upper"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-		p_upper[str(s + "_err")] = plt.fill_between(frames_time, numpy.asarray(lipids_op_nff["sorted"]["avg"]["tails"]["upper"][s]) - numpy.asarray(lipids_op_nff["sorted"]["std"]["tails"]["upper"][s]), numpy.asarray(lipids_op_nff["sorted"]["avg"]["tails"]["upper"][s]) + numpy.asarray(lipids_op_nff["sorted"]["std"]["tails"]["upper"][s]), color=colours_lipids[s], alpha=0.2)
+		p_upper[s] = plt.plot(frames_time, lipids_op_nff["upper"][s]["tails"]["raw"]["avg"], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+		p_upper[str(s + "_err")] = plt.fill_between(frames_time, lipids_op_nff["upper"][s]["tails"]["raw"]["avg"] - lipids_op_nff["upper"][s]["tails"]["raw"]["std"], lipids_op_nff["upper"][s]["tails"]["raw"]["avg"] + lipids_op_nff["upper"][s]["tails"]["raw"]["std"], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 	fontP.set_size("small")
 	ax1.legend(prop=fontP)
 	plt.title("upper leaflet", fontsize="small")
@@ -3169,10 +3279,10 @@ def op_xvg_nff_graph():													#unchanged
 	#plot data: lower leafet
 	#-----------------------
 	ax2 = fig.add_subplot(212)
-	p_lower={}
+	p_lower = {}
 	for s in op_lipids_handled["lower"]:
-		p_lower[s] = plt.plot(frames_time, lipids_op_nff["sorted"]["avg"]["tails"]["lower"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-		p_lower[str(s + "_err")] = plt.fill_between(frames_time, numpy.asarray(lipids_op_nff["sorted"]["avg"]["tails"]["lower"][s]) - numpy.asarray(lipids_op_nff["sorted"]["std"]["tails"]["lower"][s]), numpy.asarray(lipids_op_nff["sorted"]["avg"]["tails"]["lower"][s]) + numpy.asarray(lipids_op_nff["sorted"]["std"]["tails"]["lower"][s]), color=colours_lipids[s], alpha=0.2)
+		p_lower[s] = plt.plot(frames_time, lipids_op_nff["lower"][s]["tails"]["raw"]["avg"], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+		p_lower[str(s + "_err")] = plt.fill_between(frames_time, lipids_op_nff["lower"][s]["tails"]["raw"]["avg"] - lipids_op_nff["lower"][s]["tails"]["raw"]["std"], lipids_op_nff["lower"][s]["tails"]["raw"]["avg"] + lipids_op_nff["lower"][s]["tails"]["raw"]["std"], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 	fontP.set_size("small")
 	ax2.legend(prop=fontP)
 	plt.title("lower leaflet", fontsize="small")
@@ -3197,7 +3307,7 @@ def op_xvg_nff_graph():													#unchanged
 	plt.close()
 	
 	return
-def op_xvg_nff_graph_smoothed():										#unchanged
+def op_xvg_nff_graph_smoothed():										#DONE
 	
 	#create filenames
 	#----------------
@@ -3212,10 +3322,10 @@ def op_xvg_nff_graph_smoothed():										#unchanged
 	#plot data: upper leafet
 	#-----------------------
 	ax1 = fig.add_subplot(211)
-	p_upper={}
+	p_upper = {}
 	for s in op_lipids_handled["upper"]:
-		p_upper[s] = plt.plot(frames_time_smoothed, lipids_op_nff["smoothed"]["avg"]["tails"]["upper"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-		p_upper[str(s + "_err")] = plt.fill_between(frames_time_smoothed, numpy.asarray(lipids_op_nff["smoothed"]["avg"]["tails"]["upper"][s]) - numpy.asarray(lipids_op_nff["smoothed"]["std"]["tails"]["upper"][s]), numpy.asarray(lipids_op_nff["smoothed"]["avg"]["tails"]["upper"][s]) + numpy.asarray(lipids_op_nff["smoothed"]["std"]["tails"]["upper"][s]), color=colours_lipids[s], alpha=0.2)
+		p_upper[s] = plt.plot(frames_time_smoothed, lipids_op_nff["upper"][s]["tails"]["smoothed"]["avg"], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+		p_upper[str(s + "_err")] = plt.fill_between(frames_time_smoothed, lipids_op_nff["upper"][s]["tails"]["smoothed"]["avg"] - lipids_op_nff["upper"][s]["tails"]["smoothed"]["std"], lipids_op_nff["upper"][s]["tails"]["smoothed"]["avg"] + lipids_op_nff["upper"][s]["tails"]["smoothed"]["std"], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 	fontP.set_size("small")
 	ax1.legend(prop=fontP)
 	plt.title("upper leaflet", fontsize="small")
@@ -3225,10 +3335,10 @@ def op_xvg_nff_graph_smoothed():										#unchanged
 	#plot data: lower leafet
 	#-----------------------
 	ax2 = fig.add_subplot(212)
-	p_lower={}
+	p_lower = {}
 	for s in op_lipids_handled["lower"]:
-		p_lower[s] = plt.plot(frames_time_smoothed, lipids_op_nff["smoothed"]["avg"]["tails"]["lower"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-		p_lower[str(s + "_err")] = plt.fill_between(frames_time_smoothed, numpy.asarray(lipids_op_nff["smoothed"]["avg"]["tails"]["lower"][s]) - numpy.asarray(lipids_op_nff["smoothed"]["std"]["tails"]["lower"][s]), numpy.asarray(lipids_op_nff["smoothed"]["avg"]["tails"]["lower"][s]) + numpy.asarray(lipids_op_nff["smoothed"]["std"]["tails"]["lower"][s]), color=colours_lipids[s], alpha=0.2)
+		p_lower[s] = plt.plot(frames_time_smoothed, lipids_op_nff["lower"][s]["tails"]["smoothed"]["avg"], color = colours_lipids[s], linewidth = 3.0, label = str(s))
+		p_lower[str(s + "_err")] = plt.fill_between(frames_time_smoothed, lipids_op_nff["lower"][s]["tails"]["smoothed"]["avg"] - lipids_op_nff["lower"][s]["tails"]["smoothed"]["std"], lipids_op_nff["lower"][s]["tails"]["smoothed"]["avg"] + lipids_op_nff["lower"][s]["tails"]["smoothed"]["std"], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 	fontP.set_size("small")
 	ax2.legend(prop=fontP)
 	plt.title("lower leaflet", fontsize="small")
@@ -3253,7 +3363,7 @@ def op_xvg_nff_graph_smoothed():										#unchanged
 	plt.close()
 	
 	return
-def op_frame_write_stat(f_type, f_time):									#updated
+def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 
 	#nff lipids
 	#==========
@@ -3277,10 +3387,10 @@ def op_frame_write_stat(f_type, f_time):									#updated
 	output_stat.write("2. lipid species processed: " + str(tmp_string) + "\n")
 	if args.xtcfilename != "no":
 		output_stat.write("\n")
-		output_stat.write("3. nb frames processed:	" + str(nb_frames_processed) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
+		output_stat.write("3. nb frames processed:	" + str(nb_frames_to_process) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
 	if f_type != "all frames":	
 		output_stat.write("\n")
-		output_stat.write("4. time: " + str(f_time) + "ns (frame " + str(frames_time[-1]) + "/" + str(nb_frames_xtc) + ")\n")
+		output_stat.write("4. time: " + str(f_time) + "ns (frame " + str(frames_nb[f_index]) + "/" + str(nb_frames_xtc) + ")\n")
 	output_stat.write("\n")
 	output_stat.write("lipid orientation with bilayer normal\n")
 	output_stat.write(" P2=1    : parallel\n")
@@ -3291,46 +3401,80 @@ def op_frame_write_stat(f_type, f_time):									#updated
 	output_stat.write("\n")
 	output_stat.write("upper leaflet\n")
 	output_stat.write("=============\n")
-	output_stat.write("avg	nb	tail A	tail B	 both\n")
-	output_stat.write("-------------------------------------\n")
-	for s in op_lipids_handled["upper"]:
-		tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
-		for tail in ["tailA", "tailB", "tails"]:
-			tmp_output += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["upper"][s][f_type]),2))
-		output_stat.write(tmp_output + "\n")
-	output_stat.write("\n")
-	output_stat.write("std	nb	tail A	tail B	 both\n")
-	output_stat.write("-------------------------------------\n")
-	for s in op_lipids_handled["upper"]:
-		tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
-		for tail in ["tailA", "tailB", "tails"]:
-			tmp_output += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["upper"][s][f_type]),2))
-		output_stat.write(tmp_output + "\n")
+	if f_type == "all frames":
+		output_stat.write("avg	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["upper"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["upper"][s][tail]["raw"]["avg"]),2))
+			output_stat.write(tmp_output + "\n")		
+		output_stat.write("\n")
+		output_stat.write("std	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["upper"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["upper"][s][tail]["raw"]["std"]),2))
+			output_stat.write(tmp_output + "\n")
+	else:
+		output_stat.write("avg	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["upper"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(lipids_op_nff["upper"][s][tail]["raw"]["avg"][f_index],2))
+			output_stat.write(tmp_output + "\n")		
+		output_stat.write("\n")
+		output_stat.write("std	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["upper"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(lipids_op_nff["upper"][s][tail]["raw"]["std"][f_index],2))
+			output_stat.write(tmp_output + "\n")
 
 	#lipids in lower leaflet
 	output_stat.write("\n")
 	output_stat.write("lower leaflet\n")
 	output_stat.write("=============\n")
-	output_stat.write("avg	nb	tail A	tail B	 both\n")
-	output_stat.write("-------------------------------------\n")
-	for s in op_lipids_handled["lower"]:
-		tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
-		for tail in ["tailA", "tailB", "tails"]:
-			tmp_output += "	" + str(round(numpy.average(lipids_op_nff["data"][tail]["lower"][s][f_type]),2))
-		output_stat.write(tmp_output + "\n")
-	output_stat.write("\n")
-	output_stat.write("std	nb	tail A	tail B	 both\n")
-	output_stat.write("-------------------------------------\n")
-	for s in op_lipids_handled["lower"]:
-		tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
-		for tail in ["tailA", "tailB", "tails"]:
-			tmp_output += "	" + str(round(numpy.std(lipids_op_nff["data"][tail]["lower"][s][f_type]),2))
-		output_stat.write(tmp_output + "\n")
+	if f_type == "all frames":
+		output_stat.write("avg	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["lower"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["lower"][s][tail]["raw"]["avg"]),2))
+			output_stat.write(tmp_output + "\n")		
+		output_stat.write("\n")
+		output_stat.write("std	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["lower"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["lower"][s][tail]["raw"]["std"]),2))
+			output_stat.write(tmp_output + "\n")
+	else:
+		output_stat.write("avg	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["lower"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(lipids_op_nff["lower"][s][tail]["raw"]["avg"][f_index],2))
+			output_stat.write(tmp_output + "\n")		
+		output_stat.write("\n")
+		output_stat.write("std	nb	tail A	tail B	 both\n")
+		output_stat.write("-------------------------------------\n")
+		for s in op_lipids_handled["lower"]:
+			tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
+			for tail in ["tailA", "tailB", "tails"]:
+				tmp_output += "	" + str(round(lipids_op_nff["lower"][s][tail]["raw"]["std"][f_index],2))
+			output_stat.write(tmp_output + "\n")
 	output_stat.close()
 
 	#ff lipids
 	#=========
-	if args.selection_file_ff!="no":
+	if args.selection_file_ff !="no":
 		filename_details=os.getcwd() + '/' + str(args.output_folder) + '/order_param/2_snapshots/' + args.xtcfilename[:-4] + '_annotated_orderparam_' + str(int(f_time)).zfill(5) + 'ns_ff.stat'
 		output_stat = open(filename_details, 'w')		
 		output_stat.write("[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
@@ -3345,10 +3489,12 @@ def op_frame_write_stat(f_type, f_time):									#updated
 			tmp_string+=", " + str(s)
 		output_stat.write("\n")
 		output_stat.write("2. lipid species processed: " + str(tmp_string) + "\n")
-		output_stat.write("\n")
-		output_stat.write("3. nb frames processed:	" + str(nb_frames_processed) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
-		output_stat.write("\n")
-		output_stat.write("4. time: " + str(f_time) + "ns (frame " + str(frames_time[-1]) + "/" + str(nb_frames_xtc) + ")\n")
+		if args.xtcfilename != "no":
+			output_stat.write("\n")
+			output_stat.write("3. nb frames processed:	" + str(nb_frames_to_process) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
+		if f_type != "all frames":
+			output_stat.write("\n")
+			output_stat.write("4. time: " + str(f_time) + "ns (frame " + str(frames_nb[f_index]) + "/" + str(nb_frames_xtc) + ")\n")
 		output_stat.write("\n")
 		output_stat.write("lipid orientation with bilayer normal\n")
 		output_stat.write(" P2=1    : parallel\n")
@@ -3362,8 +3508,18 @@ def op_frame_write_stat(f_type, f_time):									#updated
 			output_stat.write("==============\n")
 			output_stat.write("specie	resid	tail A	tail B  both\n")
 			output_stat.write("-------------------------------------\n")
-			for l in lipids_ff_u2l_index:
-				output_stat.write(str(lipids_ff_info[l][0]) + "	" + str(lipids_ff_info[l][1]) + "	" + str(round(lipids_op_ff_tailA[l]["all frames"][-1],2)) + "	" + str(round(lipids_op_ff_tailB[l]["all frames"][-1],2)) + "	" + str(round(lipids_op_ff_tails[l]["all frames"][-1],2)) + "\n")
+			if f_type != "all frames":	
+				for l_index in lipids_ff_u2l_index:
+					tmp_ff = str(lipids_ff_info[l_index][0]) + "	" + str(lipids_ff_info[l_index][1])
+					for tail in ["tailA","tailB","tails"]:
+						tmp_ff += "	" + str(round(lipids_op_ff[l_index][tail]["raw"][f_index],2))
+					output_stat.write(tmp_ff + "\n")
+			else:
+				for l_index in lipids_ff_u2l_index:
+					tmp_ff = str(lipids_ff_info[l_index][0]) + "	" + str(lipids_ff_info[l_index][1])
+					for tail in ["tailA","tailB","tails"]:
+						tmp_ff += "	" + str(round(numpy.average(lipids_op_ff[l_index][tail]["raw"]),2))
+					output_stat.write(tmp_ff + "\n")
 		
 		#lower to upper
 		if numpy.size(lipids_ff_l2u_index)>0:
@@ -3372,22 +3528,32 @@ def op_frame_write_stat(f_type, f_time):									#updated
 			output_stat.write("==============\n")
 			output_stat.write("specie	resid	tail A	tail B  both\n")
 			output_stat.write("-------------------------------------\n")
-			for l in lipids_ff_l2u_index:
-				output_stat.write(str(lipids_ff_info[l][0]) + "	" + str(lipids_ff_info[l][1]) + "	" + str(round(lipids_op_ff_tailA[l]["all frames"][-1],2)) + "	" + str(round(lipids_op_ff_tailB[l]["all frames"][-1],2)) + "	" + str(round(lipids_op_ff_tails[l]["all frames"][-1],2)) + "\n")
+			if f_type != "all frames":	
+				for l_index in lipids_ff_u2l_index:
+					tmp_ff = str(lipids_ff_info[l_index][0]) + "	" + str(lipids_ff_info[l_index][1])
+					for tail in ["tailA","tailB","tails"]:
+						tmp_ff += "	" + str(round(lipids_op_ff[l_index][tail]["raw"][f_index],2))
+					output_stat.write(tmp_ff + "\n")
+			else:
+				for l_index in lipids_ff_u2l_index:
+					tmp_ff = str(lipids_ff_info[l_index][0]) + "	" + str(lipids_ff_info[l_index][1])
+					for tail in ["tailA","tailB","tails"]:
+						tmp_ff += "	" + str(round(numpy.average(lipids_op_ff[l_index][tail]["raw"]),2))
+					output_stat.write(tmp_ff + "\n")
 		output_stat.close()
 	
 	return
-def op_frame_write_snapshot(f_time):										#optimised
+def op_frame_write_snapshot(f_time, f_index):							#DONE
 
 	#store order parameter info in beta factor field: nff lipids
 	for l in ["lower","upper"]:
 		for s in op_lipids_handled[l]:
-			map(lambda r_index:lipids_sele_nff[l][s][r_index].set_bfactor(lipids_op_nff[l][s][r_index]), range(0,leaflet_sele[l][s].numberOfResidues()))
+			map(lambda r_index:lipids_sele_nff[l][s][r_index].set_bfactor(lipids_op_nff[l][s]["current"][r_index]), range(0,leaflet_sele[l][s].numberOfResidues()))
 	
 	#store order parameter info in beta factor field: ff lipids
 	if args.selection_file_ff != "no":
-		for l in range(0,lipids_ff_nb):
-			lipids_sele_ff[l].set_bfactor(lipids_op_ff_tails[l]["all frames"][-1])
+		for l_index in range(0,lipids_ff_nb):
+			lipids_sele_ff[l_index].set_bfactor(lipids_op_ff[l_index]["tails"]["raw"][f_index])
 
 	#case: gro file
 	if args.xtcfilename == "no":
@@ -3400,7 +3566,7 @@ def op_frame_write_snapshot(f_time):										#optimised
 		W.write(all_atoms)
 	
 	return
-def op_frame_write_annotation(f_time):										#optimised
+def op_frame_write_annotation(f_time, f_index):							#DONE
 	
 	#create file
 	if args.xtcfilename == "no":
@@ -3426,17 +3592,17 @@ def op_frame_write_annotation(f_time):										#optimised
 	for l in ["lower","upper"]:
 		for s in op_lipids_handled[l]:
 			for r_index in lipids_op_nff[l][s]:
-				tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
+				tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s]["current"][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
 	
 	#ouptut order param for each lipid for current frame: ff lipids
 	if args.selection_file_ff != "no":
 		for l_index in range(0,lipids_ff_nb):
-			tmp_ops += ";" + str(round(lipids_op_ff_tails[l_index]["all frames"][-1],2))
+			tmp_ops += ";" + str(round(lipids_op_ff[l_index]["tails"]["raw"][f_index],2))
 	output_stat.write(tmp_ops + "\n")
 	output_stat.close()
 
 	return
-def op_xtc_write_annotation():
+def op_xtc_write_annotation():											#DONE
 	
 	#create file
 	filename_details = os.getcwd() + '/' + str(args.output_folder) + '/order_param/3_VMD/' + args.xtcfilename[:-4] + '_annotated_orderparam_dt' + str(args.frames_dt) + '.txt'
@@ -4371,7 +4537,7 @@ def radial_thick_frame_xvg_write(f_type, f_time):						#unchanged
 			output_xvg.close()	
 	
 	return
-def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
+def radial_thick_frame_xvg_graph(f_type, f_time):						#DONE
 
 	global radial_step
 	
@@ -4423,7 +4589,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 		p_upper={}
 		for c_size in radial_sizes[f_type]:
 			p_upper[c_size]=plt.plot(loc_radial_bins, tmp_thick_avg[c_size], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
-			p_upper[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_thick_avg[c_size]-tmp_thick_std[c_size], tmp_thick_avg[c_size]+tmp_thick_std[c_size], color = get_size_colour(c_size), alpha=0.2)
+			p_upper[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_thick_avg[c_size]-tmp_thick_std[c_size], tmp_thick_avg[c_size]+tmp_thick_std[c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
@@ -4431,7 +4597,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 		
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)
-		ax1.set_ylim(numpy.min(lipids_thick_nff["data"]["all species"]["all frames"]), numpy.max(lipids_thick_nff["data"]["all species"]["all frames"]))
+		ax1.set_ylim(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]), numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]))
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4486,7 +4652,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 		p_upper={}
 		for s in leaflet_species["both"]:
 			p_upper[s]=plt.plot(loc_radial_bins, tmp_thick_avg[s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-			p_upper[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color=colours_lipids[s], alpha=0.2)
+			p_upper[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('distance from cluster center of geometry($\AA$)', fontsize="small")
@@ -4494,7 +4660,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 			
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)		
-		ax1.set_ylim(numpy.min(lipids_thick_nff["data"]["all species"]["all frames"]), numpy.max(lipids_thick_nff["data"]["all species"]["all frames"]))
+		ax1.set_ylim(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]), numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]))
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4552,7 +4718,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 			p_upper={}
 			for g_index in radial_groups[f_type]:
 				p_upper[g_index] = plt.plot(loc_radial_bins, tmp_thick_avg[g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
-				p_upper[str(g_index) + "_err"] = plt.fill_between(loc_radial_bins, tmp_thick_avg[g_index]-tmp_thick_std[g_index], tmp_thick_avg[g_index]+tmp_thick_std[g_index], color = colours_groups[g_index], alpha = 0.2)
+				p_upper[str(g_index) + "_err"] = plt.fill_between(loc_radial_bins, tmp_thick_avg[g_index]-tmp_thick_std[g_index], tmp_thick_avg[g_index]+tmp_thick_std[g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
@@ -4560,7 +4726,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 			
 			#save figure
 			ax1.set_xlim(0, args.radial_radius)
-			ax1.set_ylim(numpy.min(lipids_thick_nff["data"]["all species"]["all frames"]), numpy.max(lipids_thick_nff["data"]["all species"]["all frames"]))
+			ax1.set_ylim(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]), numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]))
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4612,7 +4778,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 			p_upper={}
 			for s in leaflet_species["both"]:
 				p_upper[s] = plt.plot(loc_radial_bins, tmp_thick_avg[s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
-				p_upper[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color=colours_lipids[s], alpha=0.2)
+				p_upper[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 			plt.xlabel('distance from cluster center of geometry($\AA$)', fontsize="small")
@@ -4620,7 +4786,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time):						#unchanged
 				
 			#save figure
 			ax1.set_xlim(0, args.radial_radius)		
-			ax1.set_ylim(numpy.min(lipids_thick_nff["data"]["all species"]["all frames"]), numpy.max(lipids_thick_nff["data"]["all species"]["all frames"]))
+			ax1.set_ylim(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]), numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]))
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -5040,7 +5206,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 		if s in op_lipids_handled["upper"] or ( s == "all species" and len(op_lipids_handled["upper"]) > 0):
 			for c_size in radial_sizes[f_type]:
 				p_upper[c_size]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
-				p_upper[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][c_size]-tmp_op_std["upper"][c_size], tmp_op_avg["upper"][c_size]+tmp_op_std["upper"][c_size], color=get_size_colour(c_size), alpha=0.2)
+				p_upper[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][c_size]-tmp_op_std["upper"][c_size], tmp_op_avg["upper"][c_size]+tmp_op_std["upper"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
@@ -5053,7 +5219,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 		if s in op_lipids_handled["lower"] or ( s == "all species" and len(op_lipids_handled["lower"]) > 0):
 			for c_size in radial_sizes[f_type]:
 				p_lower[c_size]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
-				p_lower[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][c_size]-tmp_op_std["lower"][c_size], tmp_op_avg["lower"][c_size]+tmp_op_std["lower"][c_size], color = get_size_colour(c_size), alpha=0.2)
+				p_lower[str(c_size) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][c_size]-tmp_op_std["lower"][c_size], tmp_op_avg["lower"][c_size]+tmp_op_std["lower"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
@@ -5127,7 +5293,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 		p_upper={}
 		for s in op_lipids_handled["upper"]:
 			p_upper[s]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-			p_upper[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color=colours_lipids[s], alpha=0.2)
+			p_upper[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		if len(op_lipids_handled["upper"]) > 0:
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
@@ -5140,7 +5306,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 		p_lower={}
 		for s in op_lipids_handled["lower"]:
 			p_lower[s]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][s], color=colours_lipids[s], linewidth=3.0, label=str(s))
-			p_lower[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color=colours_lipids[s], alpha=0.2)
+			p_lower[str(s + "_err")]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		if len(op_lipids_handled["lower"]) > 0:
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
@@ -5220,7 +5386,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 			if s in op_lipids_handled["upper"] or (s == "all species" and len(op_lipids_handled["upper"]) > 0):
 				for g_index in radial_groups[f_type]:
 					p_upper[g_index]=plt.plot(loc_radial_bins, tmp_op_avg["upper"][g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
-					p_upper[str(g_index) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][g_index]-tmp_op_std["upper"][g_index], tmp_op_avg["upper"][g_index]+tmp_op_std["upper"][g_index], color = colours_groups[g_index], alpha = 0.2)
+					p_upper[str(g_index) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][g_index]-tmp_op_std["upper"][g_index], tmp_op_avg["upper"][g_index]+tmp_op_std["upper"][g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
@@ -5233,7 +5399,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 			if s in op_lipids_handled["lower"] or ( s == "all species" and len(op_lipids_handled["lower"]) > 0):
 				for g_index in radial_groups[f_type]:
 					p_lower[g_index]=plt.plot(loc_radial_bins, tmp_op_avg["lower"][g_index], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
-					p_lower[str(g_index) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][g_index]-tmp_op_std["lower"][g_index], tmp_op_avg["lower"][g_index]+tmp_op_std["lower"][g_index], color = colours_groups[g_index], alpha = 0.2)
+					p_lower[str(g_index) + "_err"]=plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][g_index]-tmp_op_std["lower"][g_index], tmp_op_avg["lower"][g_index]+tmp_op_std["lower"][g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
@@ -5304,7 +5470,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 			p_upper={}
 			for s in op_lipids_handled["upper"]:
 				p_upper[s] = plt.plot(loc_radial_bins, tmp_op_avg["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
-				p_upper[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], alpha = 0.2)
+				p_upper[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			if len(op_lipids_handled["upper"]) > 0:
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
@@ -5317,7 +5483,7 @@ def radial_op_frame_xvg_graph(f_type, f_time):							#unchanged
 			p_lower={}
 			for s in op_lipids_handled["lower"]:
 				p_lower[s] = plt.plot(loc_radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label=str(s))
-				p_lower[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], alpha = 0.2)
+				p_lower[str(s + "_err")] = plt.fill_between(loc_radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			if len(op_lipids_handled["lower"]) > 0:
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
@@ -5384,15 +5550,17 @@ if args.radial:
 # generate data
 #=========================================================================================
 print "\nCalculating bilayer perturbations..."
+
 #case: gro file
 #==============
 if args.xtcfilename == "no":
-	time_stamp[1]=0
+	frames_nb[0] = 1
+	frames_time[0] = 0
 	#bilayer properties
 	if args.perturb == 1 or args.perturb == 3:
-		calculate_thickness("all frames", 0, True, -1)
+		calculate_thickness("all frames", 0, True, 0)
 	if args.perturb == 2 or args.perturb == 3:
-		calculate_order_parameters("all frames", 0, True, -1)
+		calculate_order_parameters("all frames", 0, True, 0)
 	#radial perturbations	
 	if args.radial:
 		calculate_radial("all frames", 0, True)
@@ -5400,56 +5568,34 @@ if args.xtcfilename == "no":
 #case: xtc file
 #==============
 else:
-	#create list of frame to process
-	#-------------------------------
-	f_start = 0
-	if args.t_start > 0:
-		for ts in U.trajectory:
-			#debug
-			print ts.frame
-			progress = '\r -skipping frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '        '
-			sys.stdout.flush()
-			sys.stdout.write(progress)
-			if ts.time/float(1000) < args.t_start:
-				f_start = ts.frame-1
-				break
-	if (nb_frames_xtc - f_start)%args.frames_dt == 0:
-		tmp_offset = 0
-	else:
-		tmp_offset = 1
-	frames = map(lambda f:f_start + args.frames_dt*f, range(0,(nb_frames_xtc - f_start)//args.frames_dt+tmp_offset))
-		
-	#process frames
-	#--------------
-	for frame in frames:
-		ts = U.trajectory[frame]
+	for f_index in range(0,nb_frames_to_process):
+		ts = U.trajectory[frames_to_process[f_index]]
 		if ts.time/float(1000) > args.t_end:
 			break
 		progress = '\r -processing frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '                      '  
 		sys.stdout.flush()
 		sys.stdout.write(progress)
-		
+				
 		#frame properties
 		f_time = ts.time/float(1000)
 		f_nb = ts.frame
-		frames_nb.append(f_nb)
-		frames_time.append(f_time)
-		if ((nb_frames_processed) % args.frames_write_dt) == 0 or nb_frames_processed == (nb_frames_xtc - f_start)//args.frames_dt:
-			f_write = True
-		else:
-			f_write = False
-	
+		frames_nb[f_index] = f_nb
+		frames_time[f_index] = f_time
+		f_write = frames_to_write[f_index]
+		if f_write:
+			print "\n  (writing snapshot...)"
+			
 		#bilayer properties
 		if args.perturb == 1 or args.perturb == 3:
-			xtc_thick += calculate_thickness("current", f_time, f_write, f_nb)
+			xtc_thick += calculate_thickness("current", f_time, f_write, f_index)
 		
 		if args.perturb == 2 or args.perturb == 3:
-			xtc_order_param += calculate_order_parameters("current", f_time, f_write, f_nb)
+			xtc_order_param += calculate_order_parameters("current", f_time, f_write, f_index)
 	
 		#radial perturbations
 		if args.radial:
 			calculate_radial("current", f_time, f_write)
-		nb_frames_processed += 1
+
 	print ''
 
 #=========================================================================================
@@ -5513,9 +5659,9 @@ else:
 	if args.perturb != 0:
 		print " -writing statistics..."
 		if args.perturb == 1 or args.perturb == 3:
-			thick_frame_write_stat("all frames", 0)
+			thick_frame_write_stat("all frames", 0,0)
 		if args.perturb == 2 or args.perturb == 3:
-			op_frame_write_stat("all frames", 0)
+			op_frame_write_stat("all frames", 0,0)
 		
 	#write annotation files for VMD
 	print " -writing VMD xtc annotation files..."
