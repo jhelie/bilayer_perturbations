@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.8-dev2"
+version_nb="0.1.8-dev3"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1203,7 +1203,7 @@ def identify_species():													#DONE
 	global lipids_specie2rindex
 	global lipids_resnum2specie
 	op_bonds = {}
-	op_lipids_handled = {}
+	op_lipids_handled = {l: [] for l in ["lower","upper"]}
 	membrane_comp = {}
 	leaflet_ratio = {}
 	leaflet_species = {}
@@ -1248,7 +1248,6 @@ def identify_species():													#DONE
 	if args.perturb == 2 or args.perturb == 3:
 		#create list of lipids to take into account for order parameters calculation
 		for l in ["lower","upper"]:
-			op_lipids_handled[l] = []
 			leaflet_sele[l]["op"] = MDAnalysis.core.AtomGroup.AtomGroup([])
 			for s in leaflet_species[l]:
 				if s in op_lipids:
@@ -1678,6 +1677,8 @@ def calculate_cog(sele, box_dim):
 def calculate_radial(f_type, f_time, f_write):							
 	
 	global radial_step
+
+	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
 	
 	#identify clusters
 	#=================
@@ -1686,149 +1687,136 @@ def calculate_radial(f_type, f_time, f_write):
 	else:
 		clusters = detect_clusters_density(get_distances(U.trajectory.ts.dimensions), U.trajectory.ts.dimensions)
 	
+	#reset structures to calculate current frame stats
+	#=================================================
+	#sizes
+	#-----
+	for l in ["lower","upper"]:
+		for s in leaflet_species[l] + ["all species"]:
+			radial_density[l][s]["all sizes"]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
+			radial_density[l][s]["all sizes"]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
+	if args.perturb == 1 or args.perturb == 3:
+		for s in leaflet_species["both"] + ["all species"]:
+			radial_thick[s]["nb"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+			radial_thick[s]["avg"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+			radial_thick[s]["std"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+	if args.perturb == 2 or args.perturb == 3:
+		for l in ["lower","upper"]:
+			for s in op_lipids_handled[l] + ["all species"]:
+				radial_op[l][s]["nb"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_op[l][s]["avg"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_op[l][s]["std"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+
+	#groups
+	#------
+	for g_index in range(0,groups_number+1):
+		for l in ["lower","upper"]:
+			for s in leaflet_species[l] + ["all species"]:
+				radial_density[l][s]["groups"][g_index]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_density[l][s]["groups"][g_index]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
+		if args.perturb == 1 or args.perturb == 3:
+			for s in leaflet_species["both"] + ["all species"]:
+				radial_thick[s]["nb"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_thick[s]["avg"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_thick[s]["std"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+		if args.perturb == 2 or args.perturb == 3:
+			for l in ["lower","upper"]:
+				for s in op_lipids_handled[l] + ["all species"]:
+					radial_op[l][s]["nb"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+					radial_op[l][s]["avg"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+					radial_op[l][s]["std"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+
 	#process each cluster
 	#====================
 	radial_sizes["current"] = []
 	radial_groups["current"] = []
 	tmp_cluster_selections = {}
-	for cluster in clusters:
-		cluster_size = numpy.size(cluster)
+	for cluster in clusters:		
 		#create selection for current cluster
-		tmp_cluster_sele = MDAnalysis.core.AtomGroup.AtomGroup([])	
+		c_sele = MDAnalysis.core.AtomGroup.AtomGroup([])	
 		for p_index in cluster:
-			tmp_cluster_sele += proteins_sele[p_index]
+			c_sele += proteins_sele[p_index]
 		
-		#check whether the cluster is TM
-		#find closest PO4 particles for each particles of clusters, if all are in the same leaflet then it's surfacic [NB: this is done at the CLUSTER level (the same criteria at the protein level would probably fail)]
-		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(tmp_cluster_sele.coordinates(), leaflet_sele["lower"]["all species"].coordinates(), U.trajectory.ts.dimensions), axis = 1)
-		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(tmp_cluster_sele.coordinates(), leaflet_sele["upper"]["all species"].coordinates(), U.trajectory.ts.dimensions), axis = 1)
+		#process cluster if TM (find closest PO4 particles for each particles of clusters, if all are in the same leaflet then it's surfacic [NB: this is done at the CLUSTER level (the same criteria at the protein level would probably fail)])
+		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["lower"], U.trajectory.ts.dimensions), axis = 1)
+		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["upper"], U.trajectory.ts.dimensions), axis = 1)
 		dist = dist_min_upper - dist_min_lower
-
-		#store current cluster details if it is a TM cluster
 		if numpy.size(dist[dist>0]) != numpy.size(dist) and numpy.size(dist[dist>0]) !=0:
 
-			#store new cluster size if necessary
-			if cluster_size not in radial_sizes["current"]:
-				radial_sizes["current"].append(cluster_size)
-				tmp_cluster_selections[cluster_size] = []
-
-			#append selection
-			tmp_cluster_selections[cluster_size].append(tmp_cluster_sele)
-
-			#store new cluster size group if necessary
-			if args.cluster_groups_file != "no":
-				cluster_group = groups_sizes_dict[cluster_size]
-				if cluster_group not in radial_groups["current"]:
-					radial_groups["current"].append(cluster_group)
-		
-	#initialise individual sizes data structures
-	#===========================================
-	radial_sizes["current"] = sorted(list(numpy.unique(radial_sizes["current"])))
-	for c_size in radial_sizes["current"] + ["all sizes"]:
-		#add size if necessary						
-		#---------------------
-		if c_size not in radial_sizes["all frames"] and c_size != "all sizes":
-			radial_sizes["all frames"].append(c_size)
-			radial_sizes["all frames"] = sorted(radial_sizes["all frames"])
-			#density
-			for l in ["lower","upper"]:	
-				for s in leaflet_species[l] + ["all species"]:
-					radial_density[l][s][c_size] = {key: {"all frames": numpy.zeros(args.radial_nb_bins)} for key in ["nb","pc"]}
-			#thickness
-			if args.perturb == 1 or args.perturb == 3:
-				for s in leaflet_species["both"] + ["all species"]:
-					radial_thick[s]["nb"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-					radial_thick[s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-					radial_thick[s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-			#order parameter
-			if args.perturb == 2 or args.perturb == 3:
-				for l in ["lower","upper"]:					
-					for s in op_lipids_handled[l] + ["all species"]:
-						radial_op[l][s]["nb"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-						radial_op[l][s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-						radial_op[l][s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-	
-		#reset containers to calculate current frame stats
-		#-------------------------------------------------
-		#density
-		for l in ["lower","upper"]:
-			for s in leaflet_species[l] + ["all species"]:
-				radial_density[l][s][c_size]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
-				radial_density[l][s][c_size]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
-		#thickness
-		if args.perturb == 1 or args.perturb == 3:
-			for s in leaflet_species["both"] + ["all species"]:
-				radial_thick[s]["nb"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-				radial_thick[s]["avg"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-				radial_thick[s]["std"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-		#order param
-		if args.perturb == 2 or args.perturb == 3:
-			for l in ["lower","upper"]:
-				for s in op_lipids_handled[l] + ["all species"]:
-					radial_op[l][s]["nb"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_op[l][s]["avg"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_op[l][s]["std"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-
-	#initialise size groups data structures
-	#======================================
-	if args.cluster_groups_file != "no":
-		radial_groups["current"] = sorted(list(numpy.unique(radial_groups["current"])))
-		for g_index in radial_groups["current"]:
-			#add group if necessary
-			#----------------------
-			if g_index not in radial_groups["all frames"]:
-				radial_groups["all frames"].append(g_index)
-				radial_groups["all frames"] = sorted(radial_groups["all frames"])				
+			#store new cluster size and add entry if necessary
+			c_size = numpy.size(cluster)
+			if c_size not in radial_sizes["current"]:
+				radial_sizes["current"].append(c_size)
+				if c_size not in radial_sizes["all frames"]:
+					radial_sizes["all frames"].append(c_size)
+					for l in ["lower","upper"]:	
+						for s in leaflet_species[l] + ["all species"]:
+							radial_density[l][s][c_size] = {key: {"all frames": numpy.zeros(args.radial_nb_bins)} for key in ["nb","pc"]}
+					if args.perturb == 1 or args.perturb == 3:
+						for s in leaflet_species["both"] + ["all species"]:
+							radial_thick[s]["nb"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+							radial_thick[s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+							radial_thick[s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+					if args.perturb == 2 or args.perturb == 3:
+						for l in ["lower","upper"]:					
+							for s in op_lipids_handled[l] + ["all species"]:
+								radial_op[l][s]["nb"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+								radial_op[l][s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+								radial_op[l][s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
 
 			#reset containers to calculate current frame stats
-			#-------------------------------------------------
-			#density
 			for l in ["lower","upper"]:
-				for s in leaflet_species[l] + ["all species"]:
-					radial_density[l][s]["groups"][g_index]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_density[l][s]["groups"][g_index]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
-			#thickness
+				for s in leaflet_species[l] + ["all species"]:				
+					radial_density[l][s][c_size]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
+					radial_density[l][s][c_size]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
 			if args.perturb == 1 or args.perturb == 3:
 				for s in leaflet_species["both"] + ["all species"]:
-					radial_thick[s]["nb"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_thick[s]["avg"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_thick[s]["std"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-			#order param
+					radial_thick[s]["nb"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
+					radial_thick[s]["avg"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
+					radial_thick[s]["std"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
 			if args.perturb == 2 or args.perturb == 3:
 				for l in ["lower","upper"]:
 					for s in op_lipids_handled[l] + ["all species"]:
-						radial_op[l][s]["nb"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-						radial_op[l][s]["avg"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-						radial_op[l][s]["std"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
+						radial_op[l][s]["nb"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
+						radial_op[l][s]["avg"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
+						radial_op[l][s]["std"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
 
-	#update radial data
-	#==================
-	for c_size in radial_sizes["current"]:
-		for c_sele in tmp_cluster_selections[c_size]:
+			#store new cluster size group
+			if args.cluster_groups_file != "no":
+				g_index = groups_sizes_dict[c_size]
+				if g_index not in radial_groups["current"]:
+					radial_groups["current"].append(g_index)
+					if g_index not in radial_groups["all frames"]:
+						radial_groups["all frames"].append(g_index)
+		
+			#calculate cluster center of geometry
+			#------------------------------------
 			tmp_c_cog = numpy.zeros((1,3))
 			tmp_c_cog[0,:] = calculate_cog(c_sele, U.trajectory.ts.dimensions)
+			
+			#update radial data
+			#------------------
 			for l in ["lower","upper"]:
 				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
-				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), leaflet_sele[l]["all species"].coordinates(), U.trajectory.ts.dimensions)
+				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), tmp_lip_coords[l], U.trajectory.ts.dimensions)
 				tmp_neighbours = lip_dist < args.radial_radius
 				r_num_within = list(leaflet_sele[l]["all species"].resnums()[tmp_neighbours[0,:]])
 
-				#find list of neighbouring lipids for each specie (1 browse of all residue list + 1 browse of each specie residue lists)
+				#find neighbouring lipids properties (1 browse of all residue list + 1 browse of each specie residue lists)
 				tmp_s_rnums = {s: [] for s in leaflet_species[l]}
 				tmp_rnum2bin = {}
 				for r_num in r_num_within:
 					r_index = lipids_resnum2rindex[l]["all species"][r_num]
 					tmp_s_rnums[lipids_rindex2specie[l]["all species"][r_index]].append(r_num)
 					tmp_rnum2bin[r_num] = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
+				
+				#store properties of neighbouring lipids of the cluster
 				for s in leaflet_species[l]:
 					if len(tmp_s_rnums[s]) > 0:
 						for n in range(0, args.radial_nb_bins):
 							tmp_s_rindex_bin = [lipids_resnum2rindex[l][s][r_num] for r_num in tmp_s_rnums[s] if tmp_rnum2bin[r_num] == n]
 							tmp_res_nb = len(tmp_s_rindex_bin)
 							if tmp_res_nb > 0:
-
-								#density
-								#-------				
 								radial_density[l][s][c_size]["nb"]["current"][n] += tmp_res_nb
 								radial_density[l][s][c_size]["nb"]["all frames"][n] += tmp_res_nb
 								radial_density[l][s]["all sizes"]["nb"]["current"][n] += tmp_res_nb
@@ -1838,14 +1826,11 @@ def calculate_radial(f_type, f_time, f_write):
 								radial_density[l]["all species"]["all sizes"]["nb"]["current"][n] += tmp_res_nb
 								radial_density[l]["all species"]["all sizes"]["nb"]["all frames"][n] += tmp_res_nb
 								if args.cluster_groups_file != "no":
-									g_index = groups_sizes_dict[c_size]
 									radial_density[l][s]["groups"][g_index]["nb"]["current"][n] += tmp_res_nb
 									radial_density[l][s]["groups"][g_index]["nb"]["all frames"][n] += tmp_res_nb
 									radial_density[l]["all species"]["groups"][g_index]["nb"]["current"][n] += tmp_res_nb
 									radial_density[l]["all species"]["groups"][g_index]["nb"]["all frames"][n] += tmp_res_nb
 															
-								#thickness
-								#---------
 								if args.perturb == 1 or args.perturb == 3:
 									tmp_res_avg = numpy.average(lipids_thick_nff[l][s][tmp_s_rindex_bin])
 									tmp_res_std = numpy.std(lipids_thick_nff[l][s][tmp_s_rindex_bin])				
@@ -1876,7 +1861,6 @@ def calculate_radial(f_type, f_time, f_write):
 										radial_thick["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_thick["all species"]["nb"]["all sizes"][f_t][n])
 				
 									if args.cluster_groups_file != "no":
-										g_index = groups_sizes_dict[c_size]
 										for f_t in ["current","all frames"]:
 											#current specie: Chang algorithm
 											delta =  tmp_res_avg - radial_thick[s]["avg"]["groups"][g_index][f_t][n]
@@ -1890,8 +1874,6 @@ def calculate_radial(f_type, f_time, f_write):
 											radial_thick["all species"]["nb"]["groups"][g_index][f_t][n] += tmp_res_nb
 											radial_thick["all species"]["avg"]["groups"][g_index][f_t][n] += delta * tmp_res_nb / float(radial_thick["all species"]["nb"]["groups"][g_index][f_t][n])
 				
-								#order parameters
-								#----------------
 								if s in op_lipids_handled[l] and (args.perturb == 2 or args.perturb == 3):
 									tmp_res_avg = numpy.average(lipids_op_nff[l][s]["current"][tmp_s_rindex_bin])
 									tmp_res_std = numpy.average(lipids_op_nff[l][s]["current"][tmp_s_rindex_bin])
@@ -1926,7 +1908,6 @@ def calculate_radial(f_type, f_time, f_write):
 										radial_op[l]["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_op[l]["all species"]["nb"]["all sizes"][f_t][n])
 				
 									if args.cluster_groups_file != "no":
-										g_index = groups_sizes_dict[c_size]
 										for f_t in ["current","all frames"]:
 											#current specie: Chang algorithm
 											delta =  tmp_res_avg - radial_op[l][s]["avg"]["groups"][g_index][f_t][n]
