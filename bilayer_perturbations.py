@@ -5186,14 +5186,18 @@ print "\nCalculating bilayer perturbations..."
 if args.xtcfilename == "no":
 	frames_nb[0] = 1
 	frames_time[0] = 0
+	f_write = False
+	if args.frames_write_dt != "no":
+		f_write = True
+		print "(writing snapshot...)"
 	#bilayer properties
 	if args.perturb == 1 or args.perturb == 3:
-		calculate_thickness("all frames", 0, True, 0)
+		calculate_thickness("all frames", 0, f_write, 0)
 	if args.perturb == 2 or args.perturb == 3:
-		calculate_order_parameters("all frames", 0, True, 0)
+		calculate_order_parameters("all frames", 0, f_write, 0)
 	#radial perturbations	
 	if args.radial:
-		calculate_radial("all frames", 0, True)
+		calculate_radial("all frames", 0, f_write)
 
 #case: xtc file
 #==============
@@ -5247,15 +5251,15 @@ if args.xtcfilename == "no":
 	if args.perturb != 0:
 		print " -writing statistics..."
 		if args.perturb == 1 or args.perturb == 3:
-			thick_frame_write_stat("all frames", 0)
+			thick_frame_write_stat("all frames", 0, 0)
 		if args.perturb == 2 or args.perturb == 3:
-			op_frame_write_stat("all frames", 0)
+			op_frame_write_stat("all frames", 0, 0)
 
 	#write annotation files for VMD
 	print " -writing VMD annotation files..."
 	if args.perturb == 1 or args.perturb == 3:
-		thick_frame_write_snapshot("all frames", 0)
-		thick_frame_write_annotation("all frames", 0)
+		thick_frame_write_snapshot("all frames")
+		thick_frame_write_annotation("all frames")
 	if args.perturb == 2 or args.perturb == 3:
 		op_frame_write_snapshot("all frames", 0)
 		op_frame_write_annotation("all frames", 0)
@@ -5289,9 +5293,9 @@ else:
 	if args.perturb != 0:
 		print " -writing statistics..."
 		if args.perturb == 1 or args.perturb == 3:
-			thick_frame_write_stat("all frames", 0,0)
+			thick_frame_write_stat("all frames", 0, 0)
 		if args.perturb == 2 or args.perturb == 3:
-			op_frame_write_stat("all frames", 0,0)
+			op_frame_write_stat("all frames", 0, 0)
 		
 	#write annotation files for VMD
 	print " -writing VMD xtc annotation files..."
