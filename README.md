@@ -27,4 +27,7 @@ Features
 - calculation of TM clusters center of geometry take pbc into account
 - on the fly outputting
 
+To do
+-----
+- check indexing xvg/txt: density (groups), thickness (size + groups), order param (size + groups)
 
