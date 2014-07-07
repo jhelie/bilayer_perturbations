@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.12"
+version_nb="0.1.13"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1993,8 +1993,15 @@ def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 
 	#append species average
 	for s in leaflet_species["both"] + ["all species"]:
-		lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
-		lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+		if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+			lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+		elif s in leaflet_species["upper"]:
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
+			lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
+		elif s in leaflet_species["lower"]:
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
+			lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
 	
 	#produce output if necessary
 	if f_write:
