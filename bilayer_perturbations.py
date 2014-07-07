@@ -2443,7 +2443,7 @@ def thick_xtc_write_annotation():										#DONE
 def op_xvg_ff_write():													#DONE
 	
 	#flipflops: upper to lower
-	if numpy.size(lipids_ff_u2l_index)>0:
+	if numpy.size(lipids_ff_u2l_index) > 0:
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_u2l.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_u2l.xvg'
 		output_txt  =  open(filename_txt, 'w')
@@ -2458,7 +2458,7 @@ def op_xvg_ff_write():													#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(lipids_ff_nb*3) + "\n")
+		output_xvg.write("@ legend length " + str(len(lipids_ff_u2l_index)*3) + "\n")
 		for l_index in range(0,len(lipids_ff_u2l_index)):
 			l = lipids_ff_u2l_index[l_index]
 			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
@@ -2492,7 +2492,7 @@ def op_xvg_ff_write():													#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(lipids_ff_nb*3) + "\n")
+		output_xvg.write("@ legend length " + str(len(lipids_ff_l2u_index)*3) + "\n")
 		for l_index in range(0,len(lipids_ff_l2u_index)):
 			l = lipids_ff_l2u_index[l_index]
 			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
@@ -2529,7 +2529,7 @@ def op_xvg_ff_write_smoothed():											#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(lipids_ff_nb*3) + "\n")
+		output_xvg.write("@ legend length " + str(len(lipids_ff_u2l_index)*3) + "\n")
 		for l_index in range(0,len(lipids_ff_u2l_index)):
 			l = lipids_ff_u2l_index[l_index]
 			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
@@ -2563,7 +2563,7 @@ def op_xvg_ff_write_smoothed():											#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(lipids_ff_nb*3) + "\n")
+		output_xvg.write("@ legend length " + str(len(lipids_ff_l2u_index)*3) + "\n")
 		for l_index in range(0,len(lipids_ff_l2u_index)):
 			l = lipids_ff_l2u_index[l_index]
 			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
