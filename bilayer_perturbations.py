@@ -259,7 +259,7 @@ Lipids identification
 --tails			: leaflet identification technique, see note 3
 --flipflops		: input file with flipflopping lipids, see note 4
 --forcefield		: forcefield options, see notes 2 and 3
---leaflet	optimise: leaflet identification technique, see note 2(b)
+--leaflets	optimise: leaflet identification technique, see note 2(b)
 --colours_lipids	: lipids colour definition file, see note 8
 
 Radial perturbations and protein clusters identification
@@ -299,7 +299,7 @@ parser.add_argument('--beads', nargs=1, dest='beadsfilename', default=['no'], he
 parser.add_argument('--tails', nargs=1, dest='tailsfilename', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--flipflops', nargs=1, dest='selection_file_ff', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--forcefield', dest='forcefield_opt', choices=['martini'], default='martini', help=argparse.SUPPRESS)
-parser.add_argument('--leaflet', nargs=1, dest='cutoff_leaflet', default=['optimise'], help=argparse.SUPPRESS)
+parser.add_argument('--leaflets', nargs=1, dest='cutoff_leaflet', default=['optimise'], help=argparse.SUPPRESS)
 parser.add_argument('--colours_lipids', nargs=1, dest='colours_lipids_file', default=['no'], help=argparse.SUPPRESS)
 
 #radial and protein clusters options
