@@ -190,7 +190,7 @@ The following python modules are needed :
    forcefield or if you have done such work and think others could benefit from it.
    
 6. Proteins are detected automatically but you can specify an input file to define your
-   own selection with the -p option.
+   own selection with the --proteins option.
    In this case the supplied file should contain on each line a protein selection string
    that can be passed as the argument of the MDAnalysis selectAtoms() routine - for 
    instance 'bynum 1:344'.
