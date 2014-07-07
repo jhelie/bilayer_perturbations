@@ -1788,8 +1788,12 @@ def calculate_radial(f_type, f_time, f_write):
 				#store properties of neighbouring lipids of the cluster
 				for s in leaflet_species[l]:
 					if len(tmp_s_rnums[s]) > 0:
+						tmp_bin = {n: [] for n in range(0, args.radial_nb_bins)}
+						for r_num in tmp_s_rnums[s]:
+							tmp_bin[tmp_rnum2bin[r_num]].append(lipids_resnum2rindex[l][s][r_num])
 						for n in range(0, args.radial_nb_bins):
-							tmp_s_rindex_bin = [lipids_resnum2rindex[l][s][r_num] for r_num in tmp_s_rnums[s] if tmp_rnum2bin[r_num] == n]
+							#tmp_s_rindex_bin = [lipids_resnum2rindex[l][s][r_num] for r_num in tmp_s_rnums[s] if tmp_rnum2bin[r_num] == n]
+							tmp_s_rindex_bin = tmp_bin[n]
 							tmp_res_nb = len(tmp_s_rindex_bin)
 							if tmp_res_nb > 0:
 								for f_t in ["current","all frames"]:
