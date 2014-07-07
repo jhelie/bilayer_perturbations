@@ -330,11 +330,14 @@ args.output_folder = args.output_folder[0]
 args.t_start = args.t_start[0]
 args.t_end = args.t_end[0]
 args.frames_dt = args.frames_dt[0]
+if args.frames_write_dt != "no":
+	args.frames_write_dt = int(args.frames_write_dt)
 args.nb_smoothing = args.nb_smoothing[0]
 args.perturb = int(args.perturb[0])
 #lipids identification
 args.beadsfilename = args.beadsfilename[0]
 args.tailsfilename = args.tailsfilename[0]
+args.cutoff_leaflet = args.cutoff_leaflet[0]
 args.selection_file_ff = args.selection_file_ff[0]
 #radial and protein clusters options
 args.colours_sizes = args.colours_sizes[0]
@@ -346,7 +349,6 @@ args.cutoff_connect = args.cutoff_connect[0]
 args.dbscan_dist = args.dbscan_dist[0]
 args.dbscan_nb = args.dbscan_nb[0]
 #other options
-args.cutoff_leaflet = args.cutoff_leaflet[0]
 args.thick_nb_neighbours = args.thick_nb_neighbours[0]
 
 #process options
@@ -365,8 +367,6 @@ if args.radial:
 	radial_bins = [n*radial_step for n in range(0,args.radial_nb_bins)]
 	if args.selection_file_prot == 'no':
 		args.selection_file_prot = 'auto' 
-if args.frames_write_dt != "no":
-	args.frames_write_dt = int(args.frames_write_dt)
 global xtc_thick
 global xtc_order_param
 global colours_sizes_range
@@ -469,7 +469,7 @@ if args.t_end < args.t_start:
 	print "Error: the starting time (" + str(args.t_start) + "ns) for analysis is later than the ending time (" + str(args.t_end) + "ns)."
 	sys.exit(1)
 
-if args.xtcfilename=="no":
+if args.xtcfilename == "no":
 	if '-t' in sys.argv:
 		print "Error: -t option specified but no xtc file specified."
 		sys.exit(1)
@@ -485,6 +485,18 @@ if args.xtcfilename=="no":
 elif not os.path.isfile(args.xtcfilename):
 	print "Error: file " + str(args.xtcfilename) + " not found."
 	sys.exit(1)
+
+if args.m_algorithm != "density":
+	if '--db_radius' in sys.argv:
+		print "Error: --db_radius option specified but --algorithm option set to '" + str(args.m_algorithm) + "'."
+		sys.exit(1)
+	elif '--db_neighbours' in sys.argv:
+		print "Error: --db_neighbours option specified but --algorithm option set to '" + str(args.m_algorithm) + "'."
+		sys.exit(1)
+else:
+	if '--nx_cutoff' in sys.argv:
+		print "Error: --nx_cutoff option specified but --algorithm option set to 'density'."
+		sys.exit(1)
 
 #=========================================================================================
 # create folders and log file
