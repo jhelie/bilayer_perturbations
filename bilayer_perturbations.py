@@ -272,7 +272,7 @@ Radial perturbations and protein clusters identification
 --algorithm	min	: 'cog','min' or 'density', see 'DESCRIPTION'
 --nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angstrom)
 --db_radius 	20	: DBSCAN search radius (Angstrom)
---db_neighbours	3	: DBSCAN minimum number of neighbours within a circle of radius --radius	
+--db_neighbours	3	: DBSCAN minimum number of neighbours within a circle of radius --db_radius	
  
 Other options
 -----------------------------------------------------
@@ -321,6 +321,9 @@ parser.add_argument('-h','--help', action='help', help=argparse.SUPPRESS)
 #=========================================================================================
 # store inputs
 #=========================================================================================
+
+#parse user inputs
+#-----------------
 args = parser.parse_args()
 #data options
 args.grofilename = args.grofilename[0]
@@ -352,6 +355,7 @@ args.dbscan_nb = args.dbscan_nb[0]
 args.thick_nb_neighbours = args.thick_nb_neighbours[0]
 
 #process options
+#---------------
 if args.perturb == 0:
 	args.radial=True
 if args.radial:
@@ -374,6 +378,8 @@ global lipids_ff_nb
 xtc_thick = ""
 xtc_order_param = ""
 lipids_ff_nb = 0
+
+#colour of cluster sizes
 tmp_col_size = args.colours_sizes.split(',')
 if len(tmp_col_size) != 2:
 	print "Error: wrong format for the option --colours_sizes, it should be 'min,max' (see bilayer_perturbations --help, note 8)."
@@ -384,11 +390,12 @@ elif int(tmp_col_size[0]) > int(tmp_col_size[1]):
 else:
 	colours_sizes_range = [int(tmp_col_size[0]), int(tmp_col_size[1])]
 	
+#leaflet identification
 if args.cutoff_leaflet != "large" and args.cutoff_leaflet != "optimise":
 	try:
 		args.cutoff_leaflet = float(args.cutoff_leaflet)
 	except:
-		print "Error: the argument of the --leaflet_cutoff option should be a number or 'large', see note 2"
+		print "Error: the argument of the --leaflets option should be a number or 'large', see note 2"
 		sys.exit(1)
 
 #=========================================================================================
