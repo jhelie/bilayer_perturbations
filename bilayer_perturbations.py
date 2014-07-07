@@ -740,7 +740,7 @@ def set_lipids_beads():
 
 	global leaflet_sele_string
 
-	#use default beads
+	#set default beads
 	leaflet_beads = {}
 	leaflet_beads['martini'] = "name PO4 or name PO3 or name B1A"
 	leaflet_sele_string = leaflet_beads[args.forcefield_opt]
@@ -1192,6 +1192,7 @@ def identify_leaflets():
 			for g in range(2, numpy.shape(L.groups())[0]):
 				other_lipids += L.group(g).numberOfResidues()
 			print " -found " + str(numpy.shape(L.groups())[0]) + " groups: " + str(leaflet_sele["upper"]["all species"].numberOfResidues()) + "(upper), " + str(leaflet_sele["lower"]["all species"].numberOfResidues()) + "(lower) and " + str(other_lipids) + " (others) lipids respectively"
+	#use cof:
 	else:
 		leaflet_sele["both"]["all species"] = U.selectAtoms(leaflet_sele_string)
 		tmp_lipids_avg_z = leaflet_sele["both"]["all species"].centerOfGeometry()[2]
