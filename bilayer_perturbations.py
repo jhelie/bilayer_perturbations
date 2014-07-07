@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.13"
+version_nb="0.1.14"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1431,6 +1431,7 @@ def initialise_colours_and_groups():
 		colours_lipids_value = tmp_cmap(numpy.linspace(0, 1, len(leaflet_species["both"])))
 		for s_index in range(0, len(leaflet_species["both"])):
 			colours_lipids[leaflet_species["both"][s_index]] = colours_lipids_value[s_index]	
+ 	colours_lipids["all species"] = 'k'
 
 	#size groups: colours and labels
 	#===============================
@@ -1973,9 +1974,18 @@ def calculate_radial_data(f_type):
 		#----------------------------------
 		if args.perturb == 1 or args.perturb == 3:
 			for s in leaflet_species["both"] + ["all species"]:
-				for g_index in radial_groups[f_type]:
-					radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index] + nb_sizes["upper"][s][g_index])
-					radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index] + nb_sizes["upper"][s][g_index])
+				if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+					for g_index in radial_groups[f_type]:
+						radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index] + nb_sizes["upper"][s][g_index])
+						radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index] + nb_sizes["upper"][s][g_index])
+				elif s in leaflet_species["upper"]:
+					for g_index in radial_groups[f_type]:
+						radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["upper"][s][g_index])
+						radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["upper"][s][g_index])
+				elif s in leaflet_species["lower"]:
+					for g_index in radial_groups[f_type]:
+						radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index])
+						radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index])
 
 		for l in ["lower","upper"]:
 			for s in leaflet_species[l] + ["all species"]:
@@ -2193,7 +2203,9 @@ def smooth_data():														#DONE
 
 	return
 def get_size_colour(c_size):
-	if c_size < colours_sizes_range[0]:
+	if  c_size == "all sizes":
+		col = 'k'
+	elif c_size < colours_sizes_range[0]:
 		col = colours_sizes[colours_sizes_range[0]]
 	elif c_size > colours_sizes_range[1]:
 		col = colours_sizes[colours_sizes_range[1]]
@@ -4424,7 +4436,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		#plot data
 		ax1 = fig.add_subplot(111)
 		p_upper = {}
-		for c_size in radial_sizes[f_type]:
+		for c_size in radial_sizes[f_type] + ["all sizes"]:
 			p_upper[c_size] = plt.plot(radial_bins, tmp_thick_avg[c_size], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
 			p_upper[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_thick_avg[c_size]-tmp_thick_std[c_size], tmp_thick_avg[c_size]+tmp_thick_std[c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 		fontP.set_size("small")
@@ -4473,9 +4485,9 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		fig.suptitle("radial evolution of bilayer thickness")
 		
 		#create data
-		tmp_thick_avg = {s: radial_thick[s]["avg"][c_size][f_type] for s in leaflet_species["both"]}
-		tmp_thick_std = {s: radial_thick[s]["std"][c_size][f_type] for s in leaflet_species["both"]}
-		for s in leaflet_species["both"]:
+		tmp_thick_avg = {s: radial_thick[s]["avg"][c_size][f_type] for s in leaflet_species["both"] + ["all species"]}
+		tmp_thick_std = {s: radial_thick[s]["std"][c_size][f_type] for s in leaflet_species["both"] + ["all species"]}
+		for s in leaflet_species["both"] + ["all species"]:
 			for n in range(0, args.radial_nb_bins):
 				if tmp_thick_avg[s][n] == 0:
 					tmp_thick_avg[s][n] =  numpy.nan
@@ -4604,8 +4616,8 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			fig.suptitle("radial evolution of bilayer thickness")
 			
 			#create data
-			tmp_thick_avg = {s: radial_thick[s]["avg"]["groups"][g_index][f_type] for s in leaflet_species["both"]}
-			tmp_thick_std = {s: radial_thick[s]["std"]["groups"][g_index][f_type] for s in leaflet_species["both"]}
+			tmp_thick_avg = {s: radial_thick[s]["avg"]["groups"][g_index][f_type] for s in leaflet_species["both"] + ["all species"]}
+			tmp_thick_std = {s: radial_thick[s]["std"]["groups"][g_index][f_type] for s in leaflet_species["both"] + ["all species"]}
 			for s in leaflet_species["both"]:
 				for n in range(0, args.radial_nb_bins):
 					if tmp_thick_avg[s][n] == 0:
@@ -4616,7 +4628,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(111)
 			p_upper = {}
-			for s in leaflet_species["both"]:
+			for s in leaflet_species["both"] + ["all species"]:
 				p_upper[s] = plt.plot(radial_bins, tmp_thick_avg[s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 				p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			fontP.set_size("small")
@@ -5091,7 +5103,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
 		if s in op_lipids_handled["upper"] or ( s == "all species" and len(op_lipids_handled["upper"]) > 0):
-			for c_size in radial_sizes[f_type]:
+			for c_size in radial_sizes[f_type] + ["all sizes"]:
 				p_upper[c_size] = plt.plot(radial_bins, tmp_op_avg["upper"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
 				p_upper[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_op_avg["upper"][c_size]-tmp_op_std["upper"][c_size], tmp_op_avg["upper"][c_size]+tmp_op_std["upper"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 			fontP.set_size("small")
@@ -5104,7 +5116,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		ax2 = fig.add_subplot(212)
 		p_lower = {}
 		if s in op_lipids_handled["lower"] or ( s == "all species" and len(op_lipids_handled["lower"]) > 0):
-			for c_size in radial_sizes[f_type]:
+			for c_size in radial_sizes[f_type] + ["all sizes"]:
 				p_lower[c_size] = plt.plot(radial_bins, tmp_op_avg["lower"][c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
 				p_lower[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_op_avg["lower"][c_size]-tmp_op_std["lower"][c_size], tmp_op_avg["lower"][c_size]+tmp_op_std["lower"][c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
 			fontP.set_size("small")
@@ -5336,11 +5348,8 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			tmp_op_avg = {}
 			tmp_op_std = {}
 			for l in ["lower","upper"]:
-				tmp_op_avg[l] = {}
-				tmp_op_std[l] = {}
-				if s in op_lipids_handled[l] or (s == "all species" and len(op_lipids_handled[l]) > 0):
-					tmp_op_avg[l] = {s: radial_op[l][s]["avg"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
-					tmp_op_std[l] = {s: radial_op[l][s]["std"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
+				tmp_op_avg[l] = {s: radial_op[l][s]["avg"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
+				tmp_op_std[l] = {s: radial_op[l][s]["std"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
 	
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
