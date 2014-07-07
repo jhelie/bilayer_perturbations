@@ -1667,7 +1667,7 @@ def get_distances(box_dim):
 	
 	#method: use minimum distance between proteins
 	#---------------------------------------------
-	if args.m_algorithm=="min":
+	if args.m_algorithm == "min":
 		dist_matrix=100000*numpy.ones((proteins_nb,proteins_nb))
 		for n in range(proteins_nb,1,-1):
 			dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb] = map(lambda pp:numpy.min(MDAnalysis.analysis.distances.distance_array(numpy.float32(proteins_sele[proteins_nb-n].coordinates()),numpy.float32(proteins_sele[pp].coordinates()),box_dim)), range(proteins_nb-n+1,proteins_nb))
@@ -1676,7 +1676,7 @@ def get_distances(box_dim):
 	#method: use distance between cog
 	#--------------------------------
 	else:
-		tmp_proteins_cogs = numpy.asarray(map(lambda p_index:proteins_sele[p_index].centerOfGeometry(), range(0,proteins_nb)))
+		tmp_proteins_cogs = numpy.asarray(map(lambda p_index: calculate_cog(proteins_sele[p_index], box_dim), range(0,proteins_nb)))
 		dist_matrix = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_proteins_cogs), numpy.float32(tmp_proteins_cogs), box_dim)
 
 	return dist_matrix
@@ -1684,6 +1684,7 @@ def calculate_cog(sele, box_dim):
 	
 	#this method allows to take pbc into account when calculcating the center of geometry 
 	#see: http://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
+	
 	cog_coord = numpy.zeros(3)
 	tmp_coords = sele.coordinates()
 	for n in range(0,3):
@@ -2140,7 +2141,7 @@ def detect_clusters_connectivity(dist, box_dim):
 def detect_clusters_density(dist, box_dim):								
 	
 	#run DBSCAN algorithm
-	dbscan_output = DBSCAN(eps=args.dbscan_dist,metric='precomputed',min_samples=args.dbscan_nb).fit(dist)
+	dbscan_output = DBSCAN(eps=args.dbscan_dist,metric='precomputed',min_samples = args.dbscan_nb).fit(dist)
 
 	#build 'groups' structure i.e. a list whose element are all the clusters identified
 	groups = []
