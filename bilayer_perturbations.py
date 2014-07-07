@@ -196,7 +196,7 @@ The following python modules are needed :
    instance 'bynum 1:344'.
 
 7. The perturbations associated to transmembrane clusters can be binned into size groups.
-   The size groups are defined by supplying a file with the -g option, whose lines all
+   The size groups are defined by supplying a file with --groups, whose lines all
    follow the format:
     -> 'lower_size,upper_size, colour'
 
