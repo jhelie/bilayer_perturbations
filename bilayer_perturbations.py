@@ -2141,7 +2141,7 @@ def detect_clusters_connectivity(dist, box_dim):
 def detect_clusters_density(dist, box_dim):								
 	
 	#run DBSCAN algorithm
-	dbscan_output = DBSCAN(eps=args.dbscan_dist,metric='precomputed',min_samples = args.dbscan_nb).fit(dist)
+	dbscan_output = DBSCAN(eps = args.dbscan_dist, metric = 'precomputed', min_samples = args.dbscan_nb).fit(dist)
 
 	#build 'groups' structure i.e. a list whose element are all the clusters identified
 	groups = []
