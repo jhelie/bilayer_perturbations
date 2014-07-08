@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.16"
+version_nb="0.1.17"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1735,7 +1735,7 @@ def calculate_radial(f_type, f_time, f_write):
 	tmp_cluster_selections = {}
 	for cluster in clusters:		
 		#create selection for current cluster
-		c_sele = MDAnalysis.core.AtomGroup.AtomGroup([])	
+		c_sele = MDAnalysis.core.AtomGroup.AtomGroup([])
 		for p_index in cluster:
 			c_sele += proteins_sele[p_index]
 		
@@ -1826,31 +1826,42 @@ def calculate_radial(f_type, f_time, f_write):
 									radial_density[l][s]["all sizes"]["nb"][f_t][n] += tmp_res_nb
 									radial_density[l]["all species"][c_size]["nb"][f_t][n] += tmp_res_nb
 									radial_density[l]["all species"]["all sizes"]["nb"][f_t][n] += tmp_res_nb
-															
 								if args.perturb == 1 or args.perturb == 3:
 									tmp_res_avg = numpy.average(lipids_thick_nff[l][s][tmp_s_rindex_bin])
 									tmp_res_std = numpy.std(lipids_thick_nff[l][s][tmp_s_rindex_bin])				
 									for f_t in ["current","all frames"]:
-										#current specie, current size: Chang algorithm
-										delta =  tmp_res_avg - radial_thick[s]["avg"][c_size][f_t][n]
-										radial_thick[s]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s][c_size]["nb"][f_t][n])
-										radial_thick[s]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s][c_size]["nb"][f_t][n])
+										if s in leaflet_species["lower"] and s in leaflet_species["upper"]:
+											#current specie, current size: Chang algorithm
+											delta =  tmp_res_avg - radial_thick[s]["avg"][c_size][f_t][n]
+											radial_thick[s]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"][s][c_size]["nb"][f_t][n] + radial_density["upper"][s][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"][s][c_size]["nb"][f_t][n] + radial_density["upper"][s][c_size]["nb"][f_t][n])
+											radial_thick[s]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"][s][c_size]["nb"][f_t][n] + radial_density["upper"][s][c_size]["nb"][f_t][n])
 
-										#current specie, all sizes: Chang algorithm
-										delta =  tmp_res_avg - radial_thick[s]["avg"]["all sizes"][f_t][n]
-										radial_thick[s]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
-										radial_thick[s]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
+											#current specie, all sizes: Chang algorithm
+											delta =  tmp_res_avg - radial_thick[s]["avg"]["all sizes"][f_t][n]
+											radial_thick[s]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"][s]["all sizes"]["nb"][f_t][n] + radial_density["upper"][s]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"][s]["all sizes"]["nb"][f_t][n] + radial_density["upper"][s]["all sizes"]["nb"][f_t][n])
+											radial_thick[s]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"][s]["all sizes"]["nb"][f_t][n] + radial_density["upper"][s]["all sizes"]["nb"][f_t][n])
+
+										else:
+											#current specie, current size: Chang algorithm
+											delta =  tmp_res_avg - radial_thick[s]["avg"][c_size][f_t][n]
+											radial_thick[s]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s][c_size]["nb"][f_t][n])
+											radial_thick[s]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s][c_size]["nb"][f_t][n])
+											
+											#current specie, all sizes: Chang algorithm
+											delta =  tmp_res_avg - radial_thick[s]["avg"]["all sizes"][f_t][n]
+											radial_thick[s]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
+											radial_thick[s]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
 				
 										#all species, current size: Chang algorithm
 										delta =  tmp_res_avg - radial_thick["all species"]["avg"][c_size][f_t][n]
-										radial_thick["all species"]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l]["all species"][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l]["all species"][c_size]["nb"][f_t][n])
-										radial_thick["all species"]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density[l]["all species"][c_size]["nb"][f_t][n])
+										radial_thick["all species"]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"]["all species"][c_size]["nb"][f_t][n] + radial_density["upper"]["all species"][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"]["all species"][c_size]["nb"][f_t][n] + radial_density["upper"]["all species"][c_size]["nb"][f_t][n])
+										radial_thick["all species"]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"]["all species"][c_size]["nb"][f_t][n] + radial_density["upper"]["all species"][c_size]["nb"][f_t][n])
 				
 										#all species, all sizes: Chang algorithm
 										delta =  tmp_res_avg - radial_thick["all species"]["avg"]["all sizes"][f_t][n]
-										radial_thick["all species"]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l]["all species"]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l]["all species"]["all sizes"]["nb"][f_t][n])
-										radial_thick["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l]["all species"]["all sizes"]["nb"][f_t][n])
-				
+										radial_thick["all species"]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"]["all species"]["all sizes"]["nb"][f_t][n] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"]["all species"]["all sizes"]["nb"][f_t][n] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t][n])
+										radial_thick["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"]["all species"]["all sizes"]["nb"][f_t][n] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t][n])
+										
 								if s in op_lipids_handled[l] and (args.perturb == 2 or args.perturb == 3):
 									tmp_res_avg = numpy.average(lipids_op_nff[l][s]["current"][tmp_s_rindex_bin])
 									tmp_res_std = numpy.average(lipids_op_nff[l][s]["current"][tmp_s_rindex_bin])
@@ -1879,7 +1890,7 @@ def calculate_radial(f_type, f_time, f_write):
 										delta =  tmp_res_avg - radial_op[l]["all species"]["avg"]["all sizes"][f_t][n]
 										radial_op[l]["all species"]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l]["all species"]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l]["all species"]["all sizes"]["nb"][f_t][n])
 										radial_op[l]["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l]["all species"]["all sizes"]["nb"][f_t][n])
-				
+	
 	#produce outputs if necessary
 	#============================
 	if f_write:
@@ -1919,7 +1930,7 @@ def calculate_radial_data(f_type):
 							radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
 					
 		#thickness
-		if args.perturb == 1 or args.perturb == 3:
+		if args.perturb == 1 or args.perturb == 3:			
 			for s in leaflet_species["both"] + ["all species"]:
 				for c_size in radial_sizes[f_type] + ["all sizes"]:
 					if ((s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species") and (radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n] != 0):
@@ -2344,8 +2355,8 @@ def thick_xvg_graph_smoothed():											#DONE
 	
 	#create filenames
 	#----------------
-	filename_png = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/png/1_3_thickness.png'
-	filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/1_3_thickness.svg'
+	filename_png = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/png/1_3_thickness_smoothed.png'
+	filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/thickness/1_species/smoothed/1_3_thickness_smoothed.svg'
 	
 	#create figure
 	#-------------
