@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.15"
+version_nb="0.1.16"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1909,11 +1909,12 @@ def calculate_radial_data(f_type):
 				for c_size in radial_sizes[f_type] + ["all sizes"]:
 					if radial_density[l]["all species"][c_size]["nb"][f_type][n] != 0:
 						radial_density[l][s][c_size]["pc"][f_type][n] = radial_density[l][s][c_size]["nb"][f_type][n] / float(radial_density[l]["all species"][c_size]["nb"][f_type][n])*100
-						if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-							radial_op[l][s]["std"][c_size][f_type][n] = math.sqrt(radial_op[l][s]["std"][c_size][f_type][n] / float(radial_density[l]["all species"][c_size]["nb"][f_type][n]))
 					else:
 						radial_density[l][s][c_size]["pc"][f_type][n] = numpy.nan
-						if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
+					if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
+						if radial_density[l][s][c_size]["nb"][f_type][n] != 0:
+							radial_op[l][s]["std"][c_size][f_type][n] = math.sqrt(radial_op[l][s]["std"][c_size][f_type][n] / float(radial_density[l][s][c_size]["nb"][f_type][n]))
+						else:
 							radial_op[l][s]["avg"][c_size][f_type][n] = numpy.nan
 							radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
 					
@@ -1921,11 +1922,16 @@ def calculate_radial_data(f_type):
 		if args.perturb == 1 or args.perturb == 3:
 			for s in leaflet_species["both"] + ["all species"]:
 				for c_size in radial_sizes[f_type] + ["all sizes"]:
-					if radial_density["lower"]["all species"][c_size]["nb"][f_type][n] + radial_density["upper"]["all species"][c_size]["nb"][f_type][n] != 0: 
-						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["lower"]["all species"][c_size]["nb"][f_type][n] + radial_density["upper"]["all species"][c_size]["nb"][f_type][n]))
+					if ((s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species") and (radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n] != 0):
+						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n]))
+					elif s in leaflet_species["upper"] and radial_density["upper"][s][c_size]["nb"][f_type][n] != 0:
+						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["upper"][s][c_size]["nb"][f_type][n]))
+					elif s in leaflet_species["lower"] and radial_density["lower"][s][c_size]["nb"][f_type][n] != 0:
+						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["lower"][s][c_size]["nb"][f_type][n]))
 					else:
 						radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
 						radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
+
 
 	#update radial data for each groups
 	#================================
