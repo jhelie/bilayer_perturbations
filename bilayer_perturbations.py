@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.14"
+version_nb="0.1.15"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -937,7 +937,10 @@ def load_MDA_universe():												#DONE
 			tmp_offset = 1
 		frames_to_process = map(lambda f:f_start + args.frames_dt*f, range(0,(nb_frames_xtc - f_start)//args.frames_dt+tmp_offset))
 		nb_frames_to_process = len(frames_to_process)
-	
+		if args.nb_smoothing > nb_frames_to_process:
+			print "Error: the number of frames to process (" + str(nb_frames_to_process) + ") is smaller than the number  of frames to use for smoothing (" + str(args.nb_smoothing) + "). Check the -t and --smooth options."
+			sys.exit(1)
+		
 		#create list of frames to write
 		if args.frames_write_dt == "no":
 			frames_to_write = [False for f_index in range(0, nb_frames_to_process)]
@@ -1430,8 +1433,8 @@ def initialise_colours_and_groups():
 		tmp_cmap = cm.get_cmap(colours_lipids_map)
 		colours_lipids_value = tmp_cmap(numpy.linspace(0, 1, len(leaflet_species["both"])))
 		for s_index in range(0, len(leaflet_species["both"])):
-			colours_lipids[leaflet_species["both"][s_index]] = colours_lipids_value[s_index]	
- 	colours_lipids["all species"] = 'k'
+			colours_lipids[leaflet_species["both"][s_index]] = colours_lipids_value[s_index]
+ 	colours_lipids["all species"] = '#262626'
 
 	#size groups: colours and labels
 	#===============================
@@ -1909,7 +1912,7 @@ def calculate_radial_data(f_type):
 						if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
 							radial_op[l][s]["std"][c_size][f_type][n] = math.sqrt(radial_op[l][s]["std"][c_size][f_type][n] / float(radial_density[l]["all species"][c_size]["nb"][f_type][n]))
 					else:
-						radial_density[l][s][c_size]["pc"][f_type][n] = 0
+						radial_density[l][s][c_size]["pc"][f_type][n] = numpy.nan
 						if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
 							radial_op[l][s]["avg"][c_size][f_type][n] = numpy.nan
 							radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
@@ -2203,8 +2206,9 @@ def smooth_data():														#DONE
 
 	return
 def get_size_colour(c_size):
-	if  c_size == "all sizes":
-		col = 'k'
+
+	if c_size == "all sizes":
+		col = '#262626'
 	elif c_size < colours_sizes_range[0]:
 		col = colours_sizes[colours_sizes_range[0]]
 	elif c_size > colours_sizes_range[1]:
@@ -2240,11 +2244,11 @@ def thick_xvg_write():													#DONE
 	for s_index in range(0,len(leaflet_species["both"])):
 		s = leaflet_species["both"][s_index]
 		output_xvg.write("@ s" + str(s_index) + " legend \"" + str(s) + " (avg)\"\n")
-		output_txt.write("1_2_thickness_species.xvg," + str(s_index+1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		output_txt.write("1_2_thickness_species.xvg," + str(s_index+1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 	for s_index in range(0,len(leaflet_species["both"])):
 		s=leaflet_species["both"][s_index]
 		output_xvg.write("@ s" + str(len(leaflet_species["both"])+s_index) + " legend \"" + str(s) + " (std)\"\n")
-		output_txt.write("1_2_thickness_species.xvg," + str(len(leaflet_species["both"])+s_index+1) + "," + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		output_txt.write("1_2_thickness_species.xvg," + str(len(leaflet_species["both"])+s_index+1) + "," + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 	output_txt.close()
 	for f_index in range(0,len(frames_time)):
 		results = str(frames_time[f_index])
@@ -2278,11 +2282,11 @@ def thick_xvg_write_smoothed():											#DONE
 	for s_index in range(0,len(leaflet_species["both"])):
 		s = leaflet_species["both"][s_index]
 		output_xvg.write("@ s" + str(s_index) + " legend \"" + str(s) + " (avg)\"\n")
-		output_txt.write("1_4_thickness_species_smoothed.xvg," + str(s_index+1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		output_txt.write("1_4_thickness_species_smoothed.xvg," + str(s_index+1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 	for s_index in range(0,len(leaflet_species["both"])):
 		s=leaflet_species["both"][s_index]
 		output_xvg.write("@ s" + str(len(leaflet_species["both"]) + s_index) + " legend \"" + str(s) + " (std)\"\n")
-		output_txt.write("1_4_thickness_species_smoothed.xvg," + str(len(leaflet_species["both"]) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		output_txt.write("1_4_thickness_species_smoothed.xvg," + str(len(leaflet_species["both"]) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 	output_txt.close()
 	for f_index in range(0, len(frames_time_smoothed)):
 		results = str(frames_time_smoothed[f_index])
@@ -3412,7 +3416,7 @@ def op_xtc_write_annotation():											#DONE
 
 #density
 def radial_density_frame_xvg_write(f_type, f_time, f_display):
-	global radial_step
+
 	if f_display:
 		files_counter_density_size_specie = 0
 		files_counter_density_size_size = 0
@@ -3434,6 +3438,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			sys.stdout.write(progress)
 		
 		tmp_leaflets = []
+		tmp_sizes = radial_sizes[f_type] + ["all sizes"]
 		for l in ["lower","upper"]:
 			if s in leaflet_species[l]:
 				tmp_leaflets.append(l)
@@ -3461,36 +3466,30 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(radial_sizes[f_type])) + "\n")
+		output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(tmp_sizes)) + "\n")
 		for leaflet_index in range(0,len(tmp_leaflets)):
 			#nb
-			for c_index in range(0,len(radial_sizes[f_type])):
-				c_size = radial_sizes[f_type][c_index]
-				output_xvg.write("@ s" + str(leaflet_index*2*len(radial_sizes[f_type]) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (nb)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*len(tmp_leaflets)*len(radial_sizes[f_type]) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				output_xvg.write("@ s" + str(leaflet_index*2*len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*len(tmp_leaflets)*len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 			#%
-			for c_index in range(0,len(radial_sizes[f_type])):
-				c_size = radial_sizes[f_type][c_index]
-				output_xvg.write("@ s" + str(leaflet_index*2*len(radial_sizes[f_type]) + len(radial_sizes[f_type]) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (%)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(radial_sizes[f_type]) + len(radial_sizes[f_type]) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				output_xvg.write("@ s" + str(leaflet_index*2*len(tmp_sizes) + len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (%)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(tmp_sizes) + len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 		output_txt.close()
 		for n in range(0,args.radial_nb_bins):
 			results = str(n*radial_step)
 			for leaflet_index in range(0,len(tmp_leaflets)):
 				#nb
-				for c_index in range(0,len(radial_sizes[f_type])):
-					c_size = radial_sizes[f_type][c_index]
-					if f_type in radial_density[tmp_leaflets[leaflet_index]][s][c_size]["nb"].keys():
-						results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s][c_size]["nb"][f_type][n])
-					else:
-						results += "	0" 
+				for c_index in range(0,len(tmp_sizes)):
+					c_size = tmp_sizes[c_index]
+					results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s][c_size]["nb"][f_type][n])
 				#%
-				for c_index in range(0,len(radial_sizes[f_type])):
-					c_size = radial_sizes[f_type][c_index]
-					if f_type in radial_density[tmp_leaflets[leaflet_index]][s][c_size]["nb"].keys():
-						results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s][c_size]["pc"][f_type][n])
-					else:
-						results += "	0" 
+				for c_index in range(0,len(tmp_sizes)):
+					c_size = tmp_sizes[c_index]
+					results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s][c_size]["pc"][f_type][n])
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
@@ -3533,31 +3532,31 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(4*len(leaflet_species["both"])) + "\n")
+		output_xvg.write("@ legend length " + str(2*len(leaflet_species["lower"]) + 2*len(leaflet_species["upper"])) + "\n")
 		#captions: lower leaflet
 		#-----------------------
 		#nb
 		for s_index in range(0,len(leaflet_species["lower"])):
 			s = leaflet_species["lower"][s_index]
 			output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (nb)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#%
 		for s_index in range(0,len(leaflet_species["lower"])):
 			s = leaflet_species["lower"][s_index]
 			output_xvg.write("@ s" + str(len(leaflet_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (%)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (%)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#captions: upper leaflet
 		#-----------------------
 		#nb
 		for s_index in range(0,len(leaflet_species["upper"])):
 			s = leaflet_species["upper"][s_index]
 			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#%
 		for s_index in range(0,len(leaflet_species["upper"])):
 			s = leaflet_species["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (%)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		#data
 		#----
@@ -3566,30 +3565,18 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			#data: lower leaflet
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
-				if f_type in radial_density["lower"][s][c_size]["nb"].keys():
-					results += "	" + str(radial_density["lower"][s][c_size]["nb"][f_type][n])
-				else:
-					results += "	0"
+				results += "	" + str(radial_density["lower"][s][c_size]["nb"][f_type][n])
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
-				if f_type in radial_density["lower"][s][c_size]["nb"].keys():
-					results += "	" + str(radial_density["lower"][s][c_size]["pc"][f_type][n])
-				else:
-					results += "	0"
+				results += "	" + str(radial_density["lower"][s][c_size]["pc"][f_type][n])
 			
 			#data: upper leaflet
 			for s_index in range(0,len(leaflet_species["upper"])):
 				s = leaflet_species["upper"][s_index]
-				if f_type in radial_density["upper"][s][c_size]["nb"].keys():
-					results += "	" + str(radial_density["upper"][s][c_size]["nb"][f_type][n])
-				else:
-					results += "	0"
+				results += "	" + str(radial_density["upper"][s][c_size]["nb"][f_type][n])
 			for s_index in range(0,len(leaflet_species["upper"])):
 				s = leaflet_species["upper"][s_index]
-				if f_type in radial_density["upper"][s][c_size]["nb"].keys():				
-					results += "	" + str(radial_density["upper"][s][c_size]["pc"][f_type][n])
-				else:
-					results += "	0"
+				results += "	" + str(radial_density["upper"][s][c_size]["pc"][f_type][n])
 			output_xvg.write(results + "\n")
 		output_xvg.close()	
 
@@ -3665,17 +3652,11 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 					#nb
 					for g in range(0,len(radial_groups[f_type])):
 						g_index = radial_groups[f_type][g] 
-						if f_type in radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["nb"].keys():
-							results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["nb"][f_type][n])
-						else:
-							results += "	0" 
+						results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["nb"][f_type][n])
 					#%
 					for g in range(0,len(radial_groups[f_type])):
 						g_index = radial_groups[f_type][g] 
-						if f_type in radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["nb"].keys():
-							results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["pc"][f_type][n])
-						else:
-							results += "	0" 
+						results += "	" + str(radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["pc"][f_type][n])
 				output_xvg.write(results + "\n")
 			output_xvg.close()
 
@@ -3713,31 +3694,31 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(4*len(leaflet_species["both"])) + "\n")
+			output_xvg.write("@ legend length " + str(2*len(leaflet_species["lower"]) + 2*len(leaflet_species["upper"])) + "\n")
 			#captions: lower leaflet
 			#-----------------------
 			#nb
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
 				output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (nb)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#%
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
 				output_xvg.write("@ s" + str(len(leaflet_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (%)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (%)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#captions: upper leaflet
 			#-----------------------
 			#nb
 			for s_index in range(0,len(leaflet_species["upper"])):
 				s = leaflet_species["upper"][s_index]
 				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#%
 			for s_index in range(0,len(leaflet_species["upper"])):
 				s = leaflet_species["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (%)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 			#data
 			#----
@@ -3746,30 +3727,18 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 				#data: lower leaflet
 				for s_index in range(0,len(leaflet_species["lower"])):
 					s = leaflet_species["lower"][s_index]
-					if f_type in radial_density["lower"][s]["groups"][g_index]["nb"].keys():
-						results += "	" + str(radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n])
-					else:
-						results += "	0"
+					results += "	" + str(radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n])
 				for s_index in range(0,len(leaflet_species["lower"])):
 					s = leaflet_species["lower"][s_index]
-					if f_type in radial_density["lower"][s]["groups"][g_index]["nb"].keys():
-						results += "	" + str(radial_density["lower"][s]["groups"][g_index]["pc"][f_type][n])
-					else:
-						results += "	0"
+					results += "	" + str(radial_density["lower"][s]["groups"][g_index]["pc"][f_type][n])
 			
 				#data: upper leaflet
 				for s_index in range(0,len(leaflet_species["upper"])):
 					s = leaflet_species["upper"][s_index]
-					if f_type in radial_density["upper"][s]["groups"][g_index]["nb"].keys():
-						results += "	" + str(radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n])
-					else:
-						results += "	0"
+					results += "	" + str(radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n])
 				for s_index in range(0,len(leaflet_species["upper"])):
 					s = leaflet_species["upper"][s_index]
-					if f_type in radial_density["upper"][s]["groups"][g_index]["nb"].keys():
-						results += "	" + str(radial_density["upper"][s]["groups"][g_index]["pc"][f_type][n])
-					else:
-						results += "	0"
+					results += "	" + str(radial_density["upper"][s]["groups"][g_index]["pc"][f_type][n])
 				output_xvg.write(results + "\n")
 			output_xvg.close()	
 		
@@ -3805,15 +3774,15 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 	
 		#create figure
-		fig=plt.figure(figsize=(8, 6.2))
-		fig.suptitle("radial evolution of lipids density")
+		fig = plt.figure(figsize=(8, 6.2))
+		fig.suptitle("Radial evolution of lipids density: " +  str(s))
 				
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
 		if s in leaflet_species["upper"]:
-			for c_size in radial_sizes[f_type]:
-				p_upper[c_size] = plt.plot(radial_bins, radial_density["upper"][s][c_size]["pc"][f_type], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
+			for c_size in radial_sizes[f_type] + ["all sizes"]:
+				p_upper[c_size] = plt.plot(radial_bins, radial_density["upper"][s][c_size]["pc"][f_type], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
@@ -3824,7 +3793,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		ax2 = fig.add_subplot(212)
 		p_lower = {}
 		if s in leaflet_species["lower"]:
-			for c_size in radial_sizes[f_type]:
+			for c_size in radial_sizes[f_type] + ["all sizes"]:
 				p_lower[c_size] = plt.plot(radial_bins, radial_density["lower"][s][c_size]["pc"][f_type], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
@@ -3837,6 +3806,14 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.set_ylim(0, 100)
 		ax2.set_xlim(0, args.radial_radius)
 		ax2.set_ylim(0, 100)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax2.spines['top'].set_visible(False)
+		ax2.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
+		ax2.xaxis.set_ticks_position('bottom')
+		ax2.yaxis.set_ticks_position('left')
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -3876,8 +3853,11 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
-		fig=plt.figure(figsize=(8, 6.2))
-		fig.suptitle("radial evolution of lipids density")
+		fig = plt.figure(figsize=(8, 6.2))
+		if c_size != "all sizes":
+			fig.suptitle("Radial evolution of lipids density: size " +  str(c_size))
+		else:
+			fig.suptitle("Radial evolution of lipids density: all sizes")
 		
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
@@ -3906,6 +3886,14 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.set_ylim(0, 100)
 		ax2.set_xlim(0, args.radial_radius)
 		ax2.set_ylim(0, 100)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax2.spines['top'].set_visible(False)
+		ax2.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
+		ax2.xaxis.set_ticks_position('bottom')
+		ax2.yaxis.set_ticks_position('left')
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -3949,8 +3937,8 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 		
 			#create figure
-			fig=plt.figure(figsize=(8, 6.2))
-			fig.suptitle("radial evolution of lipids density")
+			fig = plt.figure(figsize=(8, 6.2))
+			fig.suptitle("Radial evolution of lipids density: " +  str(s))
 			
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
@@ -3981,6 +3969,14 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.set_ylim(0, 100)
 			ax2.set_xlim(0, args.radial_radius)
 			ax2.set_ylim(0, 100)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax2.spines['top'].set_visible(False)
+			ax2.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
+			ax2.xaxis.set_ticks_position('bottom')
+			ax2.yaxis.set_ticks_position('left')
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -4016,8 +4012,8 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
 	
 			#create figure
-			fig=plt.figure(figsize=(8, 6.2))
-			fig.suptitle("radial evolution of lipids density")
+			fig = plt.figure(figsize=(8, 6.2))
+			fig.suptitle("Radial evolution of lipids density: sizes " +  str(groups_labels[g_index]))
 				
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
@@ -4046,6 +4042,14 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.set_ylim(0, 100)
 			ax2.set_xlim(0, args.radial_radius)
 			ax2.set_ylim(0, 100)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax2.spines['top'].set_visible(False)
+			ax2.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
+			ax2.xaxis.set_ticks_position('bottom')
+			ax2.yaxis.set_ticks_position('left')
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -4066,8 +4070,6 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 #thickness
 def radial_thick_frame_xvg_write(f_type, f_time, f_display):
-	
-	global radial_step
 	
 	if f_display:
 		files_counter_thick_size_specie = 0
@@ -4090,6 +4092,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			sys.stdout.write(progress)
 
 		#create filename
+		tmp_sizes = radial_sizes[f_type] + ["all sizes"]
 		if f_type == "all frames":
 			if s == "all species":
 				tmp_filename = 'radial_thickness_species_all'
@@ -4120,34 +4123,28 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(radial_sizes[f_type])) + "\n")
+		output_xvg.write("@ legend length " + str(2*len(tmp_sizes)) + "\n")
 		#average values
-		for c_index in range(0,len(radial_sizes[f_type])):
-			c_size = radial_sizes[f_type][c_index]
+		for c_index in range(0,len(tmp_sizes)):
+			c_size = tmp_sizes[c_index]
 			output_xvg.write("@ s" + str(c_index) + " legend \"" + str(c_size) + " (avg)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(c_index + 1) + "," + str(c_size) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 		#std values
-		for c_index in range(0,len(radial_sizes[f_type])):
-			c_size = radial_sizes[f_type][c_index]
-			output_xvg.write("@ s" +  str(len(radial_sizes[f_type]) + c_index) + " legend \"" + str(c_size) + " (std)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(len(radial_sizes[f_type]) + c_index + 1) + "," + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+		for c_index in range(0,len(tmp_sizes)):
+			c_size = tmp_sizes[c_index]
+			output_xvg.write("@ s" +  str(len(tmp_sizes) + c_index) + " legend \"" + str(c_size) + " (std)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_sizes) + c_index + 1) + "," + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 		output_txt.close()
 		for n in range(0,args.radial_nb_bins):
 			results = str(n*radial_step)
 			#average values
-			for c_index in range(0,len(radial_sizes[f_type])):
-				c_size = radial_sizes[f_type][c_index]
-				if f_type in radial_thick[s]["avg"][c_size].keys():
-					results += "	" + str(radial_thick[s]["avg"][c_size][f_type][n])
-				else:
-					results += "	0"
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				results += "	" + str(radial_thick[s]["avg"][c_size][f_type][n])
 			#std values
-			for c_index in range(0,len(radial_sizes[f_type])):
-				c_size = radial_sizes[f_type][c_index]
-				if f_type in radial_thick[s]["std"][c_size].keys():
-					results += "	" + str(radial_thick[s]["std"][c_size][f_type][n])
-				else:
-					results += "	0"
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				results += "	" + str(radial_thick[s]["std"][c_size][f_type][n])
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
@@ -4160,6 +4157,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			sys.stdout.flush()
 			sys.stdout.write(progress)
 
+		tmp_species = leaflet_species["both"] + ["all species"]
 		if f_type == "all frames":
 			if c_size == "all sizes":
 				tmp_filename = 'radial_thickness_sizes_all'
@@ -4190,36 +4188,30 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(leaflet_species["both"])) + "\n")
+		output_xvg.write("@ legend length " + str(2*len(tmp_species)) + "\n")
 		#avg values
-		for s_index in range(0,len(leaflet_species["both"])):
-			s = leaflet_species["lower"][s_index]
+		for s_index in range(0,len(tmp_species)):
+			s = tmp_species[s_index]
 			output_xvg.write("@ s" + str(s_index) + " legend \"" + str(s) + " (avg)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#std values
-		for s_index in range(0,len(leaflet_species["both"])):
-			s = leaflet_species["lower"][s_index]
-			output_xvg.write("@ s" + str(len(leaflet_species["both"]) + s_index) + " legend \"" + str(s) + " (std)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["both"]) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		for s_index in range(0,len(tmp_species)):
+			s = tmp_species[s_index]
+			output_xvg.write("@ s" + str(len(tmp_species) + s_index) + " legend \"" + str(s) + " (std)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		#data
 		#----
 		for n in range(0,args.radial_nb_bins):
 			results = str(n*radial_step)
 			#avg values
-			for s_index in range(0,len(leaflet_species["both"])):
-				s = leaflet_species["both"][s_index]
-				if f_type in radial_thick[s]["avg"][c_size].keys():
-					results += "	" + str(radial_thick[s]["avg"][c_size][f_type][n])
-				else:
-					results += "	0"
+			for s_index in range(0,len(tmp_species)):
+				s = tmp_species[s_index]
+				results += "	" + str(radial_thick[s]["avg"][c_size][f_type][n])
 			#std values
-			for s_index in range(0,len(leaflet_species["lower"])):
-				s = leaflet_species["both"][s_index]
-				if f_type in radial_thick[s]["std"][c_size].keys():
-					results += "	" + str(radial_thick[s]["std"][c_size][f_type][n])
-				else:
-					results += "	0"
+			for s_index in range(0,len(tmp_species)):
+				s = tmp_species[s_index]
+				results += "	" + str(radial_thick[s]["std"][c_size][f_type][n])
 			output_xvg.write(results + "\n")
 		output_xvg.close()	
 	
@@ -4316,6 +4308,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 				sys.stdout.write(progress)
 
 			tmp_leg = str(groups_labels[g_index])
+			tmp_species = leaflet_species["both"] + ["all species"]
 			if f_type == "all frames":
 				tmp_filename = 'radial_thickness_groups_' + tmp_leg
 			else:
@@ -4340,36 +4333,30 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(2*len(leaflet_species["both"])) + "\n")
+			output_xvg.write("@ legend length " + str(2*len(tmp_species)) + "\n")
 			#avg values
-			for s_index in range(0,len(leaflet_species["both"])):
-				s = leaflet_species["lower"][s_index]
+			for s_index in range(0,len(tmp_species)):
+				s = tmp_species[s_index]
 				output_xvg.write("@ s" + str(s_index) + " legend \"" + str(s) + " (avg)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + "," + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#std values
-			for s_index in range(0,len(leaflet_species["both"])):
-				s = leaflet_species["lower"][s_index]
-				output_xvg.write("@ s" + str(len(leaflet_species["both"]) + s_index) + " legend \"" + str(s) + " (std)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["both"]) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			for s_index in range(0,len(tmp_species)):
+				s = tmp_species[s_index]
+				output_xvg.write("@ s" + str(len(tmp_species) + s_index) + " legend \"" + str(s) + " (std)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 			#data
 			#----
 			for n in range(0,args.radial_nb_bins):
 				results = str(n*radial_step)
 				#avg values
-				for s_index in range(0,len(leaflet_species["both"])):
-					s = leaflet_species["both"][s_index]
-					if f_type in radial_thick[s]["avg"]["groups"][g_index].keys():
-						results += "	" + str(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
-					else:
-						results += "	0"
+				for s_index in range(0,len(tmp_species)):
+					s = tmp_species[s_index]
+					results += "	" + str(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
 				#std values
-				for s_index in range(0,len(leaflet_species["lower"])):
-					s = leaflet_species["both"][s_index]
-					if f_type in radial_thick[s]["std"]["groups"][g_index].keys():
-						results += "	" + str(radial_thick[s]["std"]["groups"][g_index][f_type][n])
-					else:
-						results += "	0"
+				for s_index in range(0,len(tmp_species)):
+					s = tmp_species[s_index]
+					results += "	" + str(radial_thick[s]["std"]["groups"][g_index][f_type][n])
 				output_xvg.write(results + "\n")
 			output_xvg.close()	
 	
@@ -4421,24 +4408,18 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			
 		#create figure
 		fig = plt.figure(figsize=(8, 5))
-		fig.suptitle("radial evolution of bilayer thickness")
+		fig.suptitle("Radial evolution of bilayer thickness: " +  str(s))
 		
 		#create data
 		tmp_thick_avg = {c_size: radial_thick[s]["avg"][c_size][f_type] for c_size in radial_sizes[f_type] + ["all sizes"]}
 		tmp_thick_std = {c_size: radial_thick[s]["std"][c_size][f_type] for c_size in radial_sizes[f_type] + ["all sizes"]}
-		for c_size in radial_sizes[f_type] + ["all sizes"]:
-			for n in range(0, args.radial_nb_bins):
-				if tmp_thick_avg[c_size][n] == 0:
-					tmp_thick_avg[c_size][n] =  numpy.nan
-				if tmp_thick_std[c_size][n] == 0:
-					tmp_thick_std[c_size][n] =  numpy.nan
 
 		#plot data
 		ax1 = fig.add_subplot(111)
 		p_upper = {}
 		for c_size in radial_sizes[f_type] + ["all sizes"]:
-			p_upper[c_size] = plt.plot(radial_bins, tmp_thick_avg[c_size], color = get_size_colour(c_size), linewidth=3.0, label=str(c_size))
-			p_upper[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_thick_avg[c_size]-tmp_thick_std[c_size], tmp_thick_avg[c_size]+tmp_thick_std[c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha=0.2)
+			p_upper[c_size] = plt.plot(radial_bins, tmp_thick_avg[c_size], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
+			p_upper[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_thick_avg[c_size]-tmp_thick_std[c_size], tmp_thick_avg[c_size]+tmp_thick_std[c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha = 0.2)
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
@@ -4447,6 +4428,10 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)
 		ax1.set_ylim(tmp_min, tmp_max)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4482,22 +4467,19 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 
 		#create figure
 		fig = plt.figure(figsize=(8, 5))
-		fig.suptitle("radial evolution of bilayer thickness")
+		if c_size != "all sizes":
+			fig.suptitle("Radial evolution of bilayer thickness: size " +  str(c_size))
+		else:
+			fig.suptitle("Radial evolution of bilayer thickness: all sizes")
 		
 		#create data
 		tmp_thick_avg = {s: radial_thick[s]["avg"][c_size][f_type] for s in leaflet_species["both"] + ["all species"]}
 		tmp_thick_std = {s: radial_thick[s]["std"][c_size][f_type] for s in leaflet_species["both"] + ["all species"]}
-		for s in leaflet_species["both"] + ["all species"]:
-			for n in range(0, args.radial_nb_bins):
-				if tmp_thick_avg[s][n] == 0:
-					tmp_thick_avg[s][n] =  numpy.nan
-				if tmp_thick_std[s][n] == 0:
-					tmp_thick_std[s][n] =  numpy.nan
 					
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(111)
 		p_upper = {}
-		for s in leaflet_species["both"]:
+		for s in leaflet_species["both"] + ["all species"] :
 			p_upper[s] = plt.plot(radial_bins, tmp_thick_avg[s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 			p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		fontP.set_size("small")
@@ -4508,6 +4490,10 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		#save figure
 		ax1.set_xlim(0, args.radial_radius)		
 		ax1.set_ylim(tmp_min, tmp_max)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4555,7 +4541,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 				
 			#create figure
 			fig = plt.figure(figsize=(8, 5))
-			fig.suptitle("radial evolution of bilayer thickness")
+			fig.suptitle("Radial evolution of bilayer thickness: " +  str(s))
 			
 			#create data
 			tmp_thick_avg = {g_index: radial_thick[s]["avg"]["groups"][g_index][f_type] for g_index in radial_groups[f_type]}
@@ -4581,6 +4567,10 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			#save figure
 			ax1.set_xlim(0, args.radial_radius)
 			ax1.set_ylim(tmp_min, tmp_max)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4612,13 +4602,13 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
 				
 			#create figure
-			fig=plt.figure(figsize=(8, 5))
-			fig.suptitle("radial evolution of bilayer thickness")
+			fig = plt.figure(figsize=(8, 5))
+			fig.suptitle("Radial evolution of bilayer thickness: sizes " +  str(groups_labels[g_index]))
 			
 			#create data
 			tmp_thick_avg = {s: radial_thick[s]["avg"]["groups"][g_index][f_type] for s in leaflet_species["both"] + ["all species"]}
 			tmp_thick_std = {s: radial_thick[s]["std"]["groups"][g_index][f_type] for s in leaflet_species["both"] + ["all species"]}
-			for s in leaflet_species["both"]:
+			for s in leaflet_species["both"] + ["all species"]:
 				for n in range(0, args.radial_nb_bins):
 					if tmp_thick_avg[s][n] == 0:
 						tmp_thick_avg[s][n] =  numpy.nan
@@ -4638,8 +4628,11 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 				
 			#save figure
 			ax1.set_xlim(0, args.radial_radius)		
-			ax1.set_xlim(0, args.radial_radius)
 			ax1.set_ylim(tmp_min, tmp_max)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -4656,8 +4649,6 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 #order parameters
 def radial_op_frame_xvg_write(f_type, f_time, f_display):							
 	
-	global radial_step
-
 	if f_display:
 		files_counter_op_size_specie = 0
 		files_counter_op_size_size = 0
@@ -4680,6 +4671,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 
 		#find out in which leaflets the specie is present
 		tmp_leaflets = []
+		tmp_sizes = radial_sizes[f_type] + ["all sizes"]
 		if s == "all species":
 			for l in ["lower","upper"]:
 				if len(op_lipids_handled[l]) > 0:
@@ -4719,32 +4711,32 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(radial_sizes[f_type])) + "\n")
+		output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(tmp_sizes)) + "\n")
 		for leaflet_index in range(0,len(tmp_leaflets)):
 			#average values
-			for c_index in range(0,len(radial_sizes[f_type])):
-				c_size = radial_sizes[f_type][c_index]
-				output_xvg.write("@ s" + str(leaflet_index*2*len(radial_sizes[f_type]) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(radial_sizes[f_type]) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				output_xvg.write("@ s" + str(leaflet_index*2*len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 			#std values
-			for c_index in range(0,len(radial_sizes[f_type])):
-				c_size = radial_sizes[f_type][c_index]
-				output_xvg.write("@ s" + str(leaflet_index*2*len(radial_sizes[f_type]) + len(radial_sizes[f_type]) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(radial_sizes[f_type]) + len(radial_sizes[f_type]) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				output_xvg.write("@ s" + str(leaflet_index*2*len(tmp_sizes) + len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(tmp_sizes) + len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 		output_txt.close()
 		for n in range(0,args.radial_nb_bins):
 			results = str(n*radial_step)
 			for leaflet_index in range(0,len(tmp_leaflets)):
 				#average values
-				for c_index in range(0,len(radial_sizes[f_type])):
-					c_size = radial_sizes[f_type][c_index]
+				for c_index in range(0,len(tmp_sizes)):
+					c_size = tmp_sizes[c_index]
 					if f_type in radial_op[tmp_leaflets[leaflet_index]][s]["avg"][c_size].keys():
 						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["avg"][c_size][f_type][n])
 					else:
 						results += "	0"
 				#std values
-				for c_index in range(0,len(radial_sizes[f_type])):
-					c_size = radial_sizes[f_type][c_index]
+				for c_index in range(0,len(tmp_sizes)):
+					c_size = tmp_sizes[c_index]
 					if f_type in radial_op[tmp_leaflets[leaflet_index]][s]["std"][c_size].keys():
 						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["std"][c_size][f_type][n])
 					else:
@@ -4761,6 +4753,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			sys.stdout.flush()
 			sys.stdout.write(progress)
 
+		tmp_species = {l: op_lipids_handled[l] + ["all species"] for l in ["lower","upper"]}
 		if f_type == "all frames":
 			if c_size == "all sizes":
 				tmp_filename = 'radial_order_param_sizes_all'
@@ -4791,31 +4784,31 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(4*len(op_lipids_handled["both"])) + "\n")
+		output_xvg.write("@ legend length " + str(2*len(tmp_species["lower"]) + 2*len(tmp_species["upper"])) + "\n")
 		#captions: lower leaflet
 		#-----------------------
 		#avg values
-		for s_index in range(0,len(op_lipids_handled["lower"])):
-			s = op_lipids_handled["lower"][s_index]
-			output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (avg)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		for s_index in range(0,len(tmp_species["lower"])):
+			s = tmp_species["lower"][s_index]
+			output_xvg.write("@ s" + str(s_index) + " legend \" lower " + str(s) + " (avg)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower " + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#std values
-		for s_index in range(0,len(op_lipids_handled["lower"])):
-			s = op_lipids_handled["lower"][s_index]
-			output_xvg.write("@ s" + str(len(op_lipids_handled["lower"]) + s_index) + " legend \" lower" + str(s) + " (std)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(len(op_lipids_handled["lower"]) + s_index + 1) + ",lower" + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		for s_index in range(0,len(tmp_species["lower"])):
+			s = tmp_species["lower"][s_index]
+			output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \" lower " + str(s) + " (std)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species["lower"]) + s_index + 1) + ",lower " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#captions: upper leaflet
 		#-----------------------
 		#avg values
-		for s_index in range(0,len(op_lipids_handled["upper"])):
-			s = op_lipids_handled["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(op_lipids_handled["lower"]) + s_index) + " legend \" upper" + str(s) + " (avg)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(op_lipids_handled["lower"]) + s_index + 1) + ",upper" + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		for s_index in range(0,len(tmp_species["upper"])):
+			s = tmp_species["upper"][s_index]
+			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" upper " + str(s) + " (avg)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",upper " + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#std values
-		for s_index in range(0,len(op_lipids_handled["upper"])):
-			s = op_lipids_handled["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(op_lipids_handled["lower"]) + len(op_lipids_handled["upper"]) + s_index) + " legend \" upper" + str(s) + " (std)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(op_lipids_handled["lower"]) + len(op_lipids_handled["upper"]) + s_index + 1) + ",upper" + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+		for s_index in range(0,len(tmp_species["upper"])):
+			s = tmp_species["upper"][s_index]
+			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \" upper " + str(s) + " (std)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index + 1) + ",upper " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		#data
 		#----
@@ -4823,30 +4816,30 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			results = str(n*radial_step)
 			#data: lower leaflet
 			#avg values
-			for s_index in range(0,len(op_lipids_handled["lower"])):
-				s = op_lipids_handled["lower"][s_index]
+			for s_index in range(0,len(tmp_species["lower"])):
+				s = tmp_species["lower"][s_index]
 				if f_type in radial_op["lower"][s]["avg"][c_size].keys():
 					results += "	" + str(radial_op["lower"][s]["avg"][c_size][f_type][n])
 				else:
 					results += "	0"
 			#std values
-			for s_index in range(0,len(op_lipids_handled["lower"])):
-				s = op_lipids_handled["lower"][s_index]
+			for s_index in range(0,len(tmp_species["lower"])):
+				s = tmp_species["lower"][s_index]
 				if f_type in radial_op["lower"][s]["std"][c_size].keys():
 					results += "	" + str(radial_op["lower"][s]["std"][c_size][f_type][n])
 				else:
 					results += "	0"
 			#data: upper leaflet
 			#avg values
-			for s_index in range(0,len(op_lipids_handled["upper"])):
-				s = op_lipids_handled["upper"][s_index]
+			for s_index in range(0,len(tmp_species["upper"])):
+				s = tmp_species["upper"][s_index]
 				if f_type in radial_op["upper"][s]["avg"][c_size].keys():
 					results += "	" + str(radial_op["upper"][s]["avg"][c_size][f_type][n])
 				else:
 					results += "	0"
 			#std values
-			for s_index in range(0,len(op_lipids_handled["upper"])):
-				s = op_lipids_handled["upper"][s_index]
+			for s_index in range(0,len(tmp_species["upper"])):
+				s = tmp_species["upper"][s_index]
 				if f_type in radial_op["upper"][s]["std"][c_size].keys():
 					results += "	" + str(radial_op["upper"][s]["std"][c_size][f_type][n])
 				else:
@@ -4935,17 +4928,11 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 					#average values
 					for g in range(0,len(radial_groups[f_type])):
 						g_index = radial_groups[f_type][g]
-						if f_type in radial_op[tmp_leaflets[leaflet_index]][s]["avg"]["groups"][g_index].keys():
-							results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["avg"]["groups"][g_index][f_type][n])
-						else:
-							results += "	0"
+						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["avg"]["groups"][g_index][f_type][n])
 					#std values
 					for g in range(0,len(radial_groups[f_type])):
 						g_index = radial_groups[f_type][g]
-						if f_type in radial_op[tmp_leaflets[leaflet_index]][s]["std"]["groups"][g_index].keys():
-							results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["std"]["groups"][g_index][f_type][n])
-						else:
-							results += "	0"
+						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["std"]["groups"][g_index][f_type][n])
 				output_xvg.write(results + "\n")
 			output_xvg.close()
 
@@ -4959,6 +4946,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 				sys.stdout.write(progress)
 
 			tmp_leg = str(groups_labels[g_index])
+			tmp_species = {l: op_lipids_handled[l] + ["all species"] for l in ["lower","upper"]}
 			if f_type == "all frames":
 				tmp_filename = 'radial_thickness_groups_' + tmp_leg
 			else:
@@ -4983,31 +4971,31 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(4*len(op_lipids_handled["both"])) + "\n")
+			output_xvg.write("@ legend length " + str(2*len(tmp_species["lower"]) + 2*len(tmp_species["upper"])) + "\n")
 			#captions: lower leaflet
 			#-----------------------
 			#avg values
-			for s_index in range(0,len(op_lipids_handled["lower"])):
-				s = op_lipids_handled["lower"][s_index]
+			for s_index in range(0,len(tmp_species["lower"])):
+				s = tmp_species["lower"][s_index]
 				output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (avg)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#std values
-			for s_index in range(0,len(op_lipids_handled["lower"])):
-				s = op_lipids_handled["lower"][s_index]
-				output_xvg.write("@ s" + str(len(op_lipids_handled["lower"]) + s_index) + " legend \" lower" + str(s) + " (std)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(len(op_lipids_handled["lower"]) + s_index + 1) + ",lower" + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			for s_index in range(0,len(tmp_species["lower"])):
+				s = tmp_species["lower"][s_index]
+				output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (std)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#captions: upper leaflet
 			#-----------------------
 			#avg values
-			for s_index in range(0,len(op_lipids_handled["upper"])):
-				s = op_lipids_handled["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(op_lipids_handled["lower"]) + s_index) + " legend \" upper" + str(s) + " (avg)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(op_lipids_handled["lower"]) + s_index + 1) + ",upper" + str(s) + " (avg)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			for s_index in range(0,len(tmp_species["upper"])):
+				s = tmp_species["upper"][s_index]
+				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (avg)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#std values
-			for s_index in range(0,len(op_lipids_handled["upper"])):
-				s = op_lipids_handled["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(op_lipids_handled["lower"]) + len(op_lipids_handled["lower"]) + s_index) + " legend \" upper" + str(s) + " (std)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(op_lipids_handled["lower"]) + len(op_lipids_handled["lower"]) + s_index + 1) + ",upper" + str(s) + " (std)," + mcolors.rgb2hex(colours_lipids[s]) + "\n")
+			for s_index in range(0,len(tmp_species["upper"])):
+				s = tmp_species["upper"][s_index]
+				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + len(tmp_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (std)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + len(tmp_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 			#data
 			#----
@@ -5015,34 +5003,22 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 				results = str(n*radial_step)
 				#data: lower leaflet
 				#avg values
-				for s_index in range(0,len(op_lipids_handled["lower"])):
-					s = op_lipids_handled["lower"][s_index]
-					if f_type in radial_op["lower"][s]["avg"]["groups"][g_index].keys():
-						results += "	" + str(radial_op["lower"][s]["avg"]["groups"][g_index][f_type][n])
-					else:
-						results += "	0"
+				for s_index in range(0,len(tmp_species["lower"])):
+					s = tmp_species["lower"][s_index]
+					results += "	" + str(radial_op["lower"][s]["avg"]["groups"][g_index][f_type][n])
 				#std values
-				for s_index in range(0,len(op_lipids_handled["lower"])):
-					s = op_lipids_handled["lower"][s_index]
-					if f_type in radial_op["lower"][s]["std"]["groups"][g_index].keys():
-						results += "	" + str(radial_op["lower"][s]["std"]["groups"][g_index][f_type][n])
-					else:
-						results += "	0"
+				for s_index in range(0,len(tmp_species["lower"])):
+					s = tmp_species["lower"][s_index]
+					results += "	" + str(radial_op["lower"][s]["std"]["groups"][g_index][f_type][n])
 				#data: upper leaflet
 				#avg values
-				for s_index in range(0,len(op_lipids_handled["upper"])):
-					s = op_lipids_handled["upper"][s_index]
-					if f_type in radial_op["upper"][s]["avg"]["groups"][g_index].keys():
-						results += "	" + str(radial_op["upper"][s]["avg"]["groups"][g_index][f_type][n])
-					else:
-						results += "	0"
+				for s_index in range(0,len(tmp_species["upper"])):
+					s = tmp_species["upper"][s_index]
+					results += "	" + str(radial_op["upper"][s]["avg"]["groups"][g_index][f_type][n])
 				#std values
-				for s_index in range(0,len(op_lipids_handled["upper"])):
-					s = op_lipids_handled["upper"][s_index]
-					if f_type in radial_op["upper"][s]["std"][c_size].keys():
-						results += "	" + str(radial_op["upper"][s]["std"]["groups"][g_index][f_type][n])
-					else:
-						results += "	0"
+				for s_index in range(0,len(tmp_species["upper"])):
+					s = tmp_species["upper"][s_index]
+					results += "	" + str(radial_op["upper"][s]["std"]["groups"][g_index][f_type][n])
 				output_xvg.write(results + "\n")
 			output_xvg.close()	
 
@@ -5086,8 +5062,8 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
-		fig=plt.figure(figsize=(8, 6.2))
-		fig.suptitle("radial evolution of lipid tails order parameter")
+		fig = plt.figure(figsize=(8, 6.2))
+		fig.suptitle("Radial evolution of lipid tails order parameter: " +  str(s))
 		
 		#create data
 		tmp_op_avg = {}
@@ -5130,6 +5106,14 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.set_ylim(-0.5, 1)
 		ax2.set_xlim(0, args.radial_radius)
 		ax2.set_ylim(-0.5, 1)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax2.spines['top'].set_visible(False)
+		ax2.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
+		ax2.xaxis.set_ticks_position('bottom')
+		ax2.yaxis.set_ticks_position('left')
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -5170,19 +5154,22 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
-		fig.suptitle("radial evolution of lipid tails order parameter")
+		if c_size != "all sizes":
+			fig.suptitle("Radial evolution of lipid tails order parameter: size " +  str(c_size))
+		else:
+			fig.suptitle("Radial evolution of lipid tails order parameter: all sizes")
 		
 		#create data
 		tmp_op_avg = {}
 		tmp_op_std = {}
 		for l in ["lower","upper"]:
-			tmp_op_avg[l] = {s: radial_op[l][s]["avg"][c_size][f_type] for s in op_lipids_handled[l]}
-			tmp_op_std[l] = {s: radial_op[l][s]["std"][c_size][f_type] for s in op_lipids_handled[l]}
+			tmp_op_avg[l] = {s: radial_op[l][s]["avg"][c_size][f_type] for s in op_lipids_handled[l] + ["all species"]}
+			tmp_op_std[l] = {s: radial_op[l][s]["std"][c_size][f_type] for s in op_lipids_handled[l] + ["all species"]}
 		
 		#plot data: upper leafet
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
-		for s in op_lipids_handled["upper"]:
+		for s in op_lipids_handled["upper"] + ["all species"]:
 			p_upper[s] = plt.plot(radial_bins, tmp_op_avg["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 			p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		if len(op_lipids_handled["upper"]) > 0:
@@ -5195,7 +5182,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		#plot data: lower leafet
 		ax2 = fig.add_subplot(212)
 		p_lower = {}
-		for s in op_lipids_handled["lower"]:
+		for s in op_lipids_handled["lower"] + ["all species"]:
 			p_lower[s] = plt.plot(radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 			p_lower[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		if len(op_lipids_handled["lower"]) > 0:
@@ -5210,6 +5197,14 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.set_ylim(-0.5, 1)
 		ax2.set_xlim(0, args.radial_radius)
 		ax2.set_ylim(-0.5, 1)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax2.spines['top'].set_visible(False)
+		ax2.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
+		ax2.xaxis.set_ticks_position('bottom')
+		ax2.yaxis.set_ticks_position('left')
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -5261,8 +5256,8 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 				
 			#create figure
-			fig=plt.figure(figsize=(8, 6.2))
-			fig.suptitle("radial evolution of lipid tails order parameter")
+			fig = plt.figure(figsize=(8, 6.2))
+			fig.suptitle("Radial evolution of lipid tails order parameter: " +  str(s))
 			
 			#create data
 			tmp_op_avg = {}
@@ -5305,6 +5300,14 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.set_ylim(-0.5, 1)
 			ax2.set_xlim(0, args.radial_radius)
 			ax2.set_ylim(-0.5, 1)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax2.spines['top'].set_visible(False)
+			ax2.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
+			ax2.xaxis.set_ticks_position('bottom')
+			ax2.yaxis.set_ticks_position('left')
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
@@ -5342,19 +5345,19 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 
 			#create figure
 			fig=plt.figure(figsize=(8, 6.2))
-			fig.suptitle("radial evolution of lipid tails order parameter")
-			
+			fig.suptitle("Radial evolution of lipid tails order parameter: sizes " +  str(groups_labels[g_index]))			
+
 			#create data
 			tmp_op_avg = {}
 			tmp_op_std = {}
 			for l in ["lower","upper"]:
-				tmp_op_avg[l] = {s: radial_op[l][s]["avg"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
-				tmp_op_std[l] = {s: radial_op[l][s]["std"]["groups"][g_index][f_type] for s in op_lipids_handled[l]}
+				tmp_op_avg[l] = {s: radial_op[l][s]["avg"]["groups"][g_index][f_type] for s in op_lipids_handled[l] + ["all species"]}
+				tmp_op_std[l] = {s: radial_op[l][s]["std"]["groups"][g_index][f_type] for s in op_lipids_handled[l] + ["all species"]}
 	
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(211)
 			p_upper = {}
-			for s in op_lipids_handled["upper"]:
+			for s in op_lipids_handled["upper"] + ["all species"]:
 				p_upper[s] = plt.plot(radial_bins, tmp_op_avg["upper"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 				p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["upper"][s]-tmp_op_std["upper"][s], tmp_op_avg["upper"][s]+tmp_op_std["upper"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			if len(op_lipids_handled["upper"]) > 0:
@@ -5367,8 +5370,8 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			#plot data: lower leafet
 			ax2 = fig.add_subplot(212)
 			p_lower = {}
-			for s in op_lipids_handled["lower"]:
-				p_lower[s] = plt.plot(radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label=str(s))
+			for s in op_lipids_handled["lower"] + ["all species"]:
+				p_lower[s] = plt.plot(radial_bins, tmp_op_avg["lower"][s], color = colours_lipids[s], linewidth = 3.0, label = str(s))
 				p_lower[str(s + "_err")] = plt.fill_between(radial_bins, tmp_op_avg["lower"][s]-tmp_op_std["lower"][s], tmp_op_avg["lower"][s]+tmp_op_std["lower"][s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			if len(op_lipids_handled["lower"]) > 0:
 				fontP.set_size("small")
@@ -5382,6 +5385,14 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.set_ylim(-0.5, 1)
 			ax2.set_xlim(0, args.radial_radius)
 			ax2.set_ylim(-0.5, 1)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax2.spines['top'].set_visible(False)
+			ax2.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
+			ax2.xaxis.set_ticks_position('bottom')
+			ax2.yaxis.set_ticks_position('left')
 			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
 			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
 			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
