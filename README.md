@@ -10,8 +10,8 @@ The following Python modules are required:
 - numpy
 - scipy
 - matplotlib
-- (networkX) (if option --algorithm set to 'min' or 'cog')
-- (sklearn) (if option --algorithm set to 'density')
+- networkX (if option --radial is used and option --algorithm set to 'min' or 'cog')
+- sklearn (if option --radial is used and option --algorithm set to 'density')
 
 Usage
 -----
