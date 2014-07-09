@@ -7,9 +7,11 @@ Requirements
 ------------
 The following Python modules are required:
 - MDAnalysis
+- numpy
+- scipy
 - matplotlib
-- (networkX)
-- (sklearn)
+- (networkX) (if option --algorithm set to 'min' or 'cog')
+- (sklearn) (if option --algorithm set to 'density')
 
 Usage
 -----
