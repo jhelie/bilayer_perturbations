@@ -1714,16 +1714,16 @@ def calculate_cog(sele, box_dim):
 		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
 	return cog_coord
-def calculate_radial(f_type, f_time, f_write):							
+def calculate_radial(f_type, f_time, f_write, box_dim):							
 	
 	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
 	
 	#identify clusters
 	#=================
 	if args.m_algorithm != "density":
-		clusters = detect_clusters_connectivity(get_distances(U.trajectory.ts.dimensions), U.trajectory.ts.dimensions)
+		clusters = detect_clusters_connectivity(get_distances(box_dim), box_dim)
 	else:
-		clusters = detect_clusters_density(get_distances(U.trajectory.ts.dimensions), U.trajectory.ts.dimensions)
+		clusters = detect_clusters_density(get_distances(box_dim), box_dim)
 	
 	#reset structures to calculate current frame stats
 	#=================================================
@@ -1753,8 +1753,8 @@ def calculate_radial(f_type, f_time, f_write):
 			c_sele += proteins_sele[p_index]
 		
 		#process cluster if TM (find closest PO4 particles for each particles of clusters, if all are in the same leaflet then it's surfacic [NB: this is done at the CLUSTER level (the same criteria at the protein level would probably fail)])
-		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["lower"], U.trajectory.ts.dimensions), axis = 1)
-		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["upper"], U.trajectory.ts.dimensions), axis = 1)
+		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["lower"], box_dim), axis = 1)
+		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["upper"], box_dim), axis = 1)
 		dist = dist_min_upper - dist_min_lower
 		if numpy.size(dist[dist>0]) != numpy.size(dist) and numpy.size(dist[dist>0]) !=0:
 
@@ -1805,13 +1805,13 @@ def calculate_radial(f_type, f_time, f_write):
 			#calculate cluster center of geometry
 			#------------------------------------
 			tmp_c_cog = numpy.zeros((1,3))
-			tmp_c_cog[0,:] = calculate_cog(c_sele, U.trajectory.ts.dimensions)
+			tmp_c_cog[0,:] = calculate_cog(c_sele, box_dim)
 			
 			#update radial data
 			#------------------
 			for l in ["lower","upper"]:
 				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
-				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), tmp_lip_coords[l], U.trajectory.ts.dimensions)
+				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), tmp_lip_coords[l], box_dim)
 				tmp_neighbours = lip_dist < args.radial_radius
 				r_num_within = list(leaflet_sele[l]["all species"].resnums()[tmp_neighbours[0,:]])
 
@@ -5496,7 +5496,7 @@ if args.xtcfilename == "no":
 		calculate_order_parameters("all frames", 0, f_write, 0)
 	#radial perturbations	
 	if args.radial:
-		calculate_radial("all frames", 0, f_write)
+		calculate_radial("all frames", 0, f_write, U.trajectory.ts.dimensions)
 
 #case: xtc file
 #==============
@@ -5527,7 +5527,7 @@ else:
 	
 		#radial perturbations
 		if args.radial:
-			calculate_radial("current", f_time, f_write)
+			calculate_radial("current", f_time, f_write, U.trajectory.ts.dimensions)
 
 	print ''
 
