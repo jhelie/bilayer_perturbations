@@ -5447,7 +5447,6 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 #=========================================================================================
 #process inputs
 #=========================================================================================
-print "\nInitialising data structures..."
 #data loading
 set_lipids_beads()
 set_lipids_tails()
@@ -5461,6 +5460,7 @@ identify_species()
 initialise_colours_and_groups()
 
 #create data structures
+print "\nInitialising data structures..."
 data_struct_time()
 #case: thickness
 if args.perturb == 1 or args.perturb == 3:
