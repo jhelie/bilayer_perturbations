@@ -339,7 +339,7 @@ if args.frames_write_dt != "no":
 	args.frames_write_dt = int(args.frames_write_dt)
 args.nb_smoothing = args.nb_smoothing[0]
 args.perturb = int(args.perturb[0])
-#lipids identification
+#lipids identification options
 args.beadsfilename = args.beadsfilename[0]
 args.tailsfilename = args.tailsfilename[0]
 args.cutoff_leaflet = args.cutoff_leaflet[0]
@@ -5447,6 +5447,8 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 #=========================================================================================
 #process inputs
 #=========================================================================================
+print "\nInitialising data structures..."
+#data loading
 set_lipids_beads()
 set_lipids_tails()
 load_MDA_universe()
@@ -5458,10 +5460,7 @@ identify_leaflets()
 identify_species()
 initialise_colours_and_groups()
 
-#=========================================================================================
-# initialise data structures
-#=========================================================================================
-print "\nInitialising data structures..."
+#create data structures
 data_struct_time()
 #case: thickness
 if args.perturb == 1 or args.perturb == 3:
