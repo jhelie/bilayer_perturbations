@@ -115,6 +115,8 @@ frames and then set the -t option to 1 when running the script.
 The following python modules are needed :
  - MDAnalysis
  - matplotlib
+ - numpy
+ - scipy
  - networkX (if option --radial is used and option --algorithm set to 'min' or 'cog')
  - sklearn (if option --radial is used and option --algorithm set to 'density')
 
