@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.17"
+version_nb="0.1.18"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -415,6 +415,7 @@ except:
 	sys.exit(1)
 try:
 	import scipy
+	import scipy.stats
 except:
 	print "Error: you need to install the scipy module."
 	sys.exit(1)
@@ -896,6 +897,8 @@ def load_MDA_universe():												#DONE
 	global frames_to_write
 	global nb_frames_to_process
 	global f_start
+	global radial_bins
+	global radial_bin_max
 	f_start = 0
 	if args.xtcfilename == "no":
 		print "\nLoading file..."
@@ -953,6 +956,15 @@ def load_MDA_universe():												#DONE
 		print "Error: invalid selection string '" + str(leaflet_sele_string) + "'"
 		print "-> no particles selected."
 		sys.exit(1)
+
+	#check the box is big enough for the radial radius specified
+	if args.radial:
+		if args.radial_radius > min(U.dimensions[0], U.dimensions[1])/float(2):
+			tmp_radius = min(U.dimensions[0], U.dimensions[1])/float(2)
+			radial_bin_max = int(numpy.floor(tmp_radius/float(radial_step))) + 1
+			print "Warning: --radial_radius option larger than half the box size in (x,y) plane, perturbations graphs willbe truncated at " + str(round(args.radial_radius,1)) + " Angstrom."
+		else:
+			radial_bin_max = args.radial_nb_bins
 
 	return
 def identify_ff():
@@ -1701,8 +1713,6 @@ def calculate_cog(sele, box_dim):
 	return cog_coord
 def calculate_radial(f_type, f_time, f_write):							
 	
-	global radial_step
-
 	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
 	
 	#identify clusters
@@ -1816,7 +1826,7 @@ def calculate_radial(f_type, f_time, f_write):
 						tmp_bin = {n: [] for n in range(0, args.radial_nb_bins)}
 						for r_num in tmp_s_rnums[s]:
 							tmp_bin[tmp_rnum2bin[r_num]].append(lipids_resnum2rindex[l][s][r_num])
-						for n in range(0, args.radial_nb_bins):
+						for n in range(0, radial_bin_max):
 							#tmp_s_rindex_bin = [lipids_resnum2rindex[l][s][r_num] for r_num in tmp_s_rnums[s] if tmp_rnum2bin[r_num] == n]
 							tmp_s_rindex_bin = tmp_bin[n]
 							tmp_res_nb = len(tmp_s_rindex_bin)
@@ -4393,8 +4403,8 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 	tmp_min = float("inf")
 	tmp_max = float("-inf")
 	for s in leaflet_species["both"] + ["all species"]:
-		tmp_min = min(tmp_min, numpy.average(radial_thick[s]["avg"]["all sizes"][f_type]) - numpy.average(radial_thick[s]["std"]["all sizes"][f_type]) - 20)
-		tmp_max = max(tmp_max, numpy.average(radial_thick[s]["avg"]["all sizes"][f_type]) + numpy.average(radial_thick[s]["std"]["all sizes"][f_type]) + 10 )
+		tmp_min = min(tmp_min, scipy.stats.nanmean(radial_thick[s]["avg"]["all sizes"][f_type]) - scipy.stats.nanmean(radial_thick[s]["std"]["all sizes"][f_type]) - 20)
+		tmp_max = max(tmp_max, scipy.stats.nanmean(radial_thick[s]["avg"]["all sizes"][f_type]) + scipy.stats.nanmean(radial_thick[s]["std"]["all sizes"][f_type]) + 10 )
 	
 	#individual sizes
 	#================
