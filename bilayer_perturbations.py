@@ -1705,10 +1705,11 @@ def calculate_cog(sele, box_dim):
 	
 	cog_coord = numpy.zeros(3)
 	tmp_coords = sele.coordinates()
+	tmp_nb_atoms = sele.numberOfAtoms()
 	for n in range(0,3):
-		tet = map(lambda part_index:tmp_coords[part_index,n]*2*math.pi/float(box_dim[n]) , range(0,sele.numberOfAtoms()))
-		xsi = map(lambda part_index:math.cos(tet[part_index]) , range(0,sele.numberOfAtoms()))
-		zet = map(lambda part_index:math.sin(tet[part_index]) , range(0,sele.numberOfAtoms()))
+		tet = map(lambda part_index:tmp_coords[part_index,n]*2*math.pi/float(box_dim[n]) , range(0,tmp_nb_atoms))
+		xsi = map(lambda part_index:math.cos(tet[part_index]) , range(0,tmp_nb_atoms))
+		zet = map(lambda part_index:math.sin(tet[part_index]) , range(0,tmp_nb_atoms))
 		tet_avg = math.atan2(-numpy.average(zet),-numpy.average(xsi)) + math.pi
 		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
