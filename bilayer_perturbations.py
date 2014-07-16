@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.20"
+version_nb="0.1.19-dev4"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -51,7 +51,8 @@ bilayer thickness
 A thickness is associated to each lipids headgroups (see note 2(a)) for each frame. It is
 calculated as  the average geometric distance between the head group and its closest
 headgroup neighbours in the opposite leaflet. This means that the shape of the bilayer
-does not prevent meaningful calculations of its thickness.
+does not prevent meaningful calculations of its thickness (this is not true for the
+radial perturbation of the thickness, see below 'radial perturbations').
 The number of neighbours to take into account in the opposite leaflet can be set with the
 --neighbours option.
 
@@ -68,6 +69,15 @@ where theta is the angle between the bond and the bilayer normal.
 The bilayer normal is considered to be z axis. This means that, unlike for the calculation
 of the thickness, the more your bilayer deforms the further from the actual local normal
 the z axis will be and the less meaningful the calculated order parameters will be.
+
+radial perturbations
+--------------------
+The radial distance of a lipid to a peptide cluster is calculated as the distance between
+this lipid head group and a z axis centered on the x,y coordinates of the cluster center 
+of geometry.
+
+Therefore this is only meaningful for flat-ish membrane in the (x,y) direction (we're
+working on defining a local plane and normal to the bilayer).
 
 detection of transmembrane protein clusters
 -------------------------------------------
@@ -115,8 +125,8 @@ frames and then set the -t option to 1 when running the script.
 The following python modules are needed :
  - MDAnalysis
  - matplotlib
- - numpy
- - scipy
+ - np
+ - sp
  - networkX (if option --radial is used and option --algorithm set to 'min' or 'cog')
  - sklearn (if option --radial is used and option --algorithm set to 'density')
 
@@ -269,8 +279,8 @@ Radial perturbations and protein clusters identification
 --groups		: cluster groups definition file, see note 7
 --proteins		: protein selection file, (optional, see note 6)
 --colours_sizes	1,9	: range of cluster sizes to colour, see note 8
---radial_radius 80	: max radius to which represent the radial perturbations (Angstrom)
---radial_bins 	20	: number of bins into which discretise data for radial perturbations
+--radial_radius 50	: max radius to which represent the radial perturbations (Angstrom)
+--radial_step 	1	: width of the bins (Angstrom)
 --algorithm	min	: 'cog','min' or 'density', see 'DESCRIPTION'
 --nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angstrom)
 --db_radius 	20	: DBSCAN search radius (Angstrom)
@@ -308,8 +318,8 @@ parser.add_argument('--colours_lipids', nargs=1, dest='colours_lipids_file', def
 parser.add_argument('--colours_sizes', nargs=1, dest='colours_sizes', default=['1,9'], help=argparse.SUPPRESS)
 parser.add_argument('--groups', nargs=1, dest='cluster_groups_file', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('--proteins', nargs=1, dest='selection_file_prot', default=['no'], help=argparse.SUPPRESS)
-parser.add_argument('--radial_radius', nargs=1, dest='radial_radius', default=[80], type=float, help=argparse.SUPPRESS)
-parser.add_argument('--radial_bins', nargs=1, dest='radial_nb_bins', default=[20], type=int, help=argparse.SUPPRESS)
+parser.add_argument('--radial_radius', nargs=1, dest='radial_radius', default=[50], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--radial_step', nargs=1, dest='radial_step', default=[1], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--algorithm', dest='m_algorithm', choices=['cog','min','density'], default='min', help=argparse.SUPPRESS)
 parser.add_argument('--nx_cutoff', nargs=1, dest='cutoff_connect', default=[8], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--db_radius', nargs=1, dest='dbscan_dist', default=[20], type=float, help=argparse.SUPPRESS)
@@ -349,7 +359,7 @@ args.colours_sizes = args.colours_sizes[0]
 args.cluster_groups_file = args.cluster_groups_file[0]
 args.selection_file_prot = args.selection_file_prot[0]
 args.radial_radius = args.radial_radius[0]
-args.radial_nb_bins = args.radial_nb_bins[0]
+args.radial_step = args.radial_step[0]
 args.cutoff_connect = args.cutoff_connect[0]
 args.dbscan_dist = args.dbscan_dist[0]
 args.dbscan_nb = args.dbscan_nb[0]
@@ -363,14 +373,14 @@ if args.perturb == 0:
 if args.radial:
 	global radial_sizes
 	global radial_groups
-	global radial_step
+	global radial_nb_bins
 	global radial_bins
 	radial_sizes = {}
 	radial_sizes["all frames"] = []
 	radial_groups = {}
-	radial_groups["all frames"] = []
-	radial_step = args.radial_radius/float(args.radial_nb_bins)
-	radial_bins = [n*radial_step for n in range(0,args.radial_nb_bins)]
+	radial_groups["all frames"] = []	
+	radial_nb_bins = int(args.radial_radius/float(args.radial_step))
+	radial_bins = [n*args.radial_step for n in range(0,radial_nb_bins)]
 	if args.selection_file_prot == 'no':
 		args.selection_file_prot = 'auto' 
 global xtc_thick
@@ -411,12 +421,12 @@ except:
 	print "Error: you need to install the maths module."
 	sys.exit(1)
 try:
-	import numpy
+	import numpy as np
 except:
 	print "Error: you need to install the numpy module."
 	sys.exit(1)
 try:
-	import scipy
+	import scipy as sp
 	import scipy.stats
 except:
 	print "Error: you need to install the scipy module."
@@ -901,6 +911,7 @@ def load_MDA_universe():												#DONE
 	global f_start
 	global radial_bins
 	global radial_bin_max
+	global radial_radius_max
 	f_start = 0
 	if args.xtcfilename == "no":
 		print "\nLoading file..."
@@ -962,11 +973,12 @@ def load_MDA_universe():												#DONE
 	#check the box is big enough for the radial radius specified
 	if args.radial:
 		if args.radial_radius > min(U.dimensions[0], U.dimensions[1])/float(2):
-			tmp_radius = min(U.dimensions[0], U.dimensions[1])/float(2)
-			radial_bin_max = int(numpy.floor(tmp_radius/float(radial_step))) + 1
-			print "Warning: --radial_radius option larger than half the box size in (x,y) plane, perturbations graphs willbe truncated at " + str(round(args.radial_radius,1)) + " Angstrom."
+			radial_radius_max = min(U.dimensions[0], U.dimensions[1])/float(2)
+			radial_bin_max = int(np.floor(radial_radius_max/float(args.radial_step))) + 1
+			print "Warning: --radial_radius option larger than half the box size in (x,y) plane, perturbations graphs will be truncated at " + str(round(radial_radius_max,1)) + " Angstrom."
 		else:
-			radial_bin_max = args.radial_nb_bins
+			radial_bin_max = radial_nb_bins
+			radial_radius_max = args.radial_radius
 
 	return
 def identify_ff():
@@ -1192,7 +1204,7 @@ def identify_leaflets():
 		else:
 			L = MDAnalysis.analysis.leaflet.LeafletFinder(U, leaflet_sele_string, args.cutoff_leaflet)
 	
-		if numpy.shape(L.groups())[0]<2:
+		if np.shape(L.groups())[0]<2:
 			print "Error: imposssible to identify 2 leaflets."
 			sys.exit(1)
 		if L.group(0).centerOfGeometry()[2] > L.group(1).centerOfGeometry()[2]:
@@ -1202,13 +1214,13 @@ def identify_leaflets():
 			leaflet_sele["upper"]["all species"] = L.group(1)
 			leaflet_sele["lower"]["all species"] = L.group(0)
 		leaflet_sele["both"]["all species"] = leaflet_sele["lower"]["all species"] + leaflet_sele["upper"]["all species"]
-		if numpy.shape(L.groups())[0] == 2:
+		if np.shape(L.groups())[0] == 2:
 			print " -found 2 leaflets: ", leaflet_sele["upper"]["all species"].numberOfResidues(), '(upper) and ', leaflet_sele["lower"]["all species"].numberOfResidues(), '(lower) lipids'
 		else:
 			other_lipids=0
-			for g in range(2, numpy.shape(L.groups())[0]):
+			for g in range(2, np.shape(L.groups())[0]):
 				other_lipids += L.group(g).numberOfResidues()
-			print " -found " + str(numpy.shape(L.groups())[0]) + " groups: " + str(leaflet_sele["upper"]["all species"].numberOfResidues()) + "(upper), " + str(leaflet_sele["lower"]["all species"].numberOfResidues()) + "(lower) and " + str(other_lipids) + " (others) lipids respectively"
+			print " -found " + str(np.shape(L.groups())[0]) + " groups: " + str(leaflet_sele["upper"]["all species"].numberOfResidues()) + "(upper), " + str(leaflet_sele["lower"]["all species"].numberOfResidues()) + "(lower) and " + str(other_lipids) + " (others) lipids respectively"
 	#use cof:
 	else:
 		leaflet_sele["both"]["all species"] = U.selectAtoms(leaflet_sele_string)
@@ -1239,6 +1251,9 @@ def identify_species():													#DONE
 	global lipids_rindex2specie
 	global lipids_specie2rindex
 	global lipids_resnum2specie
+	global chol_pres
+	global chol_sele
+	
 	op_bonds = {}
 	op_lipids_handled = {l: [] for l in ["lower","upper"]}
 	membrane_comp = {}
@@ -1253,9 +1268,15 @@ def identify_species():													#DONE
 	lipids_rindex2specie = {}
 	lipids_specie2rindex = {}
 	
+	#check for cholesterol presence
+	chol_pres = False
+	chol_sele = U.selectAtoms("resname CHOL and name ROH")	
+	if chol_sele.numberOfAtoms():
+		chol_pres = True
+	
 	#specie identification
 	for l in ["lower","upper","both"]:
-		leaflet_species[l] = list(numpy.unique(leaflet_sele[l]["all species"].resnames()))
+		leaflet_species[l] = list(np.unique(leaflet_sele[l]["all species"].resnames()))
 
 	#create specie selections
 	for l in ["lower","upper"]:
@@ -1302,7 +1323,7 @@ def identify_species():													#DONE
 				if s in op_lipids:
 					op_lipids_handled[l].append(s)
 					leaflet_sele[l]["op"] += leaflet_sele[l][s]
-		op_lipids_handled["both"]= list(numpy.unique(op_lipids_handled["lower"] + op_lipids_handled["upper"]))
+		op_lipids_handled["both"]= list(np.unique(op_lipids_handled["lower"] + op_lipids_handled["upper"]))
 		leaflet_sele["both"]["op"] = leaflet_sele["lower"]["op"] + leaflet_sele["upper"]["op"]
 		if len(op_lipids_handled["both"]) == 0:
 			print "Error: none of the lipid species can be taken into account - double check the forcefield option, see order_param -h."
@@ -1400,7 +1421,7 @@ def initialise_colours_and_groups():
 	#==============
 	colours_sizes = {}
 	tmp_cmap = cm.get_cmap('jet')
-	colours_sizes_value = tmp_cmap(numpy.linspace(0, 1, colours_sizes_range[1]-colours_sizes_range[0]+1))
+	colours_sizes_value = tmp_cmap(np.linspace(0, 1, colours_sizes_range[1]-colours_sizes_range[0]+1))
 	for c_index in range(0, colours_sizes_range[1]-colours_sizes_range[0]+1):
 		c_size = colours_sizes_range[0] + c_index
 		colours_sizes[c_size] = colours_sizes_value[c_index]
@@ -1426,11 +1447,11 @@ def initialise_colours_and_groups():
 			print " -" + str(s) + ": " + str(colours_lipids[s])
 		
 		#check whether a colour map was specified
-		if colours_lipids_nb > 1 and len(numpy.unique(colours_lipids.values())) == 1:
-			if numpy.unique(colours_lipids.values())[0] in colormaps_possible:
-				colours_lipids_map = numpy.unique(colours_lipids.values())[0]
+		if colours_lipids_nb > 1 and len(np.unique(colours_lipids.values())) == 1:
+			if np.unique(colours_lipids.values())[0] in colormaps_possible:
+				colours_lipids_map = np.unique(colours_lipids.values())[0]
 			else:
-				print "Error: either the same color was specified for all species or the color map '" + str(numpy.unique(colours_lipids.values())[0]) + "' is not valid."
+				print "Error: either the same color was specified for all species or the color map '" + str(np.unique(colours_lipids.values())[0]) + "' is not valid."
 				sys.exit(1)
 		else:
 			colours_lipids_map = "custom"
@@ -1445,7 +1466,7 @@ def initialise_colours_and_groups():
 	#---------------------------------------------
 	if colours_lipids_map != "custom":
 		tmp_cmap = cm.get_cmap(colours_lipids_map)
-		colours_lipids_value = tmp_cmap(numpy.linspace(0, 1, len(leaflet_species["both"])))
+		colours_lipids_value = tmp_cmap(np.linspace(0, 1, len(leaflet_species["both"])))
 		for s_index in range(0, len(leaflet_species["both"])):
 			colours_lipids[leaflet_species["both"][s_index]] = colours_lipids_value[s_index]
  	colours_lipids["all species"] = '#262626'
@@ -1526,17 +1547,17 @@ def initialise_colours_and_groups():
 				groups_sizes_dict[tmp_size] = groups_number
 
 		#check whether a colour map was specified
-		if groups_number > 1 and len(numpy.unique(colours_groups.values())) == 1:
-			if numpy.unique(colours_groups.values())[0] in colormaps_possible:
-				colours_groups_map = numpy.unique(colours_groups.values())[0]
+		if groups_number > 1 and len(np.unique(colours_groups.values())) == 1:
+			if np.unique(colours_groups.values())[0] in colormaps_possible:
+				colours_groups_map = np.unique(colours_groups.values())[0]
 			else:
-				print "Error: either the same color was specified for all groups or the color map '" + str(numpy.unique(colours_groups.values())[0]) + "' is not valid."
+				print "Error: either the same color was specified for all groups or the color map '" + str(np.unique(colours_groups.values())[0]) + "' is not valid."
 				sys.exit(1)
 
 		#generate colours from colour map if necessary
 		if colours_groups_map != "custom":
 			tmp_cmap=cm.get_cmap(colors_groups_map)
-			groups_colors_value = tmp_cmap(numpy.linspace(0, 1, groups_number))
+			groups_colors_value = tmp_cmap(np.linspace(0, 1, groups_number))
 			for g_index in range(0, groups_number):
 				colours_groups[g_index] = groups_colors_value[g_index]
 		
@@ -1564,8 +1585,8 @@ def data_struct_time():
 
 	global frames_nb
 	global frames_time
-	frames_nb = numpy.zeros(nb_frames_to_process)
-	frames_time = numpy.zeros(nb_frames_to_process)
+	frames_nb = np.zeros(nb_frames_to_process)
+	frames_time = np.zeros(nb_frames_to_process)
 
 	return
 def data_struct_radial():												
@@ -1582,13 +1603,19 @@ def data_struct_radial():
 	#-------
 	global radial_density
 	radial_density = {}	
+	if chol_pres:
+		radial_density["CHOL"] = {"sizes": {}}
+		radial_density["CHOL"]["sizes"] = {"all sizes": {k: {"all frames": np.zeros(radial_nb_bins)} for k in ["nb", "pc"]}}
+		if args.cluster_groups_file != "no":
+			radial_density["CHOL"]["groups"] = {g_index: {k: {"all frames": np.zeros(radial_nb_bins)} for k in ["nb", "pc"]} for g_index in range(0,groups_number+1)}
+
 	for l in ["lower","upper"]:
 		radial_density[l] = {}
 		for s in leaflet_species[l] + ["all species"]:
 			radial_density[l][s] = {}
-			radial_density[l][s]["all sizes"] = {k: {"all frames": numpy.zeros(args.radial_nb_bins)} for k in ["nb", "pc"]}
+			radial_density[l][s]["all sizes"] = {k: {"all frames": np.zeros(radial_nb_bins)} for k in ["nb", "pc"]}
 			if args.cluster_groups_file != "no":
-				radial_density[l][s]["groups"] = {g_index: {k: {"all frames": numpy.zeros(args.radial_nb_bins)} for k in ["nb","pc"]} for g_index in range(0,groups_number+1)}
+				radial_density[l][s]["groups"] = {g_index: {k: {"all frames": np.zeros(radial_nb_bins)} for k in ["nb","pc"]} for g_index in range(0,groups_number+1)}
 					
 	#thickness
 	#---------
@@ -1597,11 +1624,11 @@ def data_struct_radial():
 		radial_thick = {}	
 		for s in leaflet_species["both"] + ["all species"]:
 			radial_thick[s] = {}
-			radial_thick[s]["avg"] = {"all sizes": {"all frames": numpy.zeros(args.radial_nb_bins)}}
-			radial_thick[s]["std"] = {"all sizes": {"all frames": numpy.zeros(args.radial_nb_bins)}}
+			radial_thick[s]["avg"] = {"all sizes": {"all frames": np.zeros(radial_nb_bins)}}
+			radial_thick[s]["std"] = {"all sizes": {"all frames": np.zeros(radial_nb_bins)}}
 			if args.cluster_groups_file != "no":
-				radial_thick[s]["avg"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
-				radial_thick[s]["std"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
+				radial_thick[s]["avg"]["groups"] = {g_index: {"all frames": np.zeros(radial_nb_bins)} for g_index in range(0,groups_number+1)}
+				radial_thick[s]["std"]["groups"] = {g_index: {"all frames": np.zeros(radial_nb_bins)} for g_index in range(0,groups_number+1)}
 
 	#order parameter
 	#---------------
@@ -1612,11 +1639,11 @@ def data_struct_radial():
 			radial_op[l] = {}
 			for s in op_lipids_handled[l] + ["all species"]:
 				radial_op[l][s] = {}
-				radial_op[l][s]["avg"] = {"all sizes": {"all frames": numpy.zeros(args.radial_nb_bins)}}
-				radial_op[l][s]["std"] = {"all sizes": {"all frames": numpy.zeros(args.radial_nb_bins)}}
+				radial_op[l][s]["avg"] = {"all sizes": {"all frames": np.zeros(radial_nb_bins)}}
+				radial_op[l][s]["std"] = {"all sizes": {"all frames": np.zeros(radial_nb_bins)}}
 				if args.cluster_groups_file != "no":
-					radial_op[l][s]["avg"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
-					radial_op[l][s]["std"]["groups"] = {g_index: {"all frames": numpy.zeros(args.radial_nb_bins)} for g_index in range(0,groups_number+1)}
+					radial_op[l][s]["avg"]["groups"] = {g_index: {"all frames": np.zeros(radial_nb_bins)} for g_index in range(0,groups_number+1)}
+					radial_op[l][s]["std"]["groups"] = {g_index: {"all frames": np.zeros(radial_nb_bins)} for g_index in range(0,groups_number+1)}
 
 	return
 def data_struct_thick():												#DONE
@@ -1632,8 +1659,8 @@ def data_struct_thick():												#DONE
 	for s in leaflet_species["both"] + ["all species"]:
 		lipids_thick_nff[s] = {}
 		lipids_thick_nff[s]["raw"] = {}
-		lipids_thick_nff[s]["raw"]["avg"] = numpy.zeros(nb_frames_to_process)
-		lipids_thick_nff[s]["raw"]["std"] = numpy.zeros(nb_frames_to_process)
+		lipids_thick_nff[s]["raw"]["avg"] = np.zeros(nb_frames_to_process)
+		lipids_thick_nff[s]["raw"]["std"] = np.zeros(nb_frames_to_process)
 		lipids_thick_nff[s]["smoothed"] = {}
 
 	return
@@ -1646,14 +1673,14 @@ def data_struct_op_ff():												#DONE
 	
 	z_ff = {}
 	lipids_op_ff = {}
-	z_upper = numpy.zeros(nb_frames_to_process)	
-	z_lower = numpy.zeros(nb_frames_to_process)
+	z_upper = np.zeros(nb_frames_to_process)	
+	z_lower = np.zeros(nb_frames_to_process)
 	for l_index in range(0,lipids_ff_nb):
-		z_ff[l_index] = numpy.zeros(nb_frames_to_process)
+		z_ff[l_index] = np.zeros(nb_frames_to_process)
 		lipids_op_ff[l_index] = {}
 		for tail in ["tailA", "tailB", "tails"]:
 			lipids_op_ff[l_index][tail] = {}
-			lipids_op_ff[l_index][tail]["raw"] = numpy.zeros(nb_frames_to_process)
+			lipids_op_ff[l_index][tail]["raw"] = np.zeros(nb_frames_to_process)
 			lipids_op_ff[l_index][tail]["smoothed"] = {}
 
 	return
@@ -1668,8 +1695,8 @@ def data_struct_op_nff():												#DONE
 			for tail in ["tailA", "tailB", "tails"]:
 				lipids_op_nff[l][s][tail] = {}
 				lipids_op_nff[l][s][tail]["raw"] = {}
-				lipids_op_nff[l][s][tail]["raw"]["avg"] = numpy.zeros(nb_frames_to_process)
-				lipids_op_nff[l][s][tail]["raw"]["std"] = numpy.zeros(nb_frames_to_process)
+				lipids_op_nff[l][s][tail]["raw"]["avg"] = np.zeros(nb_frames_to_process)
+				lipids_op_nff[l][s][tail]["raw"]["std"] = np.zeros(nb_frames_to_process)
 				lipids_op_nff[l][s][tail]["smoothed"] = {}
 					
 	return
@@ -1694,16 +1721,16 @@ def get_distances(box_dim):
 	#method: use minimum distance between proteins
 	#---------------------------------------------
 	if args.m_algorithm == "min":
-		dist_matrix=100000*numpy.ones((proteins_nb,proteins_nb))
+		dist_matrix=100000*np.ones((proteins_nb,proteins_nb))
 		for n in range(proteins_nb,1,-1):
-			dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb] = map(lambda pp:numpy.min(MDAnalysis.analysis.distances.distance_array(numpy.float32(proteins_sele[proteins_nb-n].coordinates()),numpy.float32(proteins_sele[pp].coordinates()),box_dim)), range(proteins_nb-n+1,proteins_nb))
+			dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb] = map(lambda pp:np.min(MDAnalysis.analysis.distances.distance_array(np.float32(proteins_sele[proteins_nb-n].coordinates()),np.float32(proteins_sele[pp].coordinates()),box_dim)), range(proteins_nb-n+1,proteins_nb))
 			dist_matrix[proteins_nb-n+1:proteins_nb,proteins_nb-n] = dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb]
 											
 	#method: use distance between cog
 	#--------------------------------
 	else:
-		tmp_proteins_cogs = numpy.asarray(map(lambda p_index: calculate_cog(proteins_sele[p_index], box_dim), range(0,proteins_nb)))
-		dist_matrix = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_proteins_cogs), numpy.float32(tmp_proteins_cogs), box_dim)
+		tmp_proteins_cogs = np.asarray(map(lambda p_index: calculate_cog(proteins_sele[p_index], box_dim), range(0,proteins_nb)))
+		dist_matrix = MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_cogs), np.float32(tmp_proteins_cogs), box_dim)
 
 	return dist_matrix
 def calculate_cog(sele, box_dim):										
@@ -1711,20 +1738,23 @@ def calculate_cog(sele, box_dim):
 	#this method allows to take pbc into account when calculcating the center of geometry 
 	#see: http://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
 	
-	cog_coord = numpy.zeros(3)
+	cog_coord = np.zeros(3)
 	tmp_coords = sele.coordinates()
 	tmp_nb_atoms = sele.numberOfAtoms()
 	for n in range(0,3):
 		tet = map(lambda part_index:tmp_coords[part_index,n]*2*math.pi/float(box_dim[n]) , range(0,tmp_nb_atoms))
 		xsi = map(lambda part_index:math.cos(tet[part_index]) , range(0,tmp_nb_atoms))
 		zet = map(lambda part_index:math.sin(tet[part_index]) , range(0,tmp_nb_atoms))
-		tet_avg = math.atan2(-numpy.average(zet),-numpy.average(xsi)) + math.pi
+		tet_avg = math.atan2(-np.average(zet),-np.average(xsi)) + math.pi
 		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
 	return cog_coord
 def calculate_radial(f_type, f_time, f_write, box_dim):							
 	
-	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
+	#retrieve coordinates arrays (pre-processing saves time as MDAnalysis functions are quite slow and we need to make such calls a few times)
+	tmp_lip_coords = {l: {s: leaflet_sele[l][s].coordinates() for s in leaflet_species[l] + ["all species"]} for l in ["lower","upper"]}
+	if chol_pres:
+		tmp_chol_coords = chol_sele.coordinates()
 	
 	#identify clusters
 	#=================
@@ -1735,19 +1765,22 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 	
 	#reset structures to calculate current frame stats
 	#=================================================
+	if chol_pres:
+		radial_density["CHOL"]["sizes"]["all sizes"]["nb"]["current"] = np.zeros(radial_nb_bins)
+		radial_density["CHOL"]["sizes"]["all sizes"]["pc"]["current"] = np.zeros(radial_nb_bins)
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l] + ["all species"]:
-			radial_density[l][s]["all sizes"]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
-			radial_density[l][s]["all sizes"]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
+			radial_density[l][s]["all sizes"]["nb"]["current"] = np.zeros(radial_nb_bins)
+			radial_density[l][s]["all sizes"]["pc"]["current"] = np.zeros(radial_nb_bins)
 	if args.perturb == 1 or args.perturb == 3:
 		for s in leaflet_species["both"] + ["all species"]:
-			radial_thick[s]["avg"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
-			radial_thick[s]["std"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+			radial_thick[s]["avg"]["all sizes"]["current"] = np.zeros(radial_nb_bins)
+			radial_thick[s]["std"]["all sizes"]["current"] = np.zeros(radial_nb_bins)
 	if args.perturb == 2 or args.perturb == 3:
 		for l in ["lower","upper"]:
 			for s in op_lipids_handled[l] + ["all species"]:
-				radial_op[l][s]["avg"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
-				radial_op[l][s]["std"]["all sizes"]["current"] = numpy.zeros(args.radial_nb_bins)
+				radial_op[l][s]["avg"]["all sizes"]["current"] = np.zeros(radial_nb_bins)
+				radial_op[l][s]["std"]["all sizes"]["current"] = np.zeros(radial_nb_bins)
 
 	#process each cluster
 	#====================
@@ -1755,170 +1788,283 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 	radial_groups["current"] = []
 	tmp_cluster_selections = {}
 	for cluster in clusters:		
-		#create selection for current cluster
+		#create selection for current cluster and only process it if it's TM (find closest PO4 particles for each particles of clusters, if all are in the same leaflet then it's surfacic [NB: this is done at the CLUSTER level (the same criteria at the protein level would probably fail)])
 		c_sele = MDAnalysis.core.AtomGroup.AtomGroup([])
 		for p_index in cluster:
 			c_sele += proteins_sele[p_index]
-		
-		#process cluster if TM (find closest PO4 particles for each particles of clusters, if all are in the same leaflet then it's surfacic [NB: this is done at the CLUSTER level (the same criteria at the protein level would probably fail)])
-		dist_min_lower = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["lower"], box_dim), axis = 1)
-		dist_min_upper = numpy.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["upper"], box_dim), axis = 1)
+		dist_min_lower = np.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["lower"]["all species"], box_dim), axis = 1)
+		dist_min_upper = np.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["upper"]["all species"], box_dim), axis = 1)
 		dist = dist_min_upper - dist_min_lower
-		if numpy.size(dist[dist>0]) != numpy.size(dist) and numpy.size(dist[dist>0]) !=0:
-
-			#store new cluster size and add entry if necessary
-			c_size = numpy.size(cluster)
+		if np.size(dist[dist>0]) != np.size(dist) and np.size(dist[dist>0]) !=0:
+					
+			#initialise containers: size
+			#---------------------------
+			c_size = np.size(cluster)
 			if c_size not in radial_sizes["current"]:
-				sizes_nb_clusters[c_size] = 0
+				#update sizes sampled and create containers for new one if necessary
 				radial_sizes["current"].append(c_size)
 				radial_sizes["current"] = sorted(radial_sizes["current"])
 				if c_size not in radial_sizes["all frames"]:
+					sizes_nb_clusters[c_size] = 0
 					radial_sizes["all frames"].append(c_size)
 					radial_sizes["all frames"] = sorted(radial_sizes["all frames"])
+					if chol_pres:
+						radial_density["CHOL"]["sizes"][c_size] = {key: {"all frames": np.zeros(radial_nb_bins)} for key in ["nb","pc"]}
 					for l in ["lower","upper"]:	
 						for s in leaflet_species[l] + ["all species"]:
-							radial_density[l][s][c_size] = {key: {"all frames": numpy.zeros(args.radial_nb_bins)} for key in ["nb","pc"]}
+							radial_density[l][s][c_size] = {key: {"all frames": np.zeros(radial_nb_bins)} for key in ["nb","pc"]}
 					if args.perturb == 1 or args.perturb == 3:
 						for s in leaflet_species["both"] + ["all species"]:
-							radial_thick[s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-							radial_thick[s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+							radial_thick[s]["avg"][c_size] = {"all frames": np.zeros(radial_nb_bins)}
+							radial_thick[s]["std"][c_size] = {"all frames": np.zeros(radial_nb_bins)}
 					if args.perturb == 2 or args.perturb == 3:
 						for l in ["lower","upper"]:					
 							for s in op_lipids_handled[l] + ["all species"]:
-								radial_op[l][s]["avg"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
-								radial_op[l][s]["std"][c_size] = {"all frames": numpy.zeros(args.radial_nb_bins)}
+								radial_op[l][s]["avg"][c_size] = {"all frames": np.zeros(radial_nb_bins)}
+								radial_op[l][s]["std"][c_size] = {"all frames": np.zeros(radial_nb_bins)}
 
-			#reset containers to calculate current frame stats
-			for l in ["lower","upper"]:
-				for s in leaflet_species[l] + ["all species"]:				
-					radial_density[l][s][c_size]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_density[l][s][c_size]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
-			if args.perturb == 1 or args.perturb == 3:
-				for s in leaflet_species["both"] + ["all species"]:
-					radial_thick[s]["avg"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-					radial_thick[s]["std"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-			if args.perturb == 2 or args.perturb == 3:
+				#reset containers for current size
+				if chol_pres:
+					radial_density["CHOL"]["sizes"][c_size]["nb"]["current"] = np.zeros(radial_nb_bins)
+					radial_density["CHOL"]["sizes"][c_size]["pc"]["current"] = np.zeros(radial_nb_bins)
 				for l in ["lower","upper"]:
-					for s in op_lipids_handled[l] + ["all species"]:
-						radial_op[l][s]["avg"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
-						radial_op[l][s]["std"][c_size]["current"] = numpy.zeros(args.radial_nb_bins)
+					for s in leaflet_species[l] + ["all species"]:				
+						radial_density[l][s][c_size]["nb"]["current"] = np.zeros(radial_nb_bins)
+						radial_density[l][s][c_size]["pc"]["current"] = np.zeros(radial_nb_bins)
+				if args.perturb == 1 or args.perturb == 3:
+					for s in leaflet_species["both"] + ["all species"]:
+						radial_thick[s]["avg"][c_size]["current"] = np.zeros(radial_nb_bins)
+						radial_thick[s]["std"][c_size]["current"] = np.zeros(radial_nb_bins)
+				if args.perturb == 2 or args.perturb == 3:
+					for l in ["lower","upper"]:
+						for s in op_lipids_handled[l] + ["all species"]:
+							radial_op[l][s]["avg"][c_size]["current"] = np.zeros(radial_nb_bins)
+							radial_op[l][s]["std"][c_size]["current"] = np.zeros(radial_nb_bins)
 
-			#store new cluster size group
+			#initialise containers: group
+			#----------------------------
 			if args.cluster_groups_file != "no":
 				g_index = groups_sizes_dict[c_size]
 				if g_index not in radial_groups["current"]:
+					#update groups sampled
 					radial_groups["current"].append(g_index)
+					radial_groups["current"] = sorted(radial_groups["current"])
 					if g_index not in radial_groups["all frames"]:
 						radial_groups["all frames"].append(g_index)
-		
-			#add to number of cluster processed for this size
+						radial_groups["all frames"] = sorted(radial_groups["all frames"])
+	
+					#reset containers for current group
+					if chol_pres:
+						radial_density["CHOL"]["groups"][g_index]["nb"]["current"] = np.zeros(radial_nb_bins)
+						radial_density["CHOL"]["groups"][g_index]["pc"]["current"] = np.zeros(radial_nb_bins)
+					for l in ["lower","upper"]:
+						for s in leaflet_species[l] + ["all species"]:				
+							radial_density[l][s]["groups"][g_index]["nb"]["current"] = np.zeros(radial_nb_bins)
+							radial_density[l][s]["groups"][g_index]["pc"]["current"] = np.zeros(radial_nb_bins)
+					if args.perturb == 1 or args.perturb == 3:
+						for s in leaflet_species["both"] + ["all species"]:
+							radial_thick[s]["avg"]["groups"][g_index]["current"] = np.zeros(radial_nb_bins)
+							radial_thick[s]["std"]["groups"][g_index]["current"] = np.zeros(radial_nb_bins)
+					if args.perturb == 2 or args.perturb == 3:
+						for l in ["lower","upper"]:
+							for s in op_lipids_handled[l] + ["all species"]:
+								radial_op[l][s]["avg"]["groups"][g_index]["current"] = np.zeros(radial_nb_bins)
+								radial_op[l][s]["std"]["groups"][g_index]["current"] = np.zeros(radial_nb_bins)
+
+			#update sampling of sizes
+			#------------------------
 			sizes_nb_clusters[c_size] += 1
 			sizes_nb_clusters["all sizes"] += 1
 			if args.cluster_groups_file != "no":
 				groups_nb_clusters[g_index] += 1
 
-			#calculate cluster center of geometry
-			#------------------------------------
-			tmp_c_cog = numpy.zeros((1,3))
-			tmp_c_cog[0,:] = calculate_cog(c_sele, box_dim)
-			
 			#update radial data
 			#------------------
-			for l in ["lower","upper"]:
-				#calculate distance matrix between lipids and cluster cog and retrieve index of lipids within cutoff
-				lip_dist = MDAnalysis.analysis.distances.distance_array(numpy.float32(tmp_c_cog), tmp_lip_coords[l], box_dim)
-				tmp_neighbours = lip_dist < args.radial_radius
-				r_num_within = list(leaflet_sele[l]["all species"].resnums()[tmp_neighbours[0,:]])
-
-				#find neighbouring lipids properties (1 browse of all residue list + 1 browse of each specie residue lists)
-				tmp_s_rnums = {s: [] for s in leaflet_species[l]}
-				tmp_rnum2bin = {}
-				for r_num in r_num_within:
-					r_index = lipids_resnum2rindex[l]["all species"][r_num]
-					tmp_s_rnums[lipids_rindex2specie[l]["all species"][r_index]].append(r_num)
-					tmp_rnum2bin[r_num] = int(numpy.floor(lip_dist[0,r_index]/float(radial_step)))
-				
-				#store properties of neighbouring lipids of the cluster
-				for s in leaflet_species[l]:
-					if len(tmp_s_rnums[s]) > 0:
-						tmp_bin = {n: [] for n in range(0, args.radial_nb_bins)}
-						for r_num in tmp_s_rnums[s]:
-							tmp_bin[tmp_rnum2bin[r_num]].append(lipids_resnum2rindex[l][s][r_num])
-						for n in range(0, radial_bin_max):
-							#tmp_s_rindex_bin = [lipids_resnum2rindex[l][s][r_num] for r_num in tmp_s_rnums[s] if tmp_rnum2bin[r_num] == n]
-							tmp_s_rindex_bin = tmp_bin[n]
-							tmp_res_nb = len(tmp_s_rindex_bin)
-							if tmp_res_nb > 0:
-								for f_t in ["current","all frames"]:
-									radial_density[l][s][c_size]["nb"][f_t][n] += tmp_res_nb
-									radial_density[l][s]["all sizes"]["nb"][f_t][n] += tmp_res_nb
-									radial_density[l]["all species"][c_size]["nb"][f_t][n] += tmp_res_nb
-									radial_density[l]["all species"]["all sizes"]["nb"][f_t][n] += tmp_res_nb
-								if args.perturb == 1 or args.perturb == 3:
-									tmp_res_avg = numpy.average(lipids_thick_nff[l][s][tmp_s_rindex_bin])
-									tmp_res_std = numpy.std(lipids_thick_nff[l][s][tmp_s_rindex_bin])				
-									for f_t in ["current","all frames"]:
-										if s in leaflet_species["lower"] and s in leaflet_species["upper"]:
-											#current specie, current size: Chang algorithm
-											delta =  tmp_res_avg - radial_thick[s]["avg"][c_size][f_t][n]
-											radial_thick[s]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"][s][c_size]["nb"][f_t][n] + radial_density["upper"][s][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"][s][c_size]["nb"][f_t][n] + radial_density["upper"][s][c_size]["nb"][f_t][n])
-											radial_thick[s]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"][s][c_size]["nb"][f_t][n] + radial_density["upper"][s][c_size]["nb"][f_t][n])
-
-											#current specie, all sizes: Chang algorithm
-											delta =  tmp_res_avg - radial_thick[s]["avg"]["all sizes"][f_t][n]
-											radial_thick[s]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"][s]["all sizes"]["nb"][f_t][n] + radial_density["upper"][s]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"][s]["all sizes"]["nb"][f_t][n] + radial_density["upper"][s]["all sizes"]["nb"][f_t][n])
-											radial_thick[s]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"][s]["all sizes"]["nb"][f_t][n] + radial_density["upper"][s]["all sizes"]["nb"][f_t][n])
-
-										else:
-											#current specie, current size: Chang algorithm
-											delta =  tmp_res_avg - radial_thick[s]["avg"][c_size][f_t][n]
-											radial_thick[s]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s][c_size]["nb"][f_t][n])
-											radial_thick[s]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s][c_size]["nb"][f_t][n])
+			#calculate cluster cog
+			cluster_cog = calculate_cog(c_sele, box_dim)
+			
+			#case: chol density
+			if chol_pres:
+				#center lipids coordinates on cluster (x,y) coordinates
+				tmp_coord = np.copy(tmp_chol_coords)
+				tmp_coord[:,0] -= cluster_cog[0]
+				tmp_coord[:,1] -= cluster_cog[1]
 											
-											#current specie, all sizes: Chang algorithm
-											delta =  tmp_res_avg - radial_thick[s]["avg"]["all sizes"][f_t][n]
-											radial_thick[s]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
-											radial_thick[s]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
-				
-										#all species, current size: Chang algorithm
-										delta =  tmp_res_avg - radial_thick["all species"]["avg"][c_size][f_t][n]
-										radial_thick["all species"]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"]["all species"][c_size]["nb"][f_t][n] + radial_density["upper"]["all species"][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"]["all species"][c_size]["nb"][f_t][n] + radial_density["upper"]["all species"][c_size]["nb"][f_t][n])
-										radial_thick["all species"]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"]["all species"][c_size]["nb"][f_t][n] + radial_density["upper"]["all species"][c_size]["nb"][f_t][n])
-				
-										#all species, all sizes: Chang algorithm
-										delta =  tmp_res_avg - radial_thick["all species"]["avg"]["all sizes"][f_t][n]
-										radial_thick["all species"]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density["lower"]["all species"]["all sizes"]["nb"][f_t][n] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density["lower"]["all species"]["all sizes"]["nb"][f_t][n] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t][n])
-										radial_thick["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density["lower"]["all species"]["all sizes"]["nb"][f_t][n] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t][n])
-										
-								if s in op_lipids_handled[l] and (args.perturb == 2 or args.perturb == 3):
-									tmp_res_avg = numpy.average(lipids_op_nff[l][s]["current"][tmp_s_rindex_bin])
-									tmp_res_std = numpy.average(lipids_op_nff[l][s]["current"][tmp_s_rindex_bin])
+				#deal with pbc
+				tmp_coord[:,0] -= (np.floor(2*tmp_coord[:,0]/float(U.trajectory.ts.dimensions[0])) + (1-np.sign(tmp_coord[:,0]))/float(2)) * U.trajectory.ts.dimensions[0]
+				tmp_coord[:,1] -= (np.floor(2*tmp_coord[:,1]/float(U.trajectory.ts.dimensions[1])) + (1-np.sign(tmp_coord[:,1]))/float(2)) * U.trajectory.ts.dimensions[1]
 									
-									#current frame: current specie, current size: easy
-									radial_op[l][s]["avg"][c_size]["current"][n] = tmp_res_avg
-									radial_op[l][s]["std"][c_size]["current"][n] = tmp_res_std
+				#keep those within the specified radius
+				tmp_radial_dist = np.sqrt(tmp_coord[:,0]**2 + tmp_coord[:,1]**2)
+				tmp_within = tmp_radial_dist < radial_radius_max
+				tmp_radial_dist = tmp_radial_dist[tmp_within]
+				if len(tmp_radial_dist) > 0:
+						
+					#this associate a bin index to each atom
+					tmp_res2bin = np.floor(tmp_radial_dist/float(args.radial_step)).astype(int)
 
+					#update density: get the number of atoms in each bin
+					tmp_bins_nb = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1))[0]
+					tmp_bins_nb_div = np.copy(tmp_bins_nb)
+					tmp_bins_nb_div[tmp_bins_nb_div == 0] = 1
+					for f_t in ["current","all frames"]:
+						radial_density["CHOL"]["sizes"][c_size]["nb"][f_t] += tmp_bins_nb
+						radial_density["CHOL"]["sizes"]["all sizes"]["nb"][f_t] += tmp_bins_nb
+						if args.cluster_groups_file != "no":
+							radial_density["CHOL"]["groups"][g_index]["nb"][f_t] += tmp_bins_nb
+			
+			#case: other lipids and metrics
+			for l in ["lower","upper"]:
+				for s in leaflet_species[l]:
+
+					#center lipids coordinates on cluster (x,y) coordinates
+					tmp_coord = np.copy(tmp_lip_coords[l][s])
+					tmp_coord[:,0] -= cluster_cog[0]
+					tmp_coord[:,1] -= cluster_cog[1]
+												
+					#deal with pbc
+					tmp_coord[:,0] -= (np.floor(2*tmp_coord[:,0]/float(U.trajectory.ts.dimensions[0])) + (1-np.sign(tmp_coord[:,0]))/float(2)) * U.trajectory.ts.dimensions[0]
+					tmp_coord[:,1] -= (np.floor(2*tmp_coord[:,1]/float(U.trajectory.ts.dimensions[1])) + (1-np.sign(tmp_coord[:,1]))/float(2)) * U.trajectory.ts.dimensions[1]
+										
+					#keep those within the specified radius
+					tmp_radial_dist = np.sqrt(tmp_coord[:,0]**2 + tmp_coord[:,1]**2)
+					tmp_within = tmp_radial_dist < radial_radius_max
+					tmp_radial_dist = tmp_radial_dist[tmp_within]
+					if len(tmp_radial_dist) > 0:
+							
+						#this associate a bin index to each atom
+						tmp_res2bin = np.floor(tmp_radial_dist/float(args.radial_step)).astype(int)
+
+						#update density: get the number of atoms in each bin
+						tmp_bins_nb = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1))[0]
+						tmp_bins_nb_div = np.copy(tmp_bins_nb)
+						tmp_bins_nb_div[tmp_bins_nb_div == 0] = 1
+						for f_t in ["current","all frames"]:
+							radial_density[l][s][c_size]["nb"][f_t] += tmp_bins_nb
+							radial_density[l][s]["all sizes"]["nb"][f_t] += tmp_bins_nb
+							radial_density[l]["all species"][c_size]["nb"][f_t] += tmp_bins_nb
+							radial_density[l]["all species"]["all sizes"]["nb"][f_t] += tmp_bins_nb
+							if args.cluster_groups_file != "no":
+								radial_density[l][s]["groups"][g_index]["nb"][f_t] += tmp_bins_nb
+								radial_density[l]["all species"]["groups"][g_index]["nb"][f_t] += tmp_bins_nb
+						
+						#update thickness: get the thickness for each bin (avg and std)
+						if args.perturb == 1 or args.perturb == 3:
+							tmp_thick_avg = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1), weights = lipids_thick_nff[l][s][tmp_within])[0] / tmp_bins_nb_div
+							tmp_thick_var = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1), weights = (lipids_thick_nff[l][s][tmp_within] - tmp_thick_avg[tmp_res2bin])**2)[0]
+							for f_t in ["current","all frames"]:
+								if s in leaflet_species["lower"] and s in leaflet_species["upper"]:
+									#current specie, current size: Chang algorithm
+									delta =  tmp_thick_avg - radial_thick[s]["avg"][c_size][f_t]
+									tmp_div_nb = radial_density["lower"][s][c_size]["nb"][f_t] + radial_density["upper"][s][c_size]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_thick[s]["std"][c_size][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"][s][c_size]["nb"][f_t] + radial_density["upper"][s][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_thick[s]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
+									if args.cluster_groups_file != "no":
+										delta =  tmp_thick_avg - radial_thick[s]["avg"]["groups"][g_index][f_t]
+										tmp_div_nb = radial_density["lower"][s]["groups"][g_index]["nb"][f_t] + radial_density["upper"][s]["groups"][g_index]["nb"][f_t]
+										tmp_div_nb[tmp_div_nb == 0] = 1
+										radial_thick[s]["std"]["groups"][g_index][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"][s]["groups"][g_index]["nb"][f_t] + radial_density["upper"][s]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+										radial_thick[s]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
+									
+									#current specie, all sizes: Chang algorithm
+									delta =  tmp_thick_avg - radial_thick[s]["avg"]["all sizes"][f_t]
+									tmp_div_nb = radial_density["lower"][s]["all sizes"]["nb"][f_t] + radial_density["upper"][s]["all sizes"]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_thick[s]["std"]["all sizes"][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"][s]["all sizes"]["nb"][f_t] + radial_density["upper"][s]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_thick[s]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
+
+								else:
+									#current specie, current size: Chang algorithm
+									delta =  tmp_thick_avg - radial_thick[s]["avg"][c_size][f_t]
+									tmp_div_nb = radial_density[l][s][c_size]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_thick[s]["std"][c_size][f_t] += tmp_thick_var + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_thick[s]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
+									if args.cluster_groups_file != "no":
+										delta =  tmp_thick_avg - radial_thick[s]["avg"]["groups"][g_index][f_t]
+										tmp_div_nb = radial_density[l][s]["groups"][g_index]["nb"][f_t]
+										tmp_div_nb[tmp_div_nb == 0] = 1
+										radial_thick[s]["std"]["groups"][g_index][f_t] += tmp_thick_var + (delta**2) * (radial_density[l][s]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+										radial_thick[s]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
+									
+									#current specie, all sizes: Chang algorithm
+									delta =  tmp_thick_avg - radial_thick[s]["avg"]["all sizes"][f_t]
+									tmp_div_nb = radial_density[l][s]["all sizes"]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_thick[s]["std"]["all sizes"][f_t] += tmp_thick_var + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_thick[s]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
+		
+								#all species, current size: Chang algorithm
+								delta =  tmp_thick_avg - radial_thick["all species"]["avg"][c_size][f_t]
+								tmp_div_nb = radial_density["lower"]["all species"][c_size]["nb"][f_t] + radial_density["upper"]["all species"][c_size]["nb"][f_t]
+								tmp_div_nb[tmp_div_nb == 0] = 1
+								radial_thick["all species"]["std"][c_size][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"]["all species"][c_size]["nb"][f_t] + radial_density["upper"]["all species"][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+								radial_thick["all species"]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
+								if args.cluster_groups_file != "no":
+									delta =  tmp_thick_avg - radial_thick["all species"]["avg"]["groups"][g_index][f_t]
+									tmp_div_nb = radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_t] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_thick["all species"]["std"]["groups"][g_index][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_t] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_thick["all species"]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
+		
+								#all species, all sizes: Chang algorithm
+								delta =  tmp_thick_avg - radial_thick["all species"]["avg"]["all sizes"][f_t]
+								tmp_div_nb = radial_density["lower"]["all species"]["all sizes"]["nb"][f_t] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t]
+								tmp_div_nb[tmp_div_nb == 0] = 1
+								radial_thick["all species"]["std"]["all sizes"][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"]["all species"]["all sizes"]["nb"][f_t] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+								radial_thick["all species"]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
+
+						
+						#update order parameter: get the order parameter for each bin (avg and std)
+						if s in op_lipids_handled[l] and (args.perturb == 2 or args.perturb == 3):
+							tmp_op_avg = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1), weights = lipids_op_nff[l][s]["current"][tmp_within])[0] / tmp_bins_nb_div
+							tmp_op_var = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1), weights = (lipids_op_nff[l][s]["current"][tmp_within] - tmp_op_avg[tmp_res2bin])**2)[0]
+							for f_t in ["current","all frames"]:
+								#all frames: current specie, current size: Chang algorithm
+								delta =  tmp_op_avg - radial_op[l][s]["avg"][c_size][f_t]
+								tmp_div_nb = radial_density[l][s][c_size]["nb"][f_t]
+								tmp_div_nb[tmp_div_nb == 0] = 1
+								radial_op[l][s]["std"][c_size][f_t] += tmp_op_var + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+								radial_op[l][s]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
+
+								#current specie, all sizes: Chang algorithm
+								delta =  tmp_op_avg - radial_op[l][s]["avg"]["all sizes"][f_t]
+								tmp_div_nb = radial_density[l][s]["all sizes"]["nb"][f_t]
+								tmp_div_nb[tmp_div_nb == 0] = 1
+								radial_op[l][s]["std"]["all sizes"][f_t] += tmp_op_var + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+								radial_op[l][s]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
+		
+								#all species, current size: Chang algorithm
+								delta =  tmp_op_avg - radial_op[l]["all species"]["avg"][c_size][f_t]
+								tmp_div_nb = radial_density[l]["all species"][c_size]["nb"][f_t]
+								tmp_div_nb[tmp_div_nb == 0] = 1
+								radial_op[l]["all species"]["std"][c_size][f_t] += tmp_op_var + (delta**2) * (radial_density[l]["all species"][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+								radial_op[l]["all species"]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
+		
+								#all species, all sizes: Chang algorithm
+								delta =  tmp_op_avg - radial_op[l]["all species"]["avg"]["all sizes"][f_t]
+								tmp_div_nb = radial_density[l]["all species"]["all sizes"]["nb"][f_t]
+								tmp_div_nb[tmp_div_nb == 0] = 1
+								radial_op[l]["all species"]["std"]["all sizes"][f_t] += tmp_op_var + (delta**2) * (radial_density[l]["all species"]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+								radial_op[l]["all species"]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
+
+								if args.cluster_groups_file != "no":
 									#all frames: current specie, current size: Chang algorithm
-									delta =  tmp_res_avg - radial_op[l][s]["avg"][c_size]["all frames"][n]
-									radial_op[l][s]["std"][c_size]["all frames"][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s][c_size]["nb"]["all frames"][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s][c_size]["nb"]["all frames"][n])
-									radial_op[l][s]["avg"][c_size]["all frames"][n] += delta * tmp_res_nb / float(radial_density[l][s][c_size]["nb"]["all frames"][n])
+									delta =  tmp_op_avg - radial_op[l][s]["avg"]["groups"][g_index][f_t]
+									tmp_div_nb = radial_density[l][s]["groups"][g_index]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_op[l][s]["std"]["groups"][g_index][f_t] += tmp_op_var + (delta**2) * (radial_density[l][s]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_op[l][s]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
+						
+									#all species, current size: Chang algorithm
+									delta =  tmp_op_avg - radial_op[l]["all species"]["avg"]["groups"][g_index][f_t]
+									tmp_div_nb = radial_density[l]["all species"]["groups"][g_index]["nb"][f_t]
+									tmp_div_nb[tmp_div_nb == 0] = 1
+									radial_op[l]["all species"]["std"]["groups"][g_index][f_t] += tmp_op_var + (delta**2) * (radial_density[l]["all species"]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
+									radial_op[l]["all species"]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
 
-									for f_t in ["current","all frames"]:
-										#current specie, all sizes: Chang algorithm
-										delta =  tmp_res_avg - radial_op[l][s]["avg"]["all sizes"][f_t][n]
-										radial_op[l][s]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
-										radial_op[l][s]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l][s]["all sizes"]["nb"][f_t][n])
-				
-										#all species, current size: Chang algorithm
-										delta =  tmp_res_avg - radial_op[l]["all species"]["avg"][c_size][f_t][n]
-										radial_op[l]["all species"]["std"][c_size][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l]["all species"][c_size]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l]["all species"][c_size]["nb"][f_t][n])
-										radial_op[l]["all species"]["avg"][c_size][f_t][n] += delta * tmp_res_nb / float(radial_density[l]["all species"][c_size]["nb"][f_t][n])
-				
-										#all species, all sizes: Chang algorithm
-										delta =  tmp_res_avg - radial_op[l]["all species"]["avg"]["all sizes"][f_t][n]
-										radial_op[l]["all species"]["std"]["all sizes"][f_t][n] += (tmp_res_std**2) * tmp_res_nb + (delta**2) * (radial_density[l]["all species"]["all sizes"]["nb"][f_t][n] - tmp_res_nb) * tmp_res_nb / float(radial_density[l]["all species"]["all sizes"]["nb"][f_t][n])
-										radial_op[l]["all species"]["avg"]["all sizes"][f_t][n] += delta * tmp_res_nb / float(radial_density[l]["all species"]["all sizes"]["nb"][f_t][n])
-	
+
 	#produce outputs if necessary
 	#============================
 	if f_write:
@@ -1937,114 +2083,108 @@ def calculate_radial_data(f_type):
 	
 	#NB:
 	# 1. f_type is either set to "current" (for on the fly outputting) or to "all frames" (for post-processing statistics)
-	# 2. on purpose dot no show bins for which there is only 1 point	
 
-	#update radial data for each size
-	#================================
-	for n in range(0,args.radial_nb_bins):
+	#sizes
+	#=====
+	#cholesterol density (we can't associate a leaflet to cholesterol so we have to things a little different for it)
+	if chol_pres:
+		for c_size in radial_sizes[f_type] + ["all sizes"]:
+			tmp_tot_nb_lip_radius = radial_density["lower"]["all species"][c_size]["nb"][f_type] + radial_density["upper"]["all species"][c_size]["nb"][f_type] + radial_density["CHOL"]["sizes"][c_size]["nb"][f_type]
+			tmp_tot_nb_lip_radius_div = np.copy(tmp_tot_nb_lip_radius)
+			tmp_tot_nb_lip_radius_div[tmp_tot_nb_lip_radius_div == 0] = 1
+			radial_density["CHOL"]["sizes"][c_size]["pc"][f_type] = radial_density["CHOL"]["sizes"][c_size]["nb"][f_type] / tmp_tot_nb_lip_radius_div * 100
+			radial_density["CHOL"]["sizes"][c_size]["pc"][f_type][tmp_tot_nb_lip_radius == 0] = np.nan
+		
+	#density and order parameter
+	for l in ["lower","upper"]:
+		for s in leaflet_species[l] + ["all species"]:
+			for c_size in radial_sizes[f_type] + ["all sizes"]:
+				tmp_div = np.copy(radial_density[l]["all species"][c_size]["nb"][f_type])
+				tmp_div[tmp_div == 0] = 1
+				radial_density[l][s][c_size]["pc"][f_type] = radial_density[l][s][c_size]["nb"][f_type] / tmp_div *100
+				radial_density[l][s][c_size]["pc"][f_type][radial_density[l][s][c_size]["nb"][f_type] == 0] = np.nan
+				if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
+					tmp_div = np.copy(radial_density[l][s][c_size]["nb"][f_type])
+					tmp_div[tmp_div == 0] = 1
+					
+					radial_op[l][s]["std"][c_size][f_type] = np.sqrt(radial_op[l][s]["std"][c_size][f_type] / tmp_div)
+					radial_op[l][s]["std"][c_size][f_type][radial_density[l][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_op[l][s]["avg"][c_size][f_type][radial_density[l][s][c_size]["nb"][f_type] == 0] = np.nan
+										
+	#thickness
+	if args.perturb == 1 or args.perturb == 3:			
+		for s in leaflet_species["both"] + ["all species"]:
+			for c_size in radial_sizes[f_type] + ["all sizes"]:
+				if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+					tmp_div = np.copy(radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type])
+					tmp_div[tmp_div == 0] = 1
+					radial_thick[s]["std"][c_size][f_type] = np.sqrt(radial_thick[s]["std"][c_size][f_type] / tmp_div)
+					radial_thick[s]["std"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_thick[s]["avg"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
+				elif s in leaflet_species["upper"]:
+					tmp_div = np.copy(radial_density["upper"][s][c_size]["nb"][f_type])
+					tmp_div[tmp_div == 0] = 1
+					radial_thick[s]["std"][c_size][f_type] = np.sqrt(radial_thick[s]["std"][c_size][f_type] / tmp_div)
+					radial_thick[s]["std"][c_size][f_type][radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_thick[s]["avg"][c_size][f_type][radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
+				elif s in leaflet_species["lower"]:
+					tmp_div = np.copy(radial_density["lower"][s][c_size]["nb"][f_type])
+					tmp_div[tmp_div == 0] = 1
+					radial_thick[s]["std"][c_size][f_type] = np.sqrt(radial_thick[s]["std"][c_size][f_type] / tmp_div)
+					radial_thick[s]["std"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_thick[s]["avg"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] == 0] = np.nan
+
+	#size groups
+	#===========
+	if args.cluster_groups_file != "no":
+		
+		#cholesterol density (we can't associate a leaflet to cholesterol so we have to things a little different for it)
+		if chol_pres:
+			for g_index in radial_groups[f_type]:
+				tmp_tot_nb_lip_radius = radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_type] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_type] + radial_density["CHOL"]["groups"][g_index]["nb"][f_type]
+				tmp_tot_nb_lip_radius_div = np.copy(tmp_tot_nb_lip_radius)
+				tmp_tot_nb_lip_radius_div[tmp_tot_nb_lip_radius_div == 0] = 1
+				radial_density["CHOL"]["groups"][g_index]["pc"][f_type] = radial_density["CHOL"]["groups"][g_index]["nb"][f_type] / tmp_tot_nb_lip_radius_div * 100
+				radial_density["CHOL"]["groups"][g_index]["pc"][f_type][tmp_tot_nb_lip_radius == 0] = np.nan
+
 		#density and order parameter
 		for l in ["lower","upper"]:
 			for s in leaflet_species[l] + ["all species"]:
-				for c_size in radial_sizes[f_type] + ["all sizes"]:
-					if radial_density[l]["all species"][c_size]["nb"][f_type][n] != 0:
-						radial_density[l][s][c_size]["pc"][f_type][n] = radial_density[l][s][c_size]["nb"][f_type][n] / float(radial_density[l]["all species"][c_size]["nb"][f_type][n])*100
-					else:
-						radial_density[l][s][c_size]["pc"][f_type][n] = numpy.nan
+				for g_index in radial_groups[f_type]:
+					tmp_div = np.copy(radial_density[l]["all species"]["groups"][g_index]["nb"][f_type])
+					tmp_div[tmp_div == 0] = 1
+					radial_density[l][s]["groups"][g_index]["pc"][f_type] = radial_density[l][s]["groups"][g_index]["nb"][f_type] / tmp_div *100
+					radial_density[l][s]["groups"][g_index]["pc"][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 					if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-						if radial_density[l][s][c_size]["nb"][f_type][n] != 0:
-							radial_op[l][s]["std"][c_size][f_type][n] = math.sqrt(radial_op[l][s]["std"][c_size][f_type][n] / float(radial_density[l][s][c_size]["nb"][f_type][n]))
-						else:
-							radial_op[l][s]["avg"][c_size][f_type][n] = numpy.nan
-							radial_op[l][s]["std"][c_size][f_type][n] = numpy.nan
-					
+						tmp_div = np.copy(radial_density[l][s]["groups"][g_index]["nb"][f_type])
+						tmp_div[tmp_div == 0] = 1
+						radial_op[l][s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_op[l][s]["std"]["groups"][g_index][f_type] / tmp_div)
+						radial_op[l][s]["std"]["groups"][g_index][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_op[l][s]["avg"]["groups"][g_index][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+											
 		#thickness
 		if args.perturb == 1 or args.perturb == 3:			
 			for s in leaflet_species["both"] + ["all species"]:
-				for c_size in radial_sizes[f_type] + ["all sizes"]:
-					if ((s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species") and (radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n] != 0):
-						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n]))
-					elif s in leaflet_species["upper"] and radial_density["upper"][s][c_size]["nb"][f_type][n] != 0:
-						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["upper"][s][c_size]["nb"][f_type][n]))
-					elif s in leaflet_species["lower"] and radial_density["lower"][s][c_size]["nb"][f_type][n] != 0:
-						radial_thick[s]["std"][c_size][f_type][n] = math.sqrt(radial_thick[s]["std"][c_size][f_type][n] / float(radial_density["lower"][s][c_size]["nb"][f_type][n]))
-					else:
-						radial_thick[s]["avg"][c_size][f_type][n] = numpy.nan
-						radial_thick[s]["std"][c_size][f_type][n] = numpy.nan
-
-
-	#update radial data for each groups
-	#================================
-	if args.cluster_groups_file != "no":
-		#intialise structures 
-		#--------------------
-		#to store the number of sized added to each group category NB: "density" and "op" are the same
-		nb_sizes = {l: {s: {g_index: 0 for g_index in range(0,groups_number+1)} for s in leaflet_species[l] + ["all species"]} for l in ["lower","upper"]}
-		
-		#data for current frame
-		if f_type == "current":
-			for g_index in range(0,groups_number+1):
-				for l in ["lower","upper"]:
-					for s in leaflet_species[l] + ["all species"]:
-						radial_density[l][s]["groups"][g_index]["nb"]["current"] = numpy.zeros(args.radial_nb_bins)
-						radial_density[l][s]["groups"][g_index]["pc"]["current"] = numpy.zeros(args.radial_nb_bins)
-						if args.perturb == 1 or args.perturb == 3:
-							radial_thick[s]["avg"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-							radial_thick[s]["std"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-						if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-							radial_op[l][s]["avg"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-							radial_op[l][s]["std"]["groups"][g_index]["current"] = numpy.zeros(args.radial_nb_bins)
-
-		#add data from relevant sizes
-		#----------------------------
-		for l in ["lower","upper"]:
-			for s in leaflet_species[l] + ["all species"]:
-				for c_size in radial_sizes[f_type]:
-					g_index = groups_sizes_dict[c_size]
-					#store group info
-					if g_index not in radial_groups["current"]:
-						radial_groups["current"].append(g_index)
-						radial_groups["current"] = sorted(radial_groups["current"])
-						if g_index not in radial_groups["all frames"]:
-							radial_groups["all frames"].append(g_index)
-							radial_groups["all frames"] = sorted(radial_groups["all frames"])
-					#add to radial data
-					nb_sizes[l][s][g_index] += 1
-					radial_density[l][s]["groups"][g_index]["nb"][f_type] += radial_density[l][s][c_size]["nb"][f_type]
-					radial_density[l][s]["groups"][g_index]["pc"][f_type] += radial_density[l][s][c_size]["pc"][f_type]
-					if args.perturb == 1 or args.perturb == 3:
-						radial_thick[s]["avg"]["groups"][g_index][f_type] += radial_thick[s]["avg"][c_size][f_type]
-						radial_thick[s]["std"]["groups"][g_index][f_type] += radial_thick[s]["std"][c_size][f_type]
-					if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-						radial_op[l][s]["avg"]["groups"][g_index][f_type] += radial_op[l][s]["avg"][c_size][f_type]
-						radial_op[l][s]["std"]["groups"][g_index][f_type] += radial_op[l][s]["std"][c_size][f_type]
-
-		#normalise by number of sizes added
-		#----------------------------------
-		if args.perturb == 1 or args.perturb == 3:
-			for s in leaflet_species["both"] + ["all species"]:
-				if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
-					for g_index in radial_groups[f_type]:
-						radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index] + nb_sizes["upper"][s][g_index])
-						radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index] + nb_sizes["upper"][s][g_index])
-				elif s in leaflet_species["upper"]:
-					for g_index in radial_groups[f_type]:
-						radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["upper"][s][g_index])
-						radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["upper"][s][g_index])
-				elif s in leaflet_species["lower"]:
-					for g_index in radial_groups[f_type]:
-						radial_thick[s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index])
-						radial_thick[s]["std"]["groups"][g_index][f_type] /= float(nb_sizes["lower"][s][g_index])
-
-		for l in ["lower","upper"]:
-			for s in leaflet_species[l] + ["all species"]:
 				for g_index in radial_groups[f_type]:
-					if nb_sizes[l][s][g_index] > 0:
-						radial_density[l][s]["groups"][g_index]["nb"][f_type] /= float(nb_sizes[l][s][g_index])
-						radial_density[l][s]["groups"][g_index]["pc"][f_type] /= float(nb_sizes[l][s][g_index])
-						if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-							radial_op[l][s]["avg"]["groups"][g_index][f_type] /= float(nb_sizes[l][s][g_index])
-							radial_op[l][s]["std"]["groups"][g_index][f_type] /= float(nb_sizes[l][s][g_index])
-		
+					if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+						tmp_div = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type])
+						tmp_div[tmp_div == 0] = 1
+						radial_thick[s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_thick[s]["std"]["groups"][g_index][f_type] / tmp_div)
+						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+					elif s in leaflet_species["upper"]:
+						tmp_div = np.copy(radial_density["upper"][s]["groups"][g_index]["nb"][f_type])
+						tmp_div[tmp_div == 0] = 1
+						radial_thick[s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_thick[s]["std"]["groups"][g_index][f_type] / tmp_div)
+						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+					elif s in leaflet_species["lower"]:
+						tmp_div = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_type])
+						tmp_div[tmp_div == 0] = 1
+						radial_thick[s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_thick[s]["std"]["groups"][g_index][f_type] / tmp_div)
+						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+
 	return
 def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 	
@@ -2055,32 +2195,32 @@ def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 	tmp_dist_b2t_dist.sort()
 	tmp_dist_t2b_dist = tmp_dist_t2b_dist[:,:args.thick_nb_neighbours]
 	tmp_dist_b2t_dist = tmp_dist_b2t_dist[:,:args.thick_nb_neighbours]
-	tmp_dist_t2b_avg = numpy.average(tmp_dist_t2b_dist, axis=1)
-	tmp_dist_b2t_avg = numpy.average(tmp_dist_b2t_dist, axis=1)
+	tmp_dist_t2b_avg = np.average(tmp_dist_t2b_dist, axis=1)
+	tmp_dist_b2t_avg = np.average(tmp_dist_b2t_dist, axis=1)
 	
 	#current data for each lipid
 	lipids_thick_nff["max"] = float("-inf")
 	lipids_thick_nff["min"] = float("inf")
 	for s in leaflet_species["upper"] + ["all species"]:
 		lipids_thick_nff["upper"][s] = tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]
-		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], numpy.min(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
-		lipids_thick_nff["max"] = max(lipids_thick_nff["max"], numpy.max(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
+		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], np.min(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
+		lipids_thick_nff["max"] = max(lipids_thick_nff["max"], np.max(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]]))
 	for s in leaflet_species["lower"] + ["all species"]:
 		lipids_thick_nff["lower"][s] = tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]
-		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], numpy.min(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]))
-		lipids_thick_nff["max"] = max(lipids_thick_nff["max"], numpy.max(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]))
+		lipids_thick_nff["min"] = min(lipids_thick_nff["min"], np.min(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]))
+		lipids_thick_nff["max"] = max(lipids_thick_nff["max"], np.max(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]))
 
 	#append species average
 	for s in leaflet_species["both"] + ["all species"]:
 		if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
-			lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
-			lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(numpy.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = np.average(np.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
+			lipids_thick_nff[s]["raw"]["std"][f_index] = np.std(np.concatenate([tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]], tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]]]))
 		elif s in leaflet_species["upper"]:
-			lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
-			lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = np.average(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
+			lipids_thick_nff[s]["raw"]["std"][f_index] = np.std(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
 		elif s in leaflet_species["lower"]:
-			lipids_thick_nff[s]["raw"]["avg"][f_index] = numpy.average(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
-			lipids_thick_nff[s]["raw"]["std"][f_index] = numpy.std(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = np.average(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
+			lipids_thick_nff[s]["raw"]["std"][f_index] = np.std(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
 	
 	#produce output if necessary
 	if f_write:
@@ -2110,10 +2250,10 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 								
 			#calculate 'op' for each bond in lipid tails
 			b_array_index = 0
-			tmp_bond_array = numpy.zeros((leaflet_sele[l][s].numberOfResidues(),tail_A_length + tail_B_length))
+			tmp_bond_array = np.zeros((leaflet_sele[l][s].numberOfResidues(),tail_A_length + tail_B_length))
 			for b_index in range(tail_A_start,tail_A_start+tail_A_length) + range(tail_B_start,tail_B_start+tail_B_length):
-				v = numpy.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),3))
-				v_norm2 = numpy.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),1))
+				v = np.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),3))
+				v_norm2 = np.zeros((leaflet_sele_atoms[l][s].numberOfResidues(),1))
 				v[:,0] = leaflet_sele_bonds[l][s][b_index][0].coordinates()[:,0] - leaflet_sele_bonds[l][s][b_index][1].coordinates()[:,0]
 				v[:,1] = leaflet_sele_bonds[l][s][b_index][0].coordinates()[:,1] - leaflet_sele_bonds[l][s][b_index][1].coordinates()[:,1]
 				v[:,2] = leaflet_sele_bonds[l][s][b_index][0].coordinates()[:,2] - leaflet_sele_bonds[l][s][b_index][1].coordinates()[:,2]
@@ -2122,10 +2262,10 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 				b_array_index += 1
 
 			#calculate order parameters
-			tmp_op_tails_array = numpy.zeros((leaflet_sele[l][s].numberOfResidues(),3))  #tail A / tail B / both
-			tmp_op_tails_array[:,0] = numpy.average(tmp_bond_array[:,0:tail_A_length],axis=1)
-			tmp_op_tails_array[:,1] = numpy.average(tmp_bond_array[:,tail_A_length:tail_A_length+tail_B_length],axis=1)
-			tmp_op_tails_array[:,2] = numpy.average(tmp_op_tails_array[:,:2], axis=1)
+			tmp_op_tails_array = np.zeros((leaflet_sele[l][s].numberOfResidues(),3))  #tail A / tail B / both
+			tmp_op_tails_array[:,0] = np.average(tmp_bond_array[:,0:tail_A_length],axis=1)
+			tmp_op_tails_array[:,1] = np.average(tmp_bond_array[:,tail_A_length:tail_A_length+tail_B_length],axis=1)
+			tmp_op_tails_array[:,2] = np.average(tmp_op_tails_array[:,:2], axis=1)
 			
 			#store 'tails' value: each lipid
 			lipids_op_nff[l][s]["current"] = tmp_op_tails_array[:, 2]
@@ -2134,8 +2274,8 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 			tail_names = ["tailA", "tailB", "tails"]
 			for tail_index in range(0,3):
 				tail = tail_names[tail_index]				
-				lipids_op_nff[l][s][tail]["raw"]["avg"][f_index] = numpy.average(tmp_op_tails_array[:, tail_index])
-				lipids_op_nff[l][s][tail]["raw"]["std"][f_index] = numpy.std(tmp_op_tails_array[:, tail_index])
+				lipids_op_nff[l][s][tail]["raw"]["avg"][f_index] = np.average(tmp_op_tails_array[:, tail_index])
+				lipids_op_nff[l][s][tail]["raw"]["std"][f_index] = np.std(tmp_op_tails_array[:, tail_index])
 				lipids_op_nff[l]["all species"][tail]["raw"]["avg"][f_index] += lipids_op_nff[l][s][tail]["raw"]["avg"][f_index] * leaflet_sele[l][s].numberOfResidues() / float(leaflet_sele[l]["all species"].numberOfResidues())
 				lipids_op_nff[l]["all species"][tail]["raw"]["std"][f_index] += lipids_op_nff[l][s][tail]["raw"]["std"][f_index] * leaflet_sele[l][s].numberOfResidues() / float(leaflet_sele[l]["all species"].numberOfResidues())
 
@@ -2163,9 +2303,9 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 				tmp_bond_array.append(0.5*(3*(vz**2)/float(v_norm2)-1))
 			
 			#store data
-			lipids_op_ff[l_index]["tailA"]["raw"][f_index] = numpy.average(tmp_bond_array[0:tail_A_length])
-			lipids_op_ff[l_index]["tailB"]["raw"][f_index] = numpy.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length])
-			lipids_op_ff[l_index]["tails"]["raw"][f_index] = numpy.average(numpy.average(tmp_bond_array[0:tail_A_length]), numpy.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length]))
+			lipids_op_ff[l_index]["tailA"]["raw"][f_index] = np.average(tmp_bond_array[0:tail_A_length])
+			lipids_op_ff[l_index]["tailB"]["raw"][f_index] = np.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length])
+			lipids_op_ff[l_index]["tails"]["raw"][f_index] = np.average(np.average(tmp_bond_array[0:tail_A_length]), np.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length]))
 
 	#produce output if necessary
 	#===========================
@@ -2203,8 +2343,8 @@ def detect_clusters_density(dist, box_dim):
 
 	#build 'groups' structure i.e. a list whose element are all the clusters identified
 	groups = []
-	for c_lab in numpy.unique(dbscan_output.labels_):
-		tmp_pos = numpy.argwhere(dbscan_output.labels_ == c_lab)
+	for c_lab in np.unique(dbscan_output.labels_):
+		tmp_pos = np.argwhere(dbscan_output.labels_ == c_lab)
 		if c_lab == -1:
 			groups += map(lambda p:p[0] , tmp_pos)
 		else:
@@ -2213,10 +2353,10 @@ def detect_clusters_density(dist, box_dim):
 	return groups
 def rolling_avg(loc_list):												
 	
-	loc_arr = numpy.asarray(loc_list)
+	loc_arr = np.asarray(loc_list)
 	shape = (loc_arr.shape[-1]-args.nb_smoothing+1,args.nb_smoothing)
 	strides = (loc_arr.strides[-1],loc_arr.strides[-1])   	
-	return numpy.average(numpy.lib.stride_tricks.as_strided(loc_arr, shape=shape, strides=strides), -1)
+	return np.average(np.lib.stride_tricks.as_strided(loc_arr, shape=shape, strides=strides), -1)
 def smooth_data():														#DONE
 	
 	global frames_time_smoothed
@@ -2369,7 +2509,7 @@ def thick_xvg_graph():													#DONE
 	
 	#save figure
 	#-----------
-	ax1.set_ylim(numpy.average(lipids_thick_nff["all species"]["raw"]["avg"]) - numpy.average(lipids_thick_nff["all species"]["raw"]["std"]) - 5, numpy.average(lipids_thick_nff["all species"]["raw"]["avg"]) + numpy.average(lipids_thick_nff["all species"]["raw"]["std"]) + 5)
+	ax1.set_ylim(np.average(lipids_thick_nff["all species"]["raw"]["avg"]) - np.average(lipids_thick_nff["all species"]["raw"]["std"]) - 5, np.average(lipids_thick_nff["all species"]["raw"]["avg"]) + np.average(lipids_thick_nff["all species"]["raw"]["std"]) + 5)
 	ax1.xaxis.set_major_locator(MaxNLocator(nbins=5))
 	ax1.yaxis.set_major_locator(MaxNLocator(nbins=8, integer=True))
 	plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -2405,7 +2545,7 @@ def thick_xvg_graph_smoothed():											#DONE
 	
 	#save figure
 	#-----------
-	ax1.set_ylim(numpy.average(lipids_thick_nff["all species"]["smoothed"]["avg"]) - numpy.average(lipids_thick_nff["all species"]["smoothed"]["std"]) - 5, numpy.average(lipids_thick_nff["all species"]["smoothed"]["avg"]) + numpy.average(lipids_thick_nff["all species"]["smoothed"]["std"]) + 5)
+	ax1.set_ylim(np.average(lipids_thick_nff["all species"]["smoothed"]["avg"]) - np.average(lipids_thick_nff["all species"]["smoothed"]["std"]) - 5, np.average(lipids_thick_nff["all species"]["smoothed"]["avg"]) + np.average(lipids_thick_nff["all species"]["smoothed"]["std"]) + 5)
 	ax1.xaxis.set_major_locator(MaxNLocator(nbins=5))
 	ax1.yaxis.set_major_locator(MaxNLocator(nbins=8, integer=True))
 	plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
@@ -2447,10 +2587,10 @@ def thick_frame_write_stat(f_type, f_time, f_index):					#DONE
 		output_stat.write("max = " + str(round(lipids_thick_nff["max"],2)) + "\n")
 		output_stat.write("min = " + str(round(lipids_thick_nff["min"],2)) + "\n")
 	else:
-		output_stat.write("avg = " + str(round(numpy.average(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
-		output_stat.write("std = " + str(round(numpy.average(lipids_thick_nff["all species"]["raw"]["std"]),2)) + "\n")
-		output_stat.write("max = " + str(round(numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
-		output_stat.write("min = " + str(round(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		output_stat.write("avg = " + str(round(np.average(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		output_stat.write("std = " + str(round(np.average(lipids_thick_nff["all species"]["raw"]["std"]),2)) + "\n")
+		output_stat.write("max = " + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		output_stat.write("min = " + str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
 
 	output_stat.write("\n")
 	output_stat.write("Average bilayer thickness for each specie:\n")
@@ -2459,7 +2599,7 @@ def thick_frame_write_stat(f_type, f_time, f_index):					#DONE
 		if f_type != "all frames":
 			output_stat.write(str(s) + "	" + str(round(lipids_thick_nff[s]["raw"]["avg"][f_index],2)) + "	(" + str(round(lipids_thick_nff["all species"]["raw"]["std"][f_index],2)) + ")\n")
 		else:
-			output_stat.write(str(s) + "	" + str(round(numpy.average(lipids_thick_nff[s]["raw"]["avg"]),2)) + "	(" + str(round(numpy.average(lipids_thick_nff["all species"]["raw"]["std"]),2)) + ")\n")
+			output_stat.write(str(s) + "	" + str(round(np.average(lipids_thick_nff[s]["raw"]["avg"]),2)) + "	(" + str(round(np.average(lipids_thick_nff["all species"]["raw"]["std"]),2)) + ")\n")
 	output_stat.write("\n")
 	output_stat.close()		
 	
@@ -2524,7 +2664,7 @@ def thick_xtc_write_annotation():										#DONE
 	output_stat.write(tmp_sele_string[1:] + "\n")
 
 	#write min and max boundaries of thickness
-	output_stat.write(str(round(numpy.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(numpy.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+	output_stat.write(str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
 	
 	#ouptut thickness for each lipid
 	output_stat.write(xtc_thick + "\n")
@@ -2536,7 +2676,7 @@ def thick_xtc_write_annotation():										#DONE
 def op_xvg_ff_write():													#DONE
 	
 	#flipflops: upper to lower
-	if numpy.size(lipids_ff_u2l_index) > 0:
+	if np.size(lipids_ff_u2l_index) > 0:
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_u2l.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_u2l.xvg'
 		output_txt  =  open(filename_txt, 'w')
@@ -2570,7 +2710,7 @@ def op_xvg_ff_write():													#DONE
 		output_xvg.close()
 	
 	#flipflops: lower to upper
-	if numpy.size(lipids_ff_l2u_index)>0:
+	if np.size(lipids_ff_l2u_index)>0:
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_l2u.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_l2u.xvg'
 		output_txt  =  open(filename_txt, 'w')
@@ -2607,7 +2747,7 @@ def op_xvg_ff_write():													#DONE
 def op_xvg_ff_write_smoothed():											#DONE
 
 	#flipflops: upper to lower
-	if numpy.size(lipids_ff_u2l_index)>0:
+	if np.size(lipids_ff_u2l_index)>0:
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_u2l_smoothed.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_u2l_smoothed.xvg'
 		output_txt  =  open(filename_txt, 'w')
@@ -2641,7 +2781,7 @@ def op_xvg_ff_write_smoothed():											#DONE
 		output_xvg.close()
 	
 	#flipflops: lower to upper
-	if numpy.size(lipids_ff_l2u_index)>0:
+	if np.size(lipids_ff_l2u_index)>0:
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_l2u_smoothed.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_l2u_smoothed.xvg'
 		output_txt  =  open(filename_txt, 'w')
@@ -2679,7 +2819,7 @@ def op_xvg_ff_graph():													#DONE
 
 	#upper to lower flipflops
 	#========================
-	if numpy.size(lipids_ff_u2l_index)>0:
+	if np.size(lipids_ff_u2l_index)>0:
 
 		#create filenames
 		#----------------
@@ -2732,7 +2872,7 @@ def op_xvg_ff_graph():													#DONE
 
 	#lower to upper flipflops
 	#========================
-	if numpy.size(lipids_ff_l2u_index)>0:
+	if np.size(lipids_ff_l2u_index)>0:
 
 		#create filenames
 		#----------------
@@ -2788,7 +2928,7 @@ def op_xvg_ff_graph_smoothed():											#DONE
 	
 	#upper to lower flipflops
 	#========================
-	if numpy.size(lipids_ff_u2l_index)>0:
+	if np.size(lipids_ff_u2l_index)>0:
 
 		#create filenames
 		#----------------
@@ -2841,7 +2981,7 @@ def op_xvg_ff_graph_smoothed():											#DONE
 
 	#lower to upper flipflops
 	#========================
-	if numpy.size(lipids_ff_l2u_index)>0:
+	if np.size(lipids_ff_l2u_index)>0:
 
 		#create filenames
 		#----------------
@@ -3231,7 +3371,7 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 		for s in op_lipids_handled["upper"]:
 			tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
 			for tail in ["tailA", "tailB", "tails"]:
-				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["upper"][s][tail]["raw"]["avg"]),2))
+				tmp_output += "	" + str(round(np.average(lipids_op_nff["upper"][s][tail]["raw"]["avg"]),2))
 			output_stat.write(tmp_output + "\n")		
 		output_stat.write("\n")
 		output_stat.write("std	nb	tail A	tail B	 both\n")
@@ -3239,7 +3379,7 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 		for s in op_lipids_handled["upper"]:
 			tmp_output = str(s) + "	" + str(leaflet_sele["upper"][s].numberOfResidues())
 			for tail in ["tailA", "tailB", "tails"]:
-				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["upper"][s][tail]["raw"]["std"]),2))
+				tmp_output += "	" + str(round(np.average(lipids_op_nff["upper"][s][tail]["raw"]["std"]),2))
 			output_stat.write(tmp_output + "\n")
 	else:
 		output_stat.write("avg	nb	tail A	tail B	 both\n")
@@ -3268,7 +3408,7 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 		for s in op_lipids_handled["lower"]:
 			tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
 			for tail in ["tailA", "tailB", "tails"]:
-				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["lower"][s][tail]["raw"]["avg"]),2))
+				tmp_output += "	" + str(round(np.average(lipids_op_nff["lower"][s][tail]["raw"]["avg"]),2))
 			output_stat.write(tmp_output + "\n")		
 		output_stat.write("\n")
 		output_stat.write("std	nb	tail A	tail B	 both\n")
@@ -3276,7 +3416,7 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 		for s in op_lipids_handled["lower"]:
 			tmp_output = str(s) + "	" + str(leaflet_sele["lower"][s].numberOfResidues())
 			for tail in ["tailA", "tailB", "tails"]:
-				tmp_output += "	" + str(round(numpy.average(lipids_op_nff["lower"][s][tail]["raw"]["std"]),2))
+				tmp_output += "	" + str(round(np.average(lipids_op_nff["lower"][s][tail]["raw"]["std"]),2))
 			output_stat.write(tmp_output + "\n")
 	else:
 		output_stat.write("avg	nb	tail A	tail B	 both\n")
@@ -3329,7 +3469,7 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 		output_stat.write(" P2=-0.5 : orthogonal\n")
 	
 		#upper to lower
-		if numpy.size(lipids_ff_u2l_index)>0:
+		if np.size(lipids_ff_u2l_index)>0:
 			output_stat.write("\n")
 			output_stat.write("upper to lower\n")
 			output_stat.write("==============\n")
@@ -3345,11 +3485,11 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 				for l_index in lipids_ff_u2l_index:
 					tmp_ff = str(lipids_ff_info[l_index][0]) + "	" + str(lipids_ff_info[l_index][1])
 					for tail in ["tailA","tailB","tails"]:
-						tmp_ff += "	" + str(round(numpy.average(lipids_op_ff[l_index][tail]["raw"]),2))
+						tmp_ff += "	" + str(round(np.average(lipids_op_ff[l_index][tail]["raw"]),2))
 					output_stat.write(tmp_ff + "\n")
 		
 		#lower to upper
-		if numpy.size(lipids_ff_l2u_index)>0:
+		if np.size(lipids_ff_l2u_index)>0:
 			output_stat.write("\n")
 			output_stat.write("lower to upper\n")
 			output_stat.write("==============\n")
@@ -3365,7 +3505,7 @@ def op_frame_write_stat(f_type, f_time, f_index):						#DONE
 				for l_index in lipids_ff_u2l_index:
 					tmp_ff = str(lipids_ff_info[l_index][0]) + "	" + str(lipids_ff_info[l_index][1])
 					for tail in ["tailA","tailB","tails"]:
-						tmp_ff += "	" + str(round(numpy.average(lipids_op_ff[l_index][tail]["raw"]),2))
+						tmp_ff += "	" + str(round(np.average(lipids_op_ff[l_index][tail]["raw"]),2))
 					output_stat.write(tmp_ff + "\n")
 		output_stat.close()
 	
@@ -3466,6 +3606,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		files_counter_density_size_specie = 0
 		files_counter_density_size_size = 0
 		files_counter_density_size_specie_tot = len(leaflet_species["both"])
+		if chol_pres:
+			files_counter_density_size_specie_tot += 1
 		files_counter_density_size_size_tot = len(radial_sizes[f_type]) +1
 		progress = '\r  -> density (sizes): xvg by specie ' + str(files_counter_density_size_specie) + '/' + str(files_counter_density_size_specie_tot) + '                      '  
 		sys.stdout.flush()
@@ -3475,6 +3617,82 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 	#================
 	#by specie
 	#---------
+	if chol_pres:
+		if f_display:
+			files_counter_density_size_specie += 1
+			progress = '\r  -> density (sizes): xvg by specie ' + str(files_counter_density_size_specie) + '/' + str(files_counter_density_size_specie_tot) + '                      '  
+			sys.stdout.flush()
+			sys.stdout.write(progress)
+		
+		#open files
+		tmp_sizes = radial_sizes[f_type] + ["all sizes"]
+		if f_type == "all frames":
+			tmp_filename = 'radial_density_species_CHOL'
+		else:
+			tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL'
+		if f_type == "all frames":
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+		else:
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+		output_txt = open(filename_txt, 'w')
+		output_xvg = open(filename_xvg, 'w')
+		
+		#general header
+		output_txt.write("@[lipid density statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
+		output_xvg.write("# [lipid density statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")		
+		output_xvg.write("# cluster detection method:\n")
+		output_xvg.write("#  -> nb of proteins: " + str(proteins_nb) + "\n")
+		if args.m_algorithm == "min":
+			output_xvg.write("#  -> connectivity based (min distances)\n")
+			output_xvg.write("#  -> contact cutoff = " + str(args.cutoff_connect) + " Angstrom\n")
+		elif args.m_algorithm == "cog":
+			output_xvg.write("#  -> connectivity based (cog distances)\n")
+			output_xvg.write("#  -> contact cutoff = " + str(args.cutoff_connect) + " Angstrom\n")
+		else:
+			output_xvg.write("#  -> density based (DBSCAN)\n")
+			output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
+		
+		#xvg and txt metadata
+		output_xvg.write("@ title \"radial evolution of lipids density\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+		output_xvg.write("@ autoscale ONREAD xaxes\n")
+		output_xvg.write("@ TYPE XY\n")
+		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
+		output_xvg.write("@ legend on\n")
+		output_xvg.write("@ legend box on\n")
+		output_xvg.write("@ legend loctype view\n")
+		output_xvg.write("@ legend 0.98, 0.8\n")
+		output_xvg.write("@ legend length " + str(2*len(tmp_sizes)) + "\n")
+		#nb
+		for c_index in range(0,len(tmp_sizes)):
+			c_size = tmp_sizes[c_index]
+			output_xvg.write("@ s" + str(c_index) + " legend \"" + str(c_size) + " (nb)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(c_index + 1) + "," + str(c_size) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+		#%
+		for c_index in range(0,len(tmp_sizes)):
+			c_size = tmp_sizes[c_index]
+			output_xvg.write("@ s" + str(len(tmp_sizes) + c_index) + " legend \"" + str(c_size) + " (%)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_sizes) + c_index + 1) + "," + str(c_size) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+		output_txt.close()
+		
+		#data
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
+			#nb
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				results += "	" + str(radial_density["CHOL"]["sizes"][c_size]["nb"][f_type][n])
+			#%
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				results += "	" + str(radial_density["CHOL"]["sizes"][c_size]["pc"][f_type][n])
+			output_xvg.write(results + "\n")
+		output_xvg.close()
+	
 	for s in leaflet_species["both"]:
 		if f_display:
 			files_counter_density_size_specie += 1
@@ -3519,7 +3737,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipids density\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
@@ -3543,8 +3761,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		output_txt.close()
 		
 		#data
-		for n in range(0,args.radial_nb_bins):
-			results = str(n*radial_step)
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
 			for leaflet_index in range(0,len(tmp_leaflets)):
 				#nb
 				for c_index in range(0,len(tmp_sizes)):
@@ -3606,7 +3824,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipids density\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
@@ -3637,8 +3855,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		output_txt.close()
 		
 		#data
-		for n in range(0,args.radial_nb_bins):
-			results = str(n*radial_step)
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
 			#lower leaflet
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
@@ -3663,6 +3881,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			files_counter_density_group_specie = 0
 			files_counter_density_group_group = 0
 			files_counter_density_group_specie_tot = len(leaflet_species["both"])
+			if chol_pres:
+				files_counter_density_group_specie_tot += 1
 			files_counter_density_group_group_tot = len(radial_groups[f_type]) +1
 			progress = '\r  -> density (groups): xvg by specie ' + str(files_counter_density_group_specie) + '/' + str(files_counter_density_group_specie_tot) + '                      '  
 			sys.stdout.flush()
@@ -3670,6 +3890,81 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 
 		#by specie
 		#---------
+		if chol_pres:
+			if f_display:
+				files_counter_density_group_specie += 1
+				progress = '\r  -> density (groups): xvg by specie ' + str(files_counter_density_group_specie) + '/' + str(files_counter_density_group_specie_tot) + '                      '  
+				sys.stdout.flush()
+				sys.stdout.write(progress)
+
+			#open files
+			if f_type == "all frames":
+				tmp_filename = 'radial_density_species_CHOL'
+			else:
+				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL'
+			if f_type == "all frames":
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			else:
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			output_txt = open(filename_txt, 'w')
+			output_xvg = open(filename_xvg, 'w')
+			
+			#general header
+			output_txt.write("@[lipid density statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+			output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_filename) + ".xvg.\n")
+			output_xvg.write("# [lipid density statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+			output_xvg.write("# cluster detection method:\n")
+			output_xvg.write("#  -> nb of proteins: " + str(proteins_nb) + "\n")
+			if args.m_algorithm == "min":
+				output_xvg.write("#  -> connectivity based (min distances)\n")
+				output_xvg.write("#  -> contact cutoff = " + str(args.cutoff_connect) + " Angstrom\n")
+			elif args.m_algorithm == "cog":
+				output_xvg.write("#  -> connectivity based (cog distances)\n")
+				output_xvg.write("#  -> contact cutoff = " + str(args.cutoff_connect) + " Angstrom\n")
+			else:
+				output_xvg.write("#  -> density based (DBSCAN)\n")
+				output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
+			
+			#xvg and txt metadata
+			output_xvg.write("@ title \"radial evolution of lipids density\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+			output_xvg.write("@ autoscale ONREAD xaxes\n")
+			output_xvg.write("@ TYPE XY\n")
+			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
+			output_xvg.write("@ legend on\n")
+			output_xvg.write("@ legend box on\n")
+			output_xvg.write("@ legend loctype view\n")
+			output_xvg.write("@ legend 0.98, 0.8\n")
+			output_xvg.write("@ legend length " + str(2*len(radial_groups[f_type])) + "\n")
+			#nb
+			for g in range(0,len(radial_groups[f_type])):
+				g_index = radial_groups[f_type][g] 
+				output_xvg.write("@ s" + str(g) + " legend \"" + str(groups_labels[g_index]) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(g + 1) + "," + str(groups_labels[g_index]) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
+			#%
+			for g in range(0,len(radial_groups[f_type])):
+				g_index = radial_groups[f_type][g] 
+				output_xvg.write("@ s" + str(len(radial_groups[f_type]) + g) + " legend \"" + str(groups_labels[g_index]) + " (%)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(len(radial_groups[f_type]) + g + 1) + "," + str(groups_labels[g_index]) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
+			output_txt.close()
+			
+			#data
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
+				#nb
+				for g in range(0,len(radial_groups[f_type])):
+					g_index = radial_groups[f_type][g] 
+					results += "	" + str(radial_density["CHOL"]["groups"][g_index]["nb"][f_type][n])
+				#%
+				for g in range(0,len(radial_groups[f_type])):
+					g_index = radial_groups[f_type][g] 
+					results += "	" + str(radial_density["CHOL"]["groups"][g_index]["pc"][f_type][n])
+				output_xvg.write(results + "\n")
+			output_xvg.close()			
+		
 		for s in leaflet_species["both"]:
 			if f_display:
 				files_counter_density_group_specie += 1
@@ -3713,7 +4008,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipids density\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
@@ -3723,10 +4018,6 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
 			output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(radial_groups[f_type])) + "\n")
-			if groups_number in radial_groups["all frames"]:
-				group_max = groups_number + 1
-			else:
-				group_max = groups_number
 			for leaflet_index in range(0,len(tmp_leaflets)):
 				#nb
 				for g in range(0,len(radial_groups[f_type])):
@@ -3741,8 +4032,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_txt.close()
 			
 			#data
-			for n in range(0,args.radial_nb_bins):
-				results = str(n*radial_step)
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
 				for leaflet_index in range(0,len(tmp_leaflets)):
 					#nb
 					for g in range(0,len(radial_groups[f_type])):
@@ -3799,7 +4090,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipids density\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
@@ -3830,8 +4121,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_txt.close()
 
 			#data
-			for n in range(0,args.radial_nb_bins):
-				results = str(n*radial_step)
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
 				#lower leaflet
 				for s_index in range(0,len(leaflet_species["lower"])):
 					s = leaflet_species["lower"][s_index]
@@ -3857,6 +4148,8 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		files_counter_density_size_specie = 0
 		files_counter_density_size_size = 0
 		files_counter_density_size_specie_tot = len(leaflet_species["both"])
+		if chol_pres:
+			files_counter_density_size_specie_tot += 1
 		files_counter_density_size_size_tot = len(radial_sizes[f_type]) +1
 		progress = '\r  -> density (sizes): graphs by specie ' + str(files_counter_density_size_specie) + '/' + str(files_counter_density_size_specie_tot) + '                      '  
 		sys.stdout.flush()
@@ -3866,6 +4159,53 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 	#================
 	#by specie
 	#---------
+	if chol_pres:
+		if f_display:
+			files_counter_density_size_specie += 1
+			progress = '\r  -> density (sizes): graphs by specie ' + str(files_counter_density_size_specie) + '/' + str(files_counter_density_size_specie_tot) + '                      '  
+			sys.stdout.flush()
+			sys.stdout.write(progress)
+
+		#create filenames
+		if f_type == "all frames":
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/png/radial_density_species_CHOL.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/radial_density_species_CHOL.svg'
+		else:
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.svg'
+	
+		#create figure
+		fig = plt.figure(figsize=(8, 5))
+		fig.suptitle("Radial evolution of lipids density: CHOL")
+				
+		#plot data
+		ax1 = fig.add_subplot(111)
+		p_upper = {}
+		for c_size in radial_sizes[f_type] + ["all sizes"]:
+			p_upper[c_size] = plt.plot(radial_bins, radial_density["CHOL"]["sizes"][c_size]["pc"][f_type], color = get_size_colour(c_size), linewidth = 3.0, label = str(c_size))
+		fontP.set_size("small")
+		ax1.legend(prop=fontP)
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
+		plt.ylabel('lipids density (%)', fontsize="small")
+		
+		#save figure
+		ax1.set_xlim(0, args.radial_radius)
+		ax1.set_ylim(0, 100)
+		ax1.spines['top'].set_visible(False)
+		ax1.spines['right'].set_visible(False)
+		ax1.xaxis.set_ticks_position('bottom')
+		ax1.yaxis.set_ticks_position('left')
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
+		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
+		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
+		plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
+		fig.savefig(filename_png)
+		fig.savefig(filename_svg)
+		plt.close()
+
 	for s in leaflet_species["both"]:
 		if f_display:
 			files_counter_density_size_specie += 1
@@ -3894,7 +4234,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 		plt.ylabel('lipids density (%)', fontsize="small")
 		
 		#plot data: lower leafet
@@ -3906,7 +4246,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 		plt.ylabel('lipids density (%)', fontsize="small")
 	
 		#save figure
@@ -3922,15 +4262,19 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.yaxis.set_ticks_position('left')
 		ax2.xaxis.set_ticks_position('bottom')
 		ax2.yaxis.set_ticks_position('left')
-		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
-		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax2.yaxis.set_major_locator(MaxNLocator(nbins=10))
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
+		ax2.xaxis.labelpad = 10
+		ax2.yaxis.labelpad = 10
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-		plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+		plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 		fig.savefig(filename_png)
 		fig.savefig(filename_svg)
 		plt.close()
@@ -3975,7 +4319,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 		plt.ylabel('lipids density (%)', fontsize="small")
 		
 		#plot data: lower leafet
@@ -3986,7 +4330,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 		plt.ylabel('lipids density (%)', fontsize="small")
 	
 		#save figure
@@ -4002,15 +4346,19 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.yaxis.set_ticks_position('left')
 		ax2.xaxis.set_ticks_position('bottom')
 		ax2.yaxis.set_ticks_position('left')
-		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
-		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax2.yaxis.set_major_locator(MaxNLocator(nbins=10))
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
+		ax2.xaxis.labelpad = 10
+		ax2.yaxis.labelpad = 10
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-		plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+		plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 		fig.savefig(filename_png)
 		fig.savefig(filename_svg)
 		plt.close()
@@ -4022,6 +4370,8 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			files_counter_density_group_specie = 0
 			files_counter_density_group_group = 0
 			files_counter_density_group_specie_tot = len(leaflet_species["both"])
+			if chol_pres:
+				files_counter_density_group_specie_tot += 1
 			files_counter_density_group_group_tot = len(radial_groups[f_type])
 			progress = '\r  -> density (groups): graphs by specie ' + str(files_counter_density_group_specie) + '/' + str(files_counter_density_group_specie_tot) + '                      '  
 			sys.stdout.flush()
@@ -4029,6 +4379,53 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 		#by specie
 		#---------
+		if chol_pres:
+			if f_display:
+				files_counter_density_group_specie += 1
+				progress = '\r  -> density (groups): graphs by specie ' + str(files_counter_density_group_specie) + '/' + str(files_counter_density_group_specie_tot) + '                      '  
+				sys.stdout.flush()
+				sys.stdout.write(progress)
+
+			#create filenames
+			if f_type == "all frames":
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/png/radial_density_species_CHOL.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/radial_density_species_CHOL.svg'
+			else:
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.svg'
+		
+			#create figure
+			fig = plt.figure(figsize=(8, 5))
+			fig.suptitle("Radial evolution of lipids density: CHOL")
+					
+			#plot data
+			ax1 = fig.add_subplot(111)
+			p_upper = {}
+			for g_index in radial_groups[f_type]:
+				p_upper[c_size] = plt.plot(radial_bins, radial_density["CHOL"]["groups"][g_index]["pc"][f_type], color = colours_groups[g_index], linewidth = 3.0, label = str(groups_labels[g_index]))
+			fontP.set_size("small")
+			ax1.legend(prop=fontP)
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
+			plt.ylabel('lipids density (%)', fontsize="small")
+			
+			#save figure
+			ax1.set_xlim(0, args.radial_radius)
+			ax1.set_ylim(0, 100)
+			ax1.spines['top'].set_visible(False)
+			ax1.spines['right'].set_visible(False)
+			ax1.xaxis.set_ticks_position('bottom')
+			ax1.yaxis.set_ticks_position('left')
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
+			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
+			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
+			plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
+			fig.savefig(filename_png)
+			fig.savefig(filename_svg)
+			plt.close()
+
 		for s in leaflet_species["both"]:
 			if f_display:
 				files_counter_density_group_specie += 1
@@ -4057,7 +4454,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('lipids density (%)', fontsize="small")
 			
 			#plot data: lower leafet
@@ -4069,7 +4466,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('lipids density (%)', fontsize="small")
 		
 			#save figure
@@ -4085,15 +4482,19 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.yaxis.set_ticks_position('left')
 			ax2.xaxis.set_ticks_position('bottom')
 			ax2.yaxis.set_ticks_position('left')
-			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
-			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax2.yaxis.set_major_locator(MaxNLocator(nbins=10))
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
+			ax2.xaxis.labelpad = 10
+			ax2.yaxis.labelpad = 10
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-			plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+			plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 			fig.savefig(filename_png)
 			fig.savefig(filename_svg)
 			plt.close()
@@ -4131,7 +4532,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('lipids density (%)', fontsize="small")
 			
 			#plot data: lower leafet
@@ -4142,7 +4543,7 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('lipids density (%)', fontsize="small")
 		
 			#save figure
@@ -4158,15 +4559,19 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.yaxis.set_ticks_position('left')
 			ax2.xaxis.set_ticks_position('bottom')
 			ax2.yaxis.set_ticks_position('left')
-			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
-			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax2.yaxis.set_major_locator(MaxNLocator(nbins=10))
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
+			ax2.xaxis.labelpad = 10
+			ax2.yaxis.labelpad = 10
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-			plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+			plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 			fig.savefig(filename_png)
 			fig.savefig(filename_svg)
 			plt.close()
@@ -4238,7 +4643,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
@@ -4261,8 +4666,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_txt.close()
 		
 		#data
-		for n in range(0,args.radial_nb_bins):
-			results = str(n*radial_step)
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
 			#average
 			for c_index in range(0,len(tmp_sizes)):
 				c_size = tmp_sizes[c_index]
@@ -4324,7 +4729,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
@@ -4347,8 +4752,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_txt.close()
 		
 		#data
-		for n in range(0,args.radial_nb_bins):
-			results = str(n*radial_step)
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
 			#avg
 			for s_index in range(0,len(tmp_species)):
 				s = tmp_species[s_index]
@@ -4419,7 +4824,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
@@ -4442,8 +4847,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_txt.close()
 			
 			#data
-			for n in range(0,args.radial_nb_bins):
-				results = str(n*radial_step)
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
 				#average values
 				for g in range(0,len(radial_groups[f_type])):
 					g_index = radial_groups[f_type][g]
@@ -4506,7 +4911,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
@@ -4529,8 +4934,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_txt.close()
 			
 			#data
-			for n in range(0,args.radial_nb_bins):
-				results = str(n*radial_step)
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
 				#avg
 				for s_index in range(0,len(tmp_species)):
 					s = tmp_species[s_index]
@@ -4604,7 +5009,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			p_upper[str(c_size) + "_err"] = plt.fill_between(radial_bins, tmp_thick_avg[c_size]-tmp_thick_std[c_size], tmp_thick_avg[c_size]+tmp_thick_std[c_size], color = get_size_colour(c_size), edgecolor = get_size_colour(c_size), linewidth = 0, alpha = 0.2)
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize = "small")
 		plt.ylabel('bilayer thickness', fontsize="small")
 		
 		#save figure
@@ -4614,10 +5019,13 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.spines['right'].set_visible(False)
 		ax1.xaxis.set_ticks_position('bottom')
 		ax1.yaxis.set_ticks_position('left')
-		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
+		plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
 		fig.savefig(filename_png)
 		fig.savefig(filename_svg)
 		plt.close()
@@ -4666,20 +5074,23 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
-		plt.xlabel('distance from cluster center of geometry($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis($\AA$)', fontsize="small")
 		plt.ylabel('bilayer thickness ($\AA$)', fontsize="small")
 			
 		#save figure
-		ax1.set_xlim(0, args.radial_radius)		
+		ax1.set_xlim(0, args.radial_radius)
 		ax1.set_ylim(tmp_min, tmp_max)
 		ax1.spines['top'].set_visible(False)
 		ax1.spines['right'].set_visible(False)
 		ax1.xaxis.set_ticks_position('bottom')
 		ax1.yaxis.set_ticks_position('left')
-		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
+		plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
 		fig.savefig(filename_png)
 		fig.savefig(filename_svg)
 		plt.close()
@@ -4729,11 +5140,11 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			tmp_thick_avg = {g_index: radial_thick[s]["avg"]["groups"][g_index][f_type] for g_index in radial_groups[f_type]}
 			tmp_thick_std = {g_index: radial_thick[s]["std"]["groups"][g_index][f_type] for g_index in radial_groups[f_type]}
 			for g_index in radial_groups[f_type]:
-				for n in range(0, args.radial_nb_bins):
+				for n in range(0, radial_nb_bins):
 					if tmp_thick_avg[g_index][n] == 0:
-						tmp_thick_avg[g_index][n] =  numpy.nan
+						tmp_thick_avg[g_index][n] =  np.nan
 					if tmp_thick_std[g_index][n] == 0:
-						tmp_thick_std[g_index][n] =  numpy.nan
+						tmp_thick_std[g_index][n] =  np.nan
 
 			#plot data
 			ax1 = fig.add_subplot(111)
@@ -4743,7 +5154,7 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 				p_upper[str(g_index) + "_err"] = plt.fill_between(radial_bins, tmp_thick_avg[g_index]-tmp_thick_std[g_index], tmp_thick_avg[g_index]+tmp_thick_std[g_index], color = colours_groups[g_index], edgecolor = colours_groups[g_index], linewidth = 0, alpha = 0.2)
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('bilayer thickness', fontsize="small")
 			
 			#save figure
@@ -4753,10 +5164,13 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.spines['right'].set_visible(False)
 			ax1.xaxis.set_ticks_position('bottom')
 			ax1.yaxis.set_ticks_position('left')
-			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
+			plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
 			fig.savefig(filename_png)
 			fig.savefig(filename_svg)
 			plt.close()
@@ -4791,11 +5205,11 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			tmp_thick_avg = {s: radial_thick[s]["avg"]["groups"][g_index][f_type] for s in leaflet_species["both"] + ["all species"]}
 			tmp_thick_std = {s: radial_thick[s]["std"]["groups"][g_index][f_type] for s in leaflet_species["both"] + ["all species"]}
 			for s in leaflet_species["both"] + ["all species"]:
-				for n in range(0, args.radial_nb_bins):
+				for n in range(0, radial_nb_bins):
 					if tmp_thick_avg[s][n] == 0:
-						tmp_thick_avg[s][n] =  numpy.nan
+						tmp_thick_avg[s][n] =  np.nan
 					if tmp_thick_std[s][n] == 0:
-						tmp_thick_std[s][n] =  numpy.nan
+						tmp_thick_std[s][n] =  np.nan
 							
 			#plot data: upper leafet
 			ax1 = fig.add_subplot(111)
@@ -4805,20 +5219,23 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 				p_upper[str(s + "_err")] = plt.fill_between(radial_bins, tmp_thick_avg[s]-tmp_thick_std[s], tmp_thick_avg[s]+tmp_thick_std[s], color = colours_lipids[s], edgecolor = colours_lipids[s], linewidth = 0, alpha = 0.2)
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
-			plt.xlabel('distance from cluster center of geometry($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis($\AA$)', fontsize="small")
 			plt.ylabel('bilayer thickness ($\AA$)', fontsize="small")
 				
 			#save figure
-			ax1.set_xlim(0, args.radial_radius)		
+			ax1.set_xlim(0, args.radial_radius)
 			ax1.set_ylim(tmp_min, tmp_max)
 			ax1.spines['top'].set_visible(False)
 			ax1.spines['right'].set_visible(False)
 			ax1.xaxis.set_ticks_position('bottom')
 			ax1.yaxis.set_ticks_position('left')
-			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
+			plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
 			fig.savefig(filename_png)
 			fig.savefig(filename_svg)
 			plt.close()
@@ -4900,7 +5317,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
@@ -4924,8 +5341,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_txt.close()
 		
 		#data
-		for n in range(0,args.radial_nb_bins):
-			results = str(n*radial_step)
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
 			for leaflet_index in range(0,len(tmp_leaflets)):
 				#average 
 				for c_index in range(0,len(tmp_sizes)):
@@ -4993,7 +5410,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
@@ -5024,8 +5441,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_txt.close()
 		
 		#data
-		for n in range(0,args.radial_nb_bins):
-			results = str(n*radial_step)
+		for n in range(0,radial_nb_bins):
+			results = str(n*args.radial_step)
 			#lower leaflet
 			for s_index in range(0,len(tmp_species["lower"])):
 				s = tmp_species["lower"][s_index]
@@ -5124,7 +5541,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
@@ -5148,8 +5565,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_txt.close()
 			
 			#data
-			for n in range(0,args.radial_nb_bins):
-				results = str(n*radial_step)
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
 				for leaflet_index in range(0,len(tmp_leaflets)):
 					#average
 					for g in range(0,len(radial_groups[f_type])):
@@ -5207,7 +5624,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster center of geometry (Angstrom)\"\n")
+			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
@@ -5238,8 +5655,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_txt.close()
 
 			#data
-			for n in range(0,args.radial_nb_bins):
-				results = str(n*radial_step)
+			for n in range(0,radial_nb_bins):
+				results = str(n*args.radial_step)
 				#lower leaflet
 				for s_index in range(0,len(tmp_species["lower"])):
 					s = tmp_species["lower"][s_index]
@@ -5349,15 +5766,19 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.yaxis.set_ticks_position('left')
 		ax2.xaxis.set_ticks_position('bottom')
 		ax2.yaxis.set_ticks_position('left')
-		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
-		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax2.yaxis.set_major_locator(MaxNLocator(nbins=7))
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
+		ax2.xaxis.labelpad = 10
+		ax2.yaxis.labelpad = 10
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-		plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+		plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 		fig.savefig(filename_png)
 		fig.savefig(filename_svg)
 		plt.close()
@@ -5411,7 +5832,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			fontP.set_size("small")
 			ax1.legend(prop=fontP)
 		plt.title("upper leaflet", fontsize="small")
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 		plt.ylabel('order parameter', fontsize="small")
 		
 		#plot data: lower leafet
@@ -5424,7 +5845,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			fontP.set_size("small")
 			ax2.legend(prop=fontP)
 		plt.title("lower leaflet", fontsize="small")
-		plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+		plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 		plt.ylabel('order parameter', fontsize="small")
 	
 		#save figure
@@ -5440,15 +5861,19 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		ax1.yaxis.set_ticks_position('left')
 		ax2.xaxis.set_ticks_position('bottom')
 		ax2.yaxis.set_ticks_position('left')
-		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
-		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-		ax2.yaxis.set_major_locator(MaxNLocator(nbins=7))
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+		ax1.xaxis.labelpad = 10
+		ax1.yaxis.labelpad = 10
+		ax2.xaxis.labelpad = 10
+		ax2.yaxis.labelpad = 10
 		plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 		plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-		plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+		plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 		fig.savefig(filename_png)
 		fig.savefig(filename_svg)
 		plt.close()
@@ -5543,15 +5968,19 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.yaxis.set_ticks_position('left')
 			ax2.xaxis.set_ticks_position('bottom')
 			ax2.yaxis.set_ticks_position('left')
-			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
-			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax2.yaxis.set_major_locator(MaxNLocator(nbins=7))
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
+			ax2.xaxis.labelpad = 10
+			ax2.yaxis.labelpad = 10
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-			plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+			plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 			fig.savefig(filename_png)
 			fig.savefig(filename_svg)
 			plt.close()
@@ -5599,7 +6028,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 				fontP.set_size("small")
 				ax1.legend(prop=fontP)
 			plt.title("upper leaflet", fontsize="small")
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('order parameter', fontsize="small")
 			
 			#plot data: lower leafet
@@ -5612,7 +6041,7 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 				fontP.set_size("small")
 				ax2.legend(prop=fontP)
 			plt.title("lower leaflet", fontsize="small")
-			plt.xlabel('distance from cluster center of geometry ($\AA$)', fontsize="small")
+			plt.xlabel('distance from cluster z axis ($\AA$)', fontsize="small")
 			plt.ylabel('order parameter', fontsize="small")
 		
 			#save figure
@@ -5628,15 +6057,19 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			ax1.yaxis.set_ticks_position('left')
 			ax2.xaxis.set_ticks_position('bottom')
 			ax2.yaxis.set_ticks_position('left')
-			ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
-			ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.radial_nb_bins))
-			ax2.yaxis.set_major_locator(MaxNLocator(nbins=7))
+			ax1.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.xaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax2.yaxis.set_major_locator(MaxNLocator(nbins = 10))
+			ax1.xaxis.labelpad = 10
+			ax1.yaxis.labelpad = 10
+			ax2.xaxis.labelpad = 10
+			ax2.yaxis.labelpad = 10
 			plt.setp(ax1.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax1.yaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.xaxis.get_majorticklabels(), fontsize="small" )
 			plt.setp(ax2.yaxis.get_majorticklabels(), fontsize="small" )	
-			plt.subplots_adjust(top=0.9, bottom=0.07, hspace=0.37, left=0.09, right=0.96)
+			plt.subplots_adjust(top = 0.9, bottom = 0.1, hspace = 0.4, left = 0.12, right = 0.88)
 			fig.savefig(filename_png)
 			fig.savefig(filename_svg)
 			plt.close()
