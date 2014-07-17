@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.20"
+version_nb="0.1.20-dev0"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -585,17 +585,17 @@ else:
 	if args.radial:
 		os.mkdir(args.output_folder + "/radial")
 		#density
-		os.mkdir(args.output_folder + "/radial/density/")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_size")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_size/xvg")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_size/png")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_specie")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_specie/xvg")
-		os.mkdir(args.output_folder + "/radial/density/1_sizes/by_specie/png")
-		os.mkdir(args.output_folder + "/radial/density/2_groups")
+		os.mkdir(args.output_folder + "/radial/1_clustering/")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes/by_size")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes/by_size/xvg")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes/by_size/png")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes/by_specie")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes/by_specie/xvg")
+		os.mkdir(args.output_folder + "/radial/1_clustering/1_sizes/by_specie/png")
+		os.mkdir(args.output_folder + "/radial/1_clustering/2_groups")
 		if args.cluster_groups_file == "no":
-			filename_details = args.output_folder + '/radial/density/2_groups/groups.txt'
+			filename_details = args.output_folder + '/radial/1_clustering/2_groups/groups.txt'
 			output_stat = open(filename_details, 'w')		
 			output_stat.write("[written by bilayer_perturbations v" + str(version_nb) + "]\n")
 			output_stat.write("\n")
@@ -603,43 +603,43 @@ else:
 			output_stat.write("\n")
 			output_stat.close()
 		else:			
-			os.mkdir(args.output_folder + "/radial/density/2_groups/by_group")
-			os.mkdir(args.output_folder + "/radial/density/2_groups/by_group/xvg")
-			os.mkdir(args.output_folder + "/radial/density/2_groups/by_group/png")
-			os.mkdir(args.output_folder + "/radial/density/2_groups/by_specie")
-			os.mkdir(args.output_folder + "/radial/density/2_groups/by_specie/xvg")
-			os.mkdir(args.output_folder + "/radial/density/2_groups/by_specie/png")
+			os.mkdir(args.output_folder + "/radial/1_clustering/2_groups/by_group")
+			os.mkdir(args.output_folder + "/radial/1_clustering/2_groups/by_group/xvg")
+			os.mkdir(args.output_folder + "/radial/1_clustering/2_groups/by_group/png")
+			os.mkdir(args.output_folder + "/radial/1_clustering/2_groups/by_specie")
+			os.mkdir(args.output_folder + "/radial/1_clustering/2_groups/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/1_clustering/2_groups/by_specie/png")
 		if args.xtcfilename != "no":
-			os.mkdir(args.output_folder + "/radial/density/snapshots/")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_size")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_size/xvg")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_size/png")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_specie")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_specie/xvg")
-			os.mkdir(args.output_folder + "/radial/density/snapshots/1_sizes/by_specie/png")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes/by_size")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes/by_size/xvg")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes/by_size/png")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes/by_specie")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/1_sizes/by_specie/png")
 			if args.cluster_groups_file != "no":
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups")
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_group")
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_group/xvg")
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_group/png")
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_specie")
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_specie/xvg")
-				os.mkdir(args.output_folder + "/radial/density/snapshots/2_groups/by_specie/png")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups/by_group")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups/by_group/xvg")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups/by_group/png")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups/by_specie")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/1_clustering/snapshots/2_groups/by_specie/png")
 
 		#thickness
 		if args.perturb == 1 or args.perturb == 3:
-			os.mkdir(args.output_folder + "/radial/thickness/")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/xvg")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_size/png")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/xvg")
-			os.mkdir(args.output_folder + "/radial/thickness/1_sizes/by_specie/png")
-			os.mkdir(args.output_folder + "/radial/thickness/2_groups")
+			os.mkdir(args.output_folder + "/radial/2_thickness/")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes/by_size")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes/by_size/xvg")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes/by_size/png")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes/by_specie")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/2_thickness/1_sizes/by_specie/png")
+			os.mkdir(args.output_folder + "/radial/2_thickness/2_groups")
 			if args.cluster_groups_file == "no":
-				filename_details = args.output_folder + '/radial/thickness/2_groups/groups.txt'
+				filename_details = args.output_folder + '/radial/2_thickness/2_groups/groups.txt'
 				output_stat = open(filename_details, 'w')		
 				output_stat.write("[written by bilayer_perturbations v" + str(version_nb) + "]\n")
 				output_stat.write("\n")
@@ -647,43 +647,43 @@ else:
 				output_stat.write("\n")
 				output_stat.close()
 			else:			
-				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group")
-				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/xvg")
-				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_group/png")
-				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie")
-				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/xvg")
-				os.mkdir(args.output_folder + "/radial/thickness/2_groups/by_specie/png")
+				os.mkdir(args.output_folder + "/radial/2_thickness/2_groups/by_group")
+				os.mkdir(args.output_folder + "/radial/2_thickness/2_groups/by_group/xvg")
+				os.mkdir(args.output_folder + "/radial/2_thickness/2_groups/by_group/png")
+				os.mkdir(args.output_folder + "/radial/2_thickness/2_groups/by_specie")
+				os.mkdir(args.output_folder + "/radial/2_thickness/2_groups/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/2_thickness/2_groups/by_specie/png")
 			if args.xtcfilename != "no":
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/xvg")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_size/png")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/xvg")
-				os.mkdir(args.output_folder + "/radial/thickness/snapshots/1_sizes/by_specie/png")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes/by_size")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes/by_size/xvg")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes/by_size/png")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes/by_specie")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/1_sizes/by_specie/png")
 				if args.cluster_groups_file != "no":
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/")
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group")
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/xvg")
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_group/png")
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie")
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/xvg")
-					os.mkdir(args.output_folder + "/radial/thickness/snapshots/2_groups/by_specie/png")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/by_group")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/by_group/xvg")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/by_group/png")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/by_specie")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/by_specie/xvg")
+					os.mkdir(args.output_folder + "/radial/2_thickness/snapshots/2_groups/by_specie/png")
 
 		#order parameters
 		if args.perturb == 2 or args.perturb == 3:
-			os.mkdir(args.output_folder + "/radial/order_param/")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_size")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_size/xvg")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_size/png")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_specie")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_specie/xvg")
-			os.mkdir(args.output_folder + "/radial/order_param/1_sizes/by_specie/png")
-			os.mkdir(args.output_folder + "/radial/order_param/2_groups")
+			os.mkdir(args.output_folder + "/radial/3_order_param/")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes/by_size")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes/by_size/xvg")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes/by_size/png")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes/by_specie")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes/by_specie/xvg")
+			os.mkdir(args.output_folder + "/radial/3_order_param/1_sizes/by_specie/png")
+			os.mkdir(args.output_folder + "/radial/3_order_param/2_groups")
 			if args.cluster_groups_file == "no":
-				filename_details = args.output_folder + '/radial/order_param/2_groups/groups.txt'
+				filename_details = args.output_folder + '/radial/3_order_param/2_groups/groups.txt'
 				output_stat = open(filename_details, 'w')		
 				output_stat.write("[written by bilayer_perturbations v" + str(version_nb) + "]\n")
 				output_stat.write("\n")
@@ -691,29 +691,29 @@ else:
 				output_stat.write("\n")
 				output_stat.close()
 			else:			
-				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_group")
-				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_group/xvg")
-				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_group/png")
-				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_specie")
-				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_specie/xvg")
-				os.mkdir(args.output_folder + "/radial/order_param/2_groups/by_specie/png")
+				os.mkdir(args.output_folder + "/radial/3_order_param/2_groups/by_group")
+				os.mkdir(args.output_folder + "/radial/3_order_param/2_groups/by_group/xvg")
+				os.mkdir(args.output_folder + "/radial/3_order_param/2_groups/by_group/png")
+				os.mkdir(args.output_folder + "/radial/3_order_param/2_groups/by_specie")
+				os.mkdir(args.output_folder + "/radial/3_order_param/2_groups/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/3_order_param/2_groups/by_specie/png")
 			if args.xtcfilename != "no":
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_size")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_size/xvg")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_size/png")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_specie")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_specie/xvg")
-				os.mkdir(args.output_folder + "/radial/order_param/snapshots/1_sizes/by_specie/png")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes/by_size")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes/by_size/xvg")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes/by_size/png")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes/by_specie")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes/by_specie/xvg")
+				os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/1_sizes/by_specie/png")
 				if args.cluster_groups_file != "no":
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/")
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_group")
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_group/xvg")
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_group/png")
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_specie")
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_specie/xvg")
-					os.mkdir(args.output_folder + "/radial/order_param/snapshots/2_groups/by_specie/png")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/by_group")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/by_group/xvg")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/by_group/png")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/by_specie")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/by_specie/xvg")
+					os.mkdir(args.output_folder + "/radial/3_order_param/snapshots/2_groups/by_specie/png")
 		
 	#create log
 	#----------
@@ -3627,15 +3627,15 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		#open files
 		tmp_sizes = radial_sizes[f_type] + ["all sizes"]
 		if f_type == "all frames":
-			tmp_filename = 'radial_density_species_CHOL'
+			tmp_filename = 'radial_1_1_clustering_species_CHOL'
 		else:
-			tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL'
+			tmp_filename = 'radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL'
 		if f_type == "all frames":
-			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -3707,15 +3707,15 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			if s in leaflet_species[l]:
 				tmp_leaflets.append(l)
 		if f_type == "all frames":
-			tmp_filename = 'radial_density_species_' + str(s)
+			tmp_filename = 'radial_1_1_clustering_species_' + str(s)
 		else:
-			tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
+			tmp_filename = 'radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_type == "all frames":
-			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -3787,20 +3787,20 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		#open files
 		if f_type == "all frames":
 			if c_size == "all sizes":
-				tmp_filename = 'radial_density_sizes_all'
+				tmp_filename = 'radial_1_1_clustering_sizes_all'
 			else:
-				tmp_filename = 'radial_density_sizes_' + str(c_size)
+				tmp_filename = 'radial_1_1_clustering_sizes_' + str(c_size)
 		else:
 			if c_size == "all sizes":
-				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all'
+				tmp_filename = 'radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_sizes_all'
 			else:
-				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
+				tmp_filename = 'radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
 		if f_type == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -3899,15 +3899,15 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 
 			#open files
 			if f_type == "all frames":
-				tmp_filename = 'radial_density_species_CHOL'
+				tmp_filename = 'radial_1_2_clustering_species_CHOL'
 			else:
-				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL'
+				tmp_filename = 'radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL'
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -3978,15 +3978,15 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 				if s in leaflet_species[l]:
 					tmp_leaflets.append(l)
 			if f_type == "all frames":
-				tmp_filename = 'radial_density_species_' + str(s)
+				tmp_filename = 'radial_1_2_clustering_species_' + str(s)
 			else:
-				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
+				tmp_filename = 'radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -4058,15 +4058,15 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			#open files
 			tmp_leg = str(groups_labels[g_index])
 			if f_type == "all frames":
-				tmp_filename = 'radial_density_groups_' + tmp_leg
+				tmp_filename = 'radial_1_2_clustering_groups_' + tmp_leg
 			else:
-				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
+				tmp_filename = 'radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -4168,11 +4168,11 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 		#create filenames
 		if f_type == "all frames":
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/png/radial_density_species_CHOL.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/radial_density_species_CHOL.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/png/radial_1_1_clustering_species_CHOL.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/radial_1_1_clustering_species_CHOL.svg'
 		else:
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/png/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.svg'
 	
 		#create figure
 		fig = plt.figure(figsize=(8, 5))
@@ -4215,11 +4215,11 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 		#create filenames
 		if f_type == "all frames":
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/png/radial_density_species_' + str(s) + '.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_specie/radial_density_species_' + str(s) + '.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/png/radial_1_1_clustering_species_' + str(s) + '.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_specie/radial_1_1_clustering_species_' + str(s) + '.svg'
 		else:
-			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+			filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/png/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+			filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_specie/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 	
 		#create figure
 		fig = plt.figure(figsize=(8, 6.2))
@@ -4291,18 +4291,18 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 		#create filenames
 		if f_type == "all frames":
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/png/radial_density_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/radial_density_sizes_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_size/png/radial_1_1_clustering_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_size/radial_1_1_clustering_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/png/radial_density_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/1_sizes/by_size/radial_density_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_size/png/radial_1_1_clustering_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/1_sizes/by_size/radial_1_1_clustering_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'			
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_size/png/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_size/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'			
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/1_sizes/by_size/radial_density_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_size/png/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/1_sizes/by_size/radial_1_1_clustering_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig = plt.figure(figsize=(8, 6.2))
@@ -4388,11 +4388,11 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 			#create filenames
 			if f_type == "all frames":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/png/radial_density_species_CHOL.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/radial_density_species_CHOL.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/png/radial_1_2_clustering_species_CHOL.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/radial_1_2_clustering_species_CHOL.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/png/radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_CHOL.svg'
 		
 			#create figure
 			fig = plt.figure(figsize=(8, 5))
@@ -4435,11 +4435,11 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 			#create filenames
 			if f_type == "all frames":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/png/radial_density_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_specie/radial_density_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/png/radial_1_2_clustering_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_specie/radial_1_2_clustering_species_' + str(s) + '.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/png/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_specie/radial_density_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/png/radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_specie/radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 		
 			#create figure
 			fig = plt.figure(figsize=(8, 6.2))
@@ -4510,15 +4510,15 @@ def radial_density_frame_xvg_graph(f_type, f_time, f_display):
 
 			tmp_leg = str(groups_labels[g_index])
 			if f_type == "all frames":
-				tmp_filename = 'radial_density_groups_' + tmp_leg
+				tmp_filename = 'radial_1_2_clustering_groups_' + tmp_leg
 			else:
-				tmp_filename = 'radial_density_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
+				tmp_filename = 'radial_1_2_clustering_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
 			if f_type == "all frames":
-				filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_group/png/' + str(tmp_filename) + '.png'
-				filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/density/2_groups/by_group/' + str(tmp_filename) + '.svg'
+				filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_group/png/' + str(tmp_filename) + '.png'
+				filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/2_groups/by_group/' + str(tmp_filename) + '.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_group/png/' + str(tmp_filename) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/density/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_group/png/' + str(tmp_filename) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/1_clustering/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
 	
 			#create figure
 			fig = plt.figure(figsize=(8, 6.2))
@@ -4608,20 +4608,20 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		tmp_sizes = radial_sizes[f_type] + ["all sizes"]
 		if f_type == "all frames":
 			if s == "all species":
-				tmp_filename = 'radial_thickness_species_all'
+				tmp_filename = 'radial_2_1_thickness_species_all'
 			else:
-				tmp_filename = 'radial_thickness_species_' + str(s)
+				tmp_filename = 'radial_2_1_thickness_species_' + str(s)
 		else:
 			if s == "all species":
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all'
+				tmp_filename = 'radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all'
 			else:
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
+				tmp_filename = 'radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_type == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -4692,20 +4692,20 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		tmp_species = leaflet_species["both"] + ["all species"]
 		if f_type == "all frames":
 			if c_size == "all sizes":
-				tmp_filename = 'radial_thickness_sizes_all'
+				tmp_filename = 'radial_2_1_thickness_sizes_all'
 			else:
-				tmp_filename = 'radial_thickness_sizes_' + str(c_size)
+				tmp_filename = 'radial_2_1_thickness_sizes_' + str(c_size)
 		else:
 			if c_size == "all sizes":
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all'
+				tmp_filename = 'radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all'
 			else:
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
+				tmp_filename = 'radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
 		if f_type == "all frames":
-			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -4789,20 +4789,20 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			#open files
 			if f_type == "all frames":
 				if s == "all species":
-					tmp_filename = 'radial_thickness_species_all'
+					tmp_filename = 'radial_2_2_thickness_species_all'
 				else:
-					tmp_filename = 'radial_thickness_species_' + str(s)
+					tmp_filename = 'radial_2_2_thickness_species_' + str(s)
 			else:
 				if s == "all species":
-					tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all'
+					tmp_filename = 'radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all'
 				else:
-					tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
+					tmp_filename = 'radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -4879,15 +4879,15 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			tmp_leg = str(groups_labels[g_index])
 			tmp_species = leaflet_species["both"] + ["all species"]
 			if f_type == "all frames":
-				tmp_filename = 'radial_thickness_groups_' + tmp_leg
+				tmp_filename = 'radial_2_2_thickness_groups_' + tmp_leg
 			else:
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
+				tmp_filename = 'radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -4980,18 +4980,18 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		#create filenames
 		if f_type == "all frames":
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/png/radial_thickness_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/radial_thickness_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_specie/png/radial_2_1_thickness_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_specie/radial_2_1_thickness_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/png/radial_thickness_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_specie/radial_thickness_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_specie/png/radial_2_1_thickness_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_specie/radial_2_1_thickness_species_' + str(s) + '.svg'
 		else:
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_specie/png/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_specie/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_specie/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_specie/png/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_specie/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
 		fig = plt.figure(figsize=(8, 5))
@@ -5042,18 +5042,18 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 		#create filenames
 		if f_type == "all frames":
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/png/radial_thickness_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/radial_thickness_sizes_all.svg'		
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_size/png/radial_2_1_thickness_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_size/radial_2_1_thickness_sizes_all.svg'		
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/png/radial_thickness_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/1_sizes/by_size/radial_thickness_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_size/png/radial_2_1_thickness_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/1_sizes/by_size/radial_2_1_thickness_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_size/png/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_size/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/1_sizes/by_size/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_size/png/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/1_sizes/by_size/radial_2_1_thickness_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig = plt.figure(figsize=(8, 5))
@@ -5119,18 +5119,18 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			#create filenames
 			if f_type == "all frames":
 				if s == "all species":
-					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_specie/png/radial_thickness_species_all.png'
-					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_specie/radial_thickness_species_all.svg'
+					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_specie/png/radial_2_2_thickness_species_all.png'
+					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_specie/radial_2_2_thickness_species_all.svg'
 				else:
-					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_specie/png/radial_thickness_species_' + str(s) + '.png'
-					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_specie/radial_thickness_species_' + str(s) + '.svg'
+					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_specie/png/radial_2_2_thickness_species_' + str(s) + '.png'
+					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_specie/radial_2_2_thickness_species_' + str(s) + '.svg'
 			else:
 				if s == "all species":
-					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_specie/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
-					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_specie/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
+					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_specie/png/radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_specie/radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 				else:
-					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_specie/png/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_specie/radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+					filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_specie/png/radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+					filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_specie/radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 				
 			#create figure
 			fig = plt.figure(figsize=(8, 5))
@@ -5187,15 +5187,15 @@ def radial_thick_frame_xvg_graph(f_type, f_time, f_display):
 			#create filenames
 			tmp_leg = str(groups_labels[g_index])
 			if f_type == "all frames":
-				tmp_filename = 'radial_thickness_groups_' + tmp_leg
+				tmp_filename = 'radial_2_2_thickness_groups_' + tmp_leg
 			else:
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
+				tmp_filename = 'radial_2_2_thickness_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
 			if f_type == "all frames":
-				filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_group/png/' + str(tmp_filename) + '.png'
-				filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/2_groups/by_group/' + str(tmp_filename) + '.svg'
+				filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_group/png/' + str(tmp_filename) + '.png'
+				filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/2_groups/by_group/' + str(tmp_filename) + '.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_group/png/' + str(tmp_filename) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/thickness/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_group/png/' + str(tmp_filename) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/2_thickness/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
 				
 			#create figure
 			fig = plt.figure(figsize=(8, 5))
@@ -5283,20 +5283,20 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		#open file
 		if f_type == "all frames":
 			if s == "all species":
-				tmp_filename = 'radial_order_param_species_all'
+				tmp_filename = 'radial_3_1_order_param_species_all'
 			else:
-				tmp_filename = 'radial_order_param_species_' + str(s)
+				tmp_filename = 'radial_3_1_order_param_species_' + str(s)
 		else:
 			if s == "all species":
-				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all'
+				tmp_filename = 'radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all'
 			else:
-				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
+				tmp_filename = 'radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 		if f_type == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -5374,20 +5374,20 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		tmp_species = {l: op_lipids_handled[l] + ["all species"] for l in ["lower","upper"]}
 		if f_type == "all frames":
 			if c_size == "all sizes":
-				tmp_filename = 'radial_order_param_sizes_all'
+				tmp_filename = 'radial_3_1_order_param_sizes_all'
 			else:
-				tmp_filename = 'radial_order_param_sizes_' + str(c_size)
+				tmp_filename = 'radial_3_1_order_param_sizes_' + str(c_size)
 		else:
 			if c_size == "all sizes":
-				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all'
+				tmp_filename = 'radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all'
 			else:
-				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
+				tmp_filename = 'radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size)
 		if f_type == "all frames":
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		else:
-			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
-			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
+			filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.txt'
+			filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_size/xvg/' + str(tmp_filename) + '.xvg'
 		output_txt = open(filename_txt, 'w')
 		output_xvg = open(filename_xvg, 'w')
 		
@@ -5507,20 +5507,20 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			#open files
 			if f_type == "all frames":
 				if s == "all species":
-					tmp_filename = 'radial_order_param_species_all'
+					tmp_filename = 'radial_3_2_order_param_species_all'
 				else:
-					tmp_filename = 'radial_order_param_species_' + str(s)
+					tmp_filename = 'radial_3_2_order_param_species_' + str(s)
 			else:
 				if s == "all species":
-					tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all'
+					tmp_filename = 'radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all'
 				else:
-					tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
+					tmp_filename = 'radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s)
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_specie/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -5592,15 +5592,15 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			tmp_leg = str(groups_labels[g_index])
 			tmp_species = {l: op_lipids_handled[l] + ["all species"] for l in ["lower","upper"]}
 			if f_type == "all frames":
-				tmp_filename = 'radial_thickness_groups_' + tmp_leg
+				tmp_filename = 'radial_3_2_order_param_groups_' + tmp_leg
 			else:
-				tmp_filename = 'radial_thickness_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
+				tmp_filename = 'radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
 			if f_type == "all frames":
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
 			else:
-				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
-				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
+				filename_txt=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.txt'
+				filename_xvg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_group/xvg/' + str(tmp_filename) + '.xvg'
 			output_txt = open(filename_txt, 'w')
 			output_xvg = open(filename_xvg, 'w')
 			
@@ -5700,18 +5700,18 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		#create filenames
 		if f_type == "all frames":
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/png/radial_order_param_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/radial_order_param_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_specie/png/radial_3_1_order_param_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_specie/radial_3_1_order_param_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/png/radial_order_param_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_specie/radial_order_param_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_specie/png/radial_3_1_order_param_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_specie/radial_3_1_order_param_species_' + str(s) + '.svg'
 		else:
 			if s == "all species":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_specie/png/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_specie/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_specie/png/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_specie/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 			
 		#create figure
 		fig = plt.figure(figsize=(8, 6.2))
@@ -5795,18 +5795,18 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 		#create filenames
 		if f_type == "all frames":
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/png/radial_order_param_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/radial_order_param_sizes_all.svg'		
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_size/png/radial_3_1_order_param_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_size/radial_3_1_order_param_sizes_all.svg'		
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/png/radial_order_param_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/1_sizes/by_size/radial_order_param_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_size/png/radial_3_1_order_param_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/1_sizes/by_size/radial_3_1_order_param_sizes_' + str(c_size) + '.svg'
 		else:
 			if c_size == "all sizes":
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_size/png/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_size/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_all.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/1_sizes/by_size/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_size/png/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/1_sizes/by_size/radial_3_1_order_param_' + str(int(f_time)).zfill(5) + 'ns_sizes_' + str(c_size) + '.svg'
 
 		#create figure
 		fig=plt.figure(figsize=(8, 6.2))
@@ -5902,18 +5902,18 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			#create filenames
 			if f_type == "all frames":
 				if s == "all species":
-					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_specie/png/radial_order_param_species_all.png'
-					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_specie/radial_order_param_species_all.svg'
+					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_specie/png/radial_3_2_order_param_species_all.png'
+					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_specie/radial_3_2_order_param_species_all.svg'
 				else:
-					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_specie/png/radial_order_param_species_' + str(s) + '.png'
-					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_specie/radial_order_param_species_' + str(s) + '.svg'
+					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_specie/png/radial_3_2_order_param_species_' + str(s) + '.png'
+					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_specie/radial_3_2_order_param_species_' + str(s) + '.svg'
 			else:
 				if s == "all species":
-					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
-					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
+					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_specie/png/radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.png'
+					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_specie/radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_all.svg'
 				else:
-					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/png/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
-					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_specie/radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
+					filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_specie/png/radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.png'
+					filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_specie/radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_species_' + str(s) + '.svg'
 				
 			#create figure
 			fig = plt.figure(figsize=(8, 6.2))
@@ -5997,15 +5997,15 @@ def radial_op_frame_xvg_graph(f_type, f_time, f_display):
 			#create filenames
 			tmp_leg = str(groups_labels[g_index])
 			if f_type == "all frames":
-				tmp_filename = 'radial_order_param_groups_' + tmp_leg
+				tmp_filename = 'radial_3_2_order_param_groups_' + tmp_leg
 			else:
-				tmp_filename = 'radial_order_param_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
+				tmp_filename = 'radial_3_2_order_param_' + str(int(f_time)).zfill(5) + 'ns_groups_' + tmp_leg
 			if f_type == "all frames":
-				filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_group/png/' + str(tmp_filename) + '.png'
-				filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/2_groups/by_group/' + str(tmp_filename) + '.svg'
+				filename_png = os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_group/png/' + str(tmp_filename) + '.png'
+				filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/2_groups/by_group/' + str(tmp_filename) + '.svg'
 			else:
-				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_group/png/' + str(tmp_filename) + '.png'
-				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/order_param/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
+				filename_png=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_group/png/' + str(tmp_filename) + '.png'
+				filename_svg=os.getcwd() + '/' + str(args.output_folder) + '/radial/3_order_param/snapshots/2_groups/by_group/' + str(tmp_filename) + '.svg'
 
 			#create figure
 			fig=plt.figure(figsize=(8, 6.2))
