@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.21-dev0"
+version_nb="0.1.21-dev1"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -289,6 +289,7 @@ Radial perturbations and protein clusters identification
 Other options
 -----------------------------------------------------
 --neighbours	5	: nb of opposite neighbours to use for thickness calculation
+--buffer_size	100	: nb of frames to store in memory before writing them to the VMD xtc annotation files (-1 = don't write)
 --version		: show version number and exit
 -h, --help		: show this menu and exit
   
@@ -327,6 +328,7 @@ parser.add_argument('--db_neighbours', nargs=1, dest='dbscan_nb', default=[3], t
 
 #other options
 parser.add_argument('--neighbours', nargs=1, dest='thick_nb_neighbours', default=[5], type=int, help=argparse.SUPPRESS)
+parser.add_argument('--buffer_size', nargs=1, dest='buffer_size', default=[100], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--version', action='version', version='%(prog)s v' + version_nb, help=argparse.SUPPRESS)
 parser.add_argument('-h','--help', action='help', help=argparse.SUPPRESS)
 
@@ -365,6 +367,7 @@ args.dbscan_dist = args.dbscan_dist[0]
 args.dbscan_nb = args.dbscan_nb[0]
 #other options
 args.thick_nb_neighbours = args.thick_nb_neighbours[0]
+args.buffer_size = args.buffer_size[0]
 
 #process options
 #---------------
@@ -383,12 +386,14 @@ if args.radial:
 	radial_bins = [n*args.radial_step for n in range(0,radial_nb_bins)]
 	if args.selection_file_prot == 'no':
 		args.selection_file_prot = 'auto' 
-global xtc_thick
-global xtc_order_param
+global vmd_thick
+global vmd_order_param
+global vmd_counter
 global colours_sizes_range
 global lipids_ff_nb
-xtc_thick = ""
-xtc_order_param = ""
+vmd_thick = ""
+vmd_order_param = ""
+vmd_counter = 0
 lipids_ff_nb = 0
 
 #colour of cluster sizes
@@ -487,6 +492,9 @@ if args.tailsfilename != "no" and not os.path.isfile(args.tailsfilename):
 	sys.exit(1)
 if args.t_end < args.t_start:
 	print "Error: the starting time (" + str(args.t_start) + "ns) for analysis is later than the ending time (" + str(args.t_end) + "ns)."
+	sys.exit(1)
+if args.buffer_size < -1:
+	print "Error: the option --buffer_size should be greater than -1 (set to " + str(args.buffer_size) + ")."
 	sys.exit(1)
 
 if args.xtcfilename == "no":
@@ -2188,6 +2196,8 @@ def calculate_radial_data(f_type):
 	return
 def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 	
+	global vmd_thick
+	
 	#array of associated thickness
 	tmp_dist_t2b_dist = MDAnalysis.analysis.distances.distance_array(leaflet_sele["upper"]["all species"].coordinates(), leaflet_sele["lower"]["all species"].coordinates(), U.dimensions)
 	tmp_dist_b2t_dist = MDAnalysis.analysis.distances.distance_array(leaflet_sele["lower"]["all species"].coordinates(), leaflet_sele["upper"]["all species"].coordinates(), U.dimensions)	
@@ -2229,14 +2239,21 @@ def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 		thick_frame_write_annotation(f_time)
 
 	#create annotation line for current frame
-	tmp_thick = str(frames_nb[f_index])
-	for l in ["lower","upper"]:
-		for s in leaflet_species[l]:
-			tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
-	tmp_thick += "\n"
-	
-	return tmp_thick
+	#========================================
+	if args.buffer_size != -1:
+		tmp_thick = str(frames_nb[f_index])
+		for l in ["lower","upper"]:
+			for s in leaflet_species[l]:
+				tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
+		vmd_thick += tmp_thick + "\n"
+		if vmd_counter == args.buffer_size:
+			output_xtc_annotate_thick.write(vmd_thick)
+			vmd_thick = ""
+		
+	return
 def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
+
+	global vmd_order_param
 		
 	#non flipflopping lipids
 	#=======================
@@ -2316,18 +2333,22 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 
 	#create annotation line for current frame
 	#========================================
-	tmp_ops = str(frames_nb[f_index])
-	#nff lipids
-	for l in ["lower","upper"]:
-		for s in op_lipids_handled[l]:
-			tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s]["current"][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
-	#ff lipids
-	if args.selection_file_ff != "no":
-		for l in range(0,lipids_ff_nb):
-			tmp_ops += ";" + str(round(lipids_op_ff[l_index]["tails"]["raw"][f_index],2))
-	tmp_ops += "\n"
+	if args.buffer_size != -1:
+		tmp_ops = str(frames_nb[f_index])
+		#nff lipids
+		for l in ["lower","upper"]:
+			for s in op_lipids_handled[l]:
+				tmp_ops += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_op_nff[l][s]["current"][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
+		#ff lipids
+		if args.selection_file_ff != "no":
+			for l in range(0,lipids_ff_nb):
+				tmp_ops += ";" + str(round(lipids_op_ff[l_index]["tails"]["raw"][f_index],2))
+		vmd_order_param += tmp_ops + "\n"
+		if vmd_counter == args.buffer_size:
+			output_xtc_annotate_op.write(vmd_order_param)
+			vmd_order_param = ""
 
-	return tmp_ops
+	return
 def detect_clusters_connectivity(dist, box_dim):						
 	
 	#use networkx algorithm
@@ -2650,26 +2671,26 @@ def thick_frame_write_annotation(f_time):								#DONE
 	output_stat.close()
 
 	return
-def thick_xtc_write_annotation():										#DONE
+def thick_xtc_write_annotation_initialise():							#DONE
 	
+	global output_xtc_annotate_thick
+	
+	#case: initialise
+	#----------------
 	#create file
 	filename_details=os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
-	output_stat = open(filename_details, 'w')		
+	output_xtc_annotate_thick = open(filename_details, 'w')	
 
 	#create selection string
 	tmp_sele_string = ""
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l]:
 			tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
-	output_stat.write(tmp_sele_string[1:] + "\n")
+	output_xtc_annotate_thick.write(tmp_sele_string[1:] + "\n")
 
 	#write min and max boundaries of thickness
-	output_stat.write(str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
-	
-	#ouptut thickness for each lipid
-	output_stat.write(xtc_thick + "\n")
-	output_stat.close()
-
+	output_xtc_annotate_thick.write(str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		
 	return
 
 #order parameters
@@ -3569,11 +3590,13 @@ def op_frame_write_annotation(f_time, f_index):							#DONE
 	output_stat.close()
 
 	return
-def op_xtc_write_annotation():											#DONE
+def op_xtc_write_annotation_initialise():								#DONE
+	
+	global output_xtc_annotate_op
 	
 	#create file
 	filename_details = os.getcwd() + '/' + str(args.output_folder) + '/order_param/3_VMD/' + args.xtcfilename[:-4] + '_annotated_orderparam_dt' + str(args.frames_dt) + '.txt'
-	output_stat = open(filename_details, 'w')		
+	output_xtc_annotate_op = open(filename_details, 'w')		
 
 	#output selection strings
 	#------------------------
@@ -3586,13 +3609,8 @@ def op_xtc_write_annotation():											#DONE
 	if args.selection_file_ff!="no":
 		for l in range(0,lipids_ff_nb):
 			tmp_sele_string+="." + lipids_sele_ff_VMD_string[l]
-	output_stat.write(tmp_sele_string[1:] + "\n")
+	output_xtc_annotate_op.write(tmp_sele_string[1:] + "\n")
 	
-	#ouptut order param for each lipid
-	#---------------------------------
-	output_stat.write(xtc_order_param + "\n")
-	output_stat.close()
-
 	return
 
 #=========================================================================================
@@ -6113,6 +6131,13 @@ if args.perturb == 2 or args.perturb == 3:
 if args.radial:
 	data_struct_radial()
 
+#open files for VMD xtc annotations
+if args.buffer_size != -1:
+	if args.perturb == 1 or args.perturb == 3:
+		thick_xtc_write_annotation_initialise()
+	if args.perturb == 2 or args.perturb == 3:
+		op_xtc_write_annotation_initialise()
+
 #=========================================================================================
 # generate data
 #=========================================================================================
@@ -6158,15 +6183,22 @@ else:
 			
 		#bilayer properties
 		if args.perturb == 1 or args.perturb == 3:
-			xtc_thick += calculate_thickness("current", f_time, f_write, f_index)
+			calculate_thickness("current", f_time, f_write, f_index)
 		
 		if args.perturb == 2 or args.perturb == 3:
-			xtc_order_param += calculate_order_parameters("current", f_time, f_write, f_index)
+			calculate_order_parameters("current", f_time, f_write, f_index)
 	
 		#radial perturbations
 		if args.radial:
 			calculate_radial("current", f_time, f_write, U.trajectory.ts.dimensions)
 
+		#buffer counter for outputting xtc annotation files
+		if args.buffer_size != -1:
+			if vmd_counter == args.buffer_size
+				vmd_counter = 0
+			else:
+				vmd_counter += 1 
+		
 	print ''
 
 #=========================================================================================
@@ -6236,10 +6268,11 @@ else:
 		
 	#write annotation files for VMD
 	print " -writing VMD xtc annotation files..."
-	if args.perturb == 1 or args.perturb == 3:
-		thick_xtc_write_annotation()
-	if args.perturb == 2 or args.perturb == 3:
-		op_xtc_write_annotation()
+	if args.buffer_size != -1:
+		if args.perturb == 1 or args.perturb == 3:
+			output_xtc_annotate_thick.close()
+		if args.perturb == 2 or args.perturb == 3:
+			output_xtc_annotate_op.close()
 	
 	#write xvg and graphs
 	print " -writing xvg and graphs..."
