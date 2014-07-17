@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.21-dev1"
+version_nb="0.1.21-dev2"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2671,26 +2671,39 @@ def thick_frame_write_annotation(f_time):								#DONE
 	output_stat.close()
 
 	return
-def thick_xtc_write_annotation_initialise():							#DONE
+def thick_xtc_write_annotation(action):									#DONE
 	
 	global output_xtc_annotate_thick
 	
-	#case: initialise
-	#----------------
-	#create file
-	filename_details=os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
-	output_xtc_annotate_thick = open(filename_details, 'w')	
+	if action == "initialise":
+		#create file handle
+		filename_details = os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
+		output_xtc_annotate_thick = open(filename_details, 'w')	
 
-	#create selection string
-	tmp_sele_string = ""
-	for l in ["lower","upper"]:
-		for s in leaflet_species[l]:
-			tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
-	output_xtc_annotate_thick.write(tmp_sele_string[1:] + "\n")
-
-	#write min and max boundaries of thickness
-	output_xtc_annotate_thick.write(str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+	elif action == "finish":
+		#add remaining bit of info and read the whole file content before closing the file
+		output_xtc_annotate_thick.write(vmd_thick)
+		output_xtc_annotate_thick.close()
 		
+		#reopen the file
+		filename_details = os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
+		with open(filename_details, 'r') as f:
+			tmp_data = f.read()
+		with open(filename_details, 'w') as f:
+		
+			#create selection string
+			tmp_sele_string = ""
+			for l in ["lower","upper"]:
+				for s in leaflet_species[l]:
+					tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
+			f.write(tmp_sele_string[1:] + "\n")
+		
+			#write min and max boundaries of thickness
+			f.write(str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+		
+			#write data
+			f.write(tmp_data)
+	
 	return
 
 #order parameters
@@ -3595,8 +3608,9 @@ def op_xtc_write_annotation_initialise():								#DONE
 	global output_xtc_annotate_op
 	
 	#create file
+	#-----------
 	filename_details = os.getcwd() + '/' + str(args.output_folder) + '/order_param/3_VMD/' + args.xtcfilename[:-4] + '_annotated_orderparam_dt' + str(args.frames_dt) + '.txt'
-	output_xtc_annotate_op = open(filename_details, 'w')		
+	output_xtc_annotate_op = open(filename_details, 'w')
 
 	#output selection strings
 	#------------------------
@@ -6134,7 +6148,7 @@ if args.radial:
 #open files for VMD xtc annotations
 if args.buffer_size != -1:
 	if args.perturb == 1 or args.perturb == 3:
-		thick_xtc_write_annotation_initialise()
+		thick_xtc_write_annotation("initialise")
 	if args.perturb == 2 or args.perturb == 3:
 		op_xtc_write_annotation_initialise()
 
@@ -6194,7 +6208,7 @@ else:
 
 		#buffer counter for outputting xtc annotation files
 		if args.buffer_size != -1:
-			if vmd_counter == args.buffer_size
+			if vmd_counter == args.buffer_size:
 				vmd_counter = 0
 			else:
 				vmd_counter += 1 
@@ -6270,8 +6284,9 @@ else:
 	print " -writing VMD xtc annotation files..."
 	if args.buffer_size != -1:
 		if args.perturb == 1 or args.perturb == 3:
-			output_xtc_annotate_thick.close()
+			thick_xtc_write_annotation("finish")
 		if args.perturb == 2 or args.perturb == 3:
+			output_xtc_annotate_op.write(vmd_order_param)
 			output_xtc_annotate_op.close()
 	
 	#write xvg and graphs
