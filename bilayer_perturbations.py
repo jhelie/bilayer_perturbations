@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.23"
+version_nb="0.1.24"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1093,6 +1093,7 @@ def identify_proteins():
 	global proteins_sele_string_VMD
 	global proteins_boundaries
 	global proteins_nb_atoms
+	global nb_atom_per_protein	
 	proteins_nb = 0
 	proteins_sele = {}
 	proteins_sele_string = {}
@@ -1181,6 +1182,8 @@ def identify_proteins():
 			proteins_sele[p_index] = U.selectAtoms(proteins_sele_string[p_index])
 			output_stat.write(proteins_sele_string[p_index] + "\n")
 		output_stat.close()
+
+	nb_atom_per_protein = proteins_sele[0].numberOfAtoms()
 	print ""
 
 	return
@@ -1729,9 +1732,15 @@ def get_distances(box_dim):
 	#method: use minimum distance between proteins
 	#---------------------------------------------
 	if args.m_algorithm == "min":
-		dist_matrix=100000*np.ones((proteins_nb,proteins_nb))
+		#pre-process: get protein coordinates
+		tmp_proteins_coords = np.zeros((proteins_nb, nb_atom_per_protein, 3))
+		for p_index in range(0, proteins_nb):
+			tmp_proteins_coords[p_index,:] = proteins_sele[p_index].coordinates()
+
+		#store min distance between each proteins
+		dist_matrix = 100000 * np.ones((proteins_nb,proteins_nb))
 		for n in range(proteins_nb,1,-1):
-			dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb] = map(lambda pp:np.min(MDAnalysis.analysis.distances.distance_array(np.float32(proteins_sele[proteins_nb-n].coordinates()),np.float32(proteins_sele[pp].coordinates()),box_dim)), range(proteins_nb-n+1,proteins_nb))
+			dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb] = map(lambda pp: np.min(MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_coords[proteins_nb-n,:]), np.float32(tmp_proteins_coords[pp,:]), box_dim)), range(proteins_nb-n+1,proteins_nb))
 			dist_matrix[proteins_nb-n+1:proteins_nb,proteins_nb-n] = dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb]
 											
 	#method: use distance between cog
@@ -1741,18 +1750,18 @@ def get_distances(box_dim):
 		dist_matrix = MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_cogs), np.float32(tmp_proteins_cogs), box_dim)
 
 	return dist_matrix
-def calculate_cog(sele, box_dim):										
+def calculate_cog(tmp_coords, box_dim):										
 	
 	#this method allows to take pbc into account when calculcating the center of geometry 
 	#see: http://en.wikipedia.org/wiki/Center_of_mass#Systems_with_periodic_boundary_conditions
 	
 	cog_coord = np.zeros(3)
-	tmp_coords = sele.coordinates()
-	tmp_nb_atoms = sele.numberOfAtoms()
+	tmp_nb_atoms = np.shape(tmp_coords)[0]
+	
 	for n in range(0,3):
-		tet = map(lambda part_index:tmp_coords[part_index,n]*2*math.pi/float(box_dim[n]) , range(0,tmp_nb_atoms))
-		xsi = map(lambda part_index:math.cos(tet[part_index]) , range(0,tmp_nb_atoms))
-		zet = map(lambda part_index:math.sin(tet[part_index]) , range(0,tmp_nb_atoms))
+		tet = tmp_coords[:,n] * 2 * math.pi / float(box_dim[n])
+		xsi = np.cos(tet)
+		zet = np.sin(tet)
 		tet_avg = math.atan2(-np.average(zet),-np.average(xsi)) + math.pi
 		cog_coord[n] = tet_avg * box_dim[n] / float(2*math.pi)
 	
@@ -1800,8 +1809,9 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 		c_sele = MDAnalysis.core.AtomGroup.AtomGroup([])
 		for p_index in cluster:
 			c_sele += proteins_sele[p_index]
-		dist_min_lower = np.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["lower"]["all species"], box_dim), axis = 1)
-		dist_min_upper = np.min(MDAnalysis.analysis.distances.distance_array(c_sele.coordinates(), tmp_lip_coords["upper"]["all species"], box_dim), axis = 1)
+		tmp_c_sele_coordinates = c_sele.coordinates()
+		dist_min_lower = np.min(MDAnalysis.analysis.distances.distance_array(tmp_c_sele_coordinates, tmp_lip_coords["lower"]["all species"], box_dim), axis = 1)
+		dist_min_upper = np.min(MDAnalysis.analysis.distances.distance_array(tmp_c_sele_coordinates, tmp_lip_coords["upper"]["all species"], box_dim), axis = 1)
 		dist = dist_min_upper - dist_min_lower
 		if np.size(dist[dist>0]) != np.size(dist) and np.size(dist[dist>0]) !=0:
 					
@@ -1889,7 +1899,7 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 			#update radial data
 			#------------------
 			#calculate cluster cog
-			cluster_cog = calculate_cog(c_sele, box_dim)
+			cluster_cog = calculate_cog(tmp_c_sele_coordinates, box_dim)
 			
 			#case: chol density
 			if chol_pres:
