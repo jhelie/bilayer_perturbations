@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.26"
+version_nb="0.1.27"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2207,7 +2207,7 @@ def calculate_radial_data(f_type):
 						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 
 	return
-def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):				#DONE
+def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):		#DONE
 	
 	global vmd_thick
 	global vmd_thick_min
@@ -6170,7 +6170,7 @@ if args.radial:
 	data_struct_radial()
 
 #open files for VMD xtc annotations
-if args.buffer_size != -1:
+if args.xtcfilename != "no" and args.buffer_size != -1:
 	if args.perturb == 1 or args.perturb == 3:
 		thick_xtc_write_annotation("initialise")
 	if args.perturb == 2 or args.perturb == 3:
