@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.24"
+version_nb="0.1.25"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1821,11 +1821,9 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 			if c_size not in radial_sizes["current"]:
 				#update sizes sampled and create containers for new one if necessary
 				radial_sizes["current"].append(c_size)
-				radial_sizes["current"] = sorted(radial_sizes["current"])
 				if c_size not in radial_sizes["all frames"]:
 					sizes_nb_clusters[c_size] = 0
 					radial_sizes["all frames"].append(c_size)
-					radial_sizes["all frames"] = sorted(radial_sizes["all frames"])
 					if chol_pres:
 						radial_density["CHOL"]["sizes"][c_size] = {key: {"all frames": np.zeros(radial_nb_bins)} for key in ["nb","pc"]}
 					for l in ["lower","upper"]:	
@@ -1866,11 +1864,9 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 				if g_index not in radial_groups["current"]:
 					#update groups sampled
 					radial_groups["current"].append(g_index)
-					radial_groups["current"] = sorted(radial_groups["current"])
 					if g_index not in radial_groups["all frames"]:
-						radial_groups["all frames"].append(g_index)
-						radial_groups["all frames"] = sorted(radial_groups["all frames"])
-	
+						radial_groups["all frames"].append(g_index)	
+
 					#reset containers for current group
 					if chol_pres:
 						radial_density["CHOL"]["groups"][g_index]["nb"]["current"] = np.zeros(radial_nb_bins)
@@ -1909,8 +1905,8 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 				tmp_coord[:,1] -= cluster_cog[1]
 											
 				#deal with pbc
-				tmp_coord[:,0] -= (np.floor(2*tmp_coord[:,0]/float(U.trajectory.ts.dimensions[0])) + (1-np.sign(tmp_coord[:,0]))/float(2)) * U.trajectory.ts.dimensions[0]
-				tmp_coord[:,1] -= (np.floor(2*tmp_coord[:,1]/float(U.trajectory.ts.dimensions[1])) + (1-np.sign(tmp_coord[:,1]))/float(2)) * U.trajectory.ts.dimensions[1]
+				tmp_coord[:,0] -= (np.floor(2*tmp_coord[:,0]/float(box_dim[0])) + (1-np.sign(tmp_coord[:,0]))/float(2)) * box_dim[0]
+				tmp_coord[:,1] -= (np.floor(2*tmp_coord[:,1]/float(box_dim[1])) + (1-np.sign(tmp_coord[:,1]))/float(2)) * box_dim[1]
 									
 				#keep those within the specified radius
 				tmp_radial_dist = np.sqrt(tmp_coord[:,0]**2 + tmp_coord[:,1]**2)
@@ -1941,8 +1937,8 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 					tmp_coord[:,1] -= cluster_cog[1]
 												
 					#deal with pbc
-					tmp_coord[:,0] -= (np.floor(2*tmp_coord[:,0]/float(U.trajectory.ts.dimensions[0])) + (1-np.sign(tmp_coord[:,0]))/float(2)) * U.trajectory.ts.dimensions[0]
-					tmp_coord[:,1] -= (np.floor(2*tmp_coord[:,1]/float(U.trajectory.ts.dimensions[1])) + (1-np.sign(tmp_coord[:,1]))/float(2)) * U.trajectory.ts.dimensions[1]
+					tmp_coord[:,0] -= (np.floor(2*tmp_coord[:,0]/float(box_dim[0])) + (1-np.sign(tmp_coord[:,0]))/float(2)) * box_dim[0]
+					tmp_coord[:,1] -= (np.floor(2*tmp_coord[:,1]/float(box_dim[1])) + (1-np.sign(tmp_coord[:,1]))/float(2)) * box_dim[1]
 										
 					#keep those within the specified radius
 					tmp_radial_dist = np.sqrt(tmp_coord[:,0]**2 + tmp_coord[:,1]**2)
@@ -2102,6 +2098,8 @@ def calculate_radial_data(f_type):
 	#NB:
 	# 1. f_type is either set to "current" (for on the fly outputting) or to "all frames" (for post-processing statistics)
 
+	radial_sizes[f_type] = sorted(radial_sizes[f_type])
+
 	#sizes
 	#=====
 	#cholesterol density (we can't associate a leaflet to cholesterol so we have to things a little different for it)
@@ -2155,6 +2153,7 @@ def calculate_radial_data(f_type):
 	#size groups
 	#===========
 	if args.cluster_groups_file != "no":
+		radial_groups[f_type] = sorted(radial_groups[f_type])
 		
 		#cholesterol density (we can't associate a leaflet to cholesterol so we have to things a little different for it)
 		if chol_pres:
@@ -2204,15 +2203,18 @@ def calculate_radial_data(f_type):
 						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 
 	return
-def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
+def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):				#DONE
 	
 	global vmd_thick
+
+	#retrieve coordinates arrays (pre-processing saves time as MDAnalysis functions are quite slow and we need to make such calls a few times)
+	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
 	
 	#array of associated thickness
-	tmp_dist_t2b_dist = MDAnalysis.analysis.distances.distance_array(leaflet_sele["upper"]["all species"].coordinates(), leaflet_sele["lower"]["all species"].coordinates(), U.dimensions)
-	tmp_dist_b2t_dist = MDAnalysis.analysis.distances.distance_array(leaflet_sele["lower"]["all species"].coordinates(), leaflet_sele["upper"]["all species"].coordinates(), U.dimensions)	
+	tmp_dist_t2b_dist = MDAnalysis.analysis.distances.distance_array(tmp_lip_coords["upper"], tmp_lip_coords["lower"], box_dim)
+	tmp_dist_b2t_dist = MDAnalysis.analysis.distances.distance_array(tmp_lip_coords["lower"], tmp_lip_coords["upper"], box_dim)
 	tmp_dist_t2b_dist.sort()
-	tmp_dist_b2t_dist.sort()
+	tmp_dist_b2t_dist.sort()	
 	tmp_dist_t2b_dist = tmp_dist_t2b_dist[:,:args.thick_nb_neighbours]
 	tmp_dist_b2t_dist = tmp_dist_b2t_dist[:,:args.thick_nb_neighbours]
 	tmp_dist_t2b_avg = np.average(tmp_dist_t2b_dist, axis=1)
@@ -2257,8 +2259,9 @@ def calculate_thickness(f_type, f_time, f_write, f_index):				#DONE
 				tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
 		vmd_thick += tmp_thick + "\n"
 		if vmd_counter == args.buffer_size:
-			output_xtc_annotate_thick.write(vmd_thick)
-			vmd_thick = ""
+			with open(output_xtc_annotate_thick, 'a') as f:
+				f.write(vmd_thick)
+				vmd_thick = ""
 		
 	return
 def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
@@ -2355,8 +2358,9 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 				tmp_ops += ";" + str(round(lipids_op_ff[l_index]["tails"]["raw"][f_index],2))
 		vmd_order_param += tmp_ops + "\n"
 		if vmd_counter == args.buffer_size:
-			output_xtc_annotate_op.write(vmd_order_param)
-			vmd_order_param = ""
+			with open(output_xtc_annotate_op, 'a') as f:
+				f.write(vmd_order_param)
+				vmd_order_param = ""
 
 	return
 def detect_clusters_connectivity(dist, box_dim):						
@@ -2685,21 +2689,24 @@ def thick_xtc_write_annotation(action):									#DONE
 	
 	global output_xtc_annotate_thick
 	
+	#create file name
+	#----------------
 	if action == "initialise":
-		#create file handle
-		filename_details = os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
-		output_xtc_annotate_thick = open(filename_details, 'w')	
+		output_xtc_annotate_thick = os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
 
+	#pre-prend info to file
+	#----------------------
 	elif action == "finish":
 		#add remaining bit of info and read the whole file content before closing the file
-		output_xtc_annotate_thick.write(vmd_thick)
-		output_xtc_annotate_thick.close()
+		with open(output_xtc_annotate_thick, 'a') as f:
+			f.write(vmd_thick)
 		
-		#reopen the file
-		filename_details = os.getcwd() + '/' + str(args.output_folder) + '/thickness/3_VMD/' + args.xtcfilename[:-4] + '_annotated_thickness_dt' + str(args.frames_dt) + '.txt'
-		with open(filename_details, 'r') as f:
+		#read content of file
+		with open(output_xtc_annotate_thick, 'r') as f:
 			tmp_data = f.read()
-		with open(filename_details, 'w') as f:
+		
+		#pre-pend info to it
+		with open(output_xtc_annotate_thick, 'w') as f:
 		
 			#create selection string
 			tmp_sele_string = ""
@@ -3617,23 +3624,22 @@ def op_xtc_write_annotation_initialise():								#DONE
 	
 	global output_xtc_annotate_op
 	
-	#create file
-	#-----------
-	filename_details = os.getcwd() + '/' + str(args.output_folder) + '/order_param/3_VMD/' + args.xtcfilename[:-4] + '_annotated_orderparam_dt' + str(args.frames_dt) + '.txt'
-	output_xtc_annotate_op = open(filename_details, 'w')
+	#create file and output selection strings
+	#----------------------------------------
+	output_xtc_annotate_op = os.getcwd() + '/' + str(args.output_folder) + '/order_param/3_VMD/' + args.xtcfilename[:-4] + '_annotated_orderparam_dt' + str(args.frames_dt) + '.txt'
+	with open(output_xtc_annotate_op, 'w') as f:
 
-	#output selection strings
-	#------------------------
-	#nff lipids
-	tmp_sele_string=""
-	for l in ["lower","upper"]:
-		for s in op_lipids_handled[l]:
-			tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
-	#ff lipids
-	if args.selection_file_ff!="no":
-		for l in range(0,lipids_ff_nb):
-			tmp_sele_string+="." + lipids_sele_ff_VMD_string[l]
-	output_xtc_annotate_op.write(tmp_sele_string[1:] + "\n")
+		#nff lipids
+		tmp_sele_string=""
+		for l in ["lower","upper"]:
+			for s in op_lipids_handled[l]:
+				tmp_sele_string += reduce(lambda x,y:x+y, map(lambda r_index:"." + lipids_sele_nff_VMD_string[l][s][r_index], range(0,leaflet_sele[l][s].numberOfResidues())))
+		#ff lipids
+		if args.selection_file_ff!="no":
+			for l in range(0,lipids_ff_nb):
+				tmp_sele_string+="." + lipids_sele_ff_VMD_string[l]
+
+		f.write(tmp_sele_string[1:] + "\n")
 	
 	return
 
@@ -6172,18 +6178,19 @@ print "\nCalculating bilayer perturbations..."
 if args.xtcfilename == "no":
 	frames_nb[0] = 1
 	frames_time[0] = 0
+	box_dim = U.trajectory.ts.dimensions
 	f_write = False
 	if args.frames_write_dt != "no":
 		f_write = True
 		print "(writing snapshot...)"
 	#bilayer properties
 	if args.perturb == 1 or args.perturb == 3:
-		calculate_thickness("all frames", 0, f_write, 0)
+		calculate_thickness("all frames", 0, f_write, 0,  box_dim)
 	if args.perturb == 2 or args.perturb == 3:
 		calculate_order_parameters("all frames", 0, f_write, 0)
 	#radial perturbations	
 	if args.radial:
-		calculate_radial("all frames", 0, f_write, U.trajectory.ts.dimensions)
+		calculate_radial("all frames", 0, f_write,  box_dim)
 
 #case: xtc file
 #==============
@@ -6201,20 +6208,22 @@ else:
 		f_nb = ts.frame
 		frames_nb[f_index] = f_nb
 		frames_time[f_index] = f_time
+		box_dim = U.trajectory.ts.dimensions
 		f_write = frames_to_write[f_index]
 		if f_write:
 			print "\n  (writing snapshot...)"
+		
 			
 		#bilayer properties
 		if args.perturb == 1 or args.perturb == 3:
-			calculate_thickness("current", f_time, f_write, f_index)
+			calculate_thickness("current", f_time, f_write, f_index, box_dim)
 		
 		if args.perturb == 2 or args.perturb == 3:
 			calculate_order_parameters("current", f_time, f_write, f_index)
 	
 		#radial perturbations
 		if args.radial:
-			calculate_radial("current", f_time, f_write, U.trajectory.ts.dimensions)
+			calculate_radial("current", f_time, f_write,  box_dim)
 
 		#buffer counter for outputting xtc annotation files
 		if args.buffer_size != -1:
@@ -6296,8 +6305,8 @@ else:
 		if args.perturb == 1 or args.perturb == 3:
 			thick_xtc_write_annotation("finish")
 		if args.perturb == 2 or args.perturb == 3:
-			output_xtc_annotate_op.write(vmd_order_param)
-			output_xtc_annotate_op.close()
+			with open(output_xtc_annotate_op, 'a') as f:
+				f.write(vmd_order_param)
 	
 	#write xvg and graphs
 	print " -writing xvg and graphs..."
