@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.22"
+version_nb="0.1.23"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -288,7 +288,7 @@ Radial perturbations and protein clusters identification
  
 Other options
 -----------------------------------------------------
---neighbours	5	: nb of opposite neighbours to use for thickness calculation
+--neighbours	3	: nb of opposite neighbours to use for thickness calculation
 --buffer_size	100	: nb of frames to store in memory before writing them to the VMD xtc annotation files (-1 = don't write)
 --version		: show version number and exit
 -h, --help		: show this menu and exit
@@ -327,7 +327,7 @@ parser.add_argument('--db_radius', nargs=1, dest='dbscan_dist', default=[20], ty
 parser.add_argument('--db_neighbours', nargs=1, dest='dbscan_nb', default=[3], type=int, help=argparse.SUPPRESS)
 
 #other options
-parser.add_argument('--neighbours', nargs=1, dest='thick_nb_neighbours', default=[5], type=int, help=argparse.SUPPRESS)
+parser.add_argument('--neighbours', nargs=1, dest='thick_nb_neighbours', default=[3], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--buffer_size', nargs=1, dest='buffer_size', default=[100], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--version', action='version', version='%(prog)s v' + version_nb, help=argparse.SUPPRESS)
 parser.add_argument('-h','--help', action='help', help=argparse.SUPPRESS)
