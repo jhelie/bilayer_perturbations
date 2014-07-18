@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.25"
+version_nb="0.1.26"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -387,11 +387,15 @@ if args.radial:
 	if args.selection_file_prot == 'no':
 		args.selection_file_prot = 'auto' 
 global vmd_thick
+global vmd_thick_min
+global vmd_thick_max
 global vmd_order_param
 global vmd_counter
 global colours_sizes_range
 global lipids_ff_nb
 vmd_thick = ""
+vmd_thick_min = float("inf")
+vmd_thick_max = float("-inf")
 vmd_order_param = ""
 vmd_counter = 0
 lipids_ff_nb = 0
@@ -2206,6 +2210,8 @@ def calculate_radial_data(f_type):
 def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):				#DONE
 	
 	global vmd_thick
+	global vmd_thick_min
+	global vmd_thick_max
 
 	#retrieve coordinates arrays (pre-processing saves time as MDAnalysis functions are quite slow and we need to make such calls a few times)
 	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
@@ -2258,6 +2264,8 @@ def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):				#DONE
 			for s in leaflet_species[l]:
 				tmp_thick += reduce(lambda x,y:x+y, map(lambda r_index:";" + str(round(lipids_thick_nff[l][s][r_index],2)), range(0,leaflet_sele[l][s].numberOfResidues())))
 		vmd_thick += tmp_thick + "\n"
+		vmd_thick_min = min(vmd_thick_min, np.min(lipids_thick_nff["all species"]["raw"]["avg"]))
+		vmd_thick_max = max(vmd_thick_max, np.max(lipids_thick_nff["all species"]["raw"]["avg"]))
 		if vmd_counter == args.buffer_size:
 			with open(output_xtc_annotate_thick, 'a') as f:
 				f.write(vmd_thick)
@@ -2716,7 +2724,7 @@ def thick_xtc_write_annotation(action):									#DONE
 			f.write(tmp_sele_string[1:] + "\n")
 		
 			#write min and max boundaries of thickness
-			f.write(str(round(np.min(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + ";" + str(round(np.max(lipids_thick_nff["all species"]["raw"]["avg"]),2)) + "\n")
+			f.write(str(round(vmd_thick_min,2)) + ";" + str(round(vmd_thick_max,2)) + "\n")
 		
 			#write data
 			f.write(tmp_data)
