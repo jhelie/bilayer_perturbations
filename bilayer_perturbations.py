@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.28"
+version_nb="0.1.29"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2472,7 +2472,7 @@ def thick_xvg_write():													#DONE
 	output_txt.write("@[lipid bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_2_thickness_species.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
-	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\n")
+	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\"\n")
 	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
 	output_xvg.write("@ yaxis  label \"thickness\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -2510,7 +2510,7 @@ def thick_xvg_write_smoothed():											#DONE
 	output_txt.write("@[lipid bilayer thickness statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_4_thickness_species_smoothed.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
-	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\n")
+	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\"\n")
 	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
 	output_xvg.write("@ yaxis  label \"thickness\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -3115,7 +3115,7 @@ def op_xvg_nff_write():													#DONE
 	output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_3_order_param_nff_upper.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
-	output_xvg.write("@ title \"Evolution of lipid tails order parameters in upper leaflet\n")
+	output_xvg.write("@ title \"Evolution of lipid tails order parameters in upper leaflet\"\n")
 	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
 	output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -3206,7 +3206,7 @@ def op_xvg_nff_write_smoothed():										#DONE
 	output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_5_order_param_nff_upper_smoothed.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
-	output_xvg.write("@ title \"Evolution of lipid tails order parameters in upper leaflet\n")
+	output_xvg.write("@ title \"Evolution of lipid tails order parameters in upper leaflet\"\n")
 	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
 	output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -3726,7 +3726,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 		
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of lipids density\n")
+		output_xvg.write("@ title \"radial evolution of lipids density\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -3806,7 +3806,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 		
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of lipids density\n")
+		output_xvg.write("@ title \"radial evolution of lipids density\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -3893,7 +3893,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("# -> weight = " + str(sizes_nb_clusters[c_size]) + "\n")
 
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of lipids density\n")
+		output_xvg.write("@ title \"radial evolution of lipids density\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -3907,20 +3907,20 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		#captions: lower leaflet
 		for s_index in range(0,len(leaflet_species["lower"])):
 			s = leaflet_species["lower"][s_index]
-			output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (nb)\"\n")
+			output_xvg.write("@ s" + str(s_index) + " legend \"lower" + str(s) + " (nb)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(leaflet_species["lower"])):
 			s = leaflet_species["lower"][s_index]
-			output_xvg.write("@ s" + str(len(leaflet_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (%)\"\n")
+			output_xvg.write("@ s" + str(len(leaflet_species["lower"]) + s_index) + " legend \"lower" + str(s) + " (%)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#captions: upper leaflet
 		for s_index in range(0,len(leaflet_species["upper"])):
 			s = leaflet_species["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
+			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + s_index) + " legend \"upper" + str(s) + " (nb)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(leaflet_species["upper"])):
 			s = leaflet_species["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (%)\"\n")
+			output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \"upper" + str(s) + " (%)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		
@@ -3998,7 +3998,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 				output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 			
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of lipids density\n")
+			output_xvg.write("@ title \"radial evolution of lipids density\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -4077,7 +4077,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 				output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 			
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of lipids density\n")
+			output_xvg.write("@ title \"radial evolution of lipids density\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -4159,7 +4159,7 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("# -> weight = " + str(groups_nb_clusters[g_index]) + "\n")
 			
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of lipids density\n")
+			output_xvg.write("@ title \"radial evolution of lipids density\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -4173,20 +4173,20 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			#captions: lower leaflet
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
-				output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (nb)\"\n")
+				output_xvg.write("@ s" + str(s_index) + " legend \"lower" + str(s) + " (nb)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(leaflet_species["lower"])):
 				s = leaflet_species["lower"][s_index]
-				output_xvg.write("@ s" + str(len(leaflet_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (%)\"\n")
+				output_xvg.write("@ s" + str(len(leaflet_species["lower"]) + s_index) + " legend \"lower" + str(s) + " (%)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#captions: upper leaflet
 			for s_index in range(0,len(leaflet_species["upper"])):
 				s = leaflet_species["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
+				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + s_index) + " legend \"upper" + str(s) + " (nb)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(len(leaflet_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(leaflet_species["upper"])):
 				s = leaflet_species["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (%)\"\n")
+				output_xvg.write("@ s" + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index) + " legend \"upper" + str(s) + " (%)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(leaflet_species["lower"]) + len(leaflet_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (%)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 
@@ -4712,7 +4712,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
+		output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -4819,7 +4819,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("# -> weight = " + str(sizes_nb_clusters[c_size]) + "\n")
 
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
+		output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -4935,7 +4935,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 				output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 			
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
+			output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -5046,7 +5046,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("# -> weight = " + str(groups_nb_clusters[g_index]) + "\n")
 
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of bilayer thickness\n")
+			output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -5473,7 +5473,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 		
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
+		output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -5582,7 +5582,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("# -> weight = " + str(sizes_nb_clusters[c_size]) + "\n")
 		
 		#xvg and txt metadata
-		output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
+		output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
 		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -5596,28 +5596,28 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		#captions: lower leaflet
 		for s_index in range(0,len(tmp_species["lower"])):
 			s = tmp_species["lower"][s_index]
-			output_xvg.write("@ s" + str(s_index) + " legend \" lower " + str(s) + " (avg)\"\n")
+			output_xvg.write("@ s" + str(s_index) + " legend \"lower " + str(s) + " (avg)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower " + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(tmp_species["lower"])):
 			s = tmp_species["lower"][s_index]
-			output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \" lower " + str(s) + " (std)\"\n")
+			output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \"lower " + str(s) + " (std)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species["lower"]) + s_index + 1) + ",lower " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(tmp_species["lower"])):
 			s = tmp_species["lower"][s_index]
-			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" lower " + str(s) + " (nb)\"\n")
+			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \"lower " + str(s) + " (nb)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",lower " + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#captions: upper leaflet
 		for s_index in range(0,len(tmp_species["upper"])):
 			s = tmp_species["upper"][s_index]
-			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + s_index) + " legend \" upper " + str(s) + " (avg)\"\n")
+			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + s_index) + " legend \"upper " + str(s) + " (avg)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + s_index + 1) + ",upper " + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(tmp_species["upper"])):
 			s = tmp_species["upper"][s_index]
-			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \" upper " + str(s) + " (std)\"\n")
+			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \"upper " + str(s) + " (std)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index + 1) + ",upper " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(tmp_species["upper"])):
 			s = tmp_species["upper"][s_index]
-			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index) + " legend \" upper " + str(s) + " (nb)\"\n")
+			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index) + " legend \"upper " + str(s) + " (nb)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index + 1) + ",upper " + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		
@@ -5740,7 +5740,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 				output_xvg.write("#  -> search radius = " + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
 			
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
+			output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -5835,7 +5835,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("# -> weight = " + str(groups_nb_clusters[g_index]) + "\n")
 
 			#xvg and txt metadata
-			output_xvg.write("@ title \"radial evolution of lipid order parameters\n")
+			output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
 			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
 			output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
@@ -5849,28 +5849,28 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			#captions: lower leaflet
 			for s_index in range(0,len(tmp_species["lower"])):
 				s = tmp_species["lower"][s_index]
-				output_xvg.write("@ s" + str(s_index) + " legend \" lower" + str(s) + " (avg)\"\n")
+				output_xvg.write("@ s" + str(s_index) + " legend \"lower" + str(s) + " (avg)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(s_index + 1) + ",lower" + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(tmp_species["lower"])):
 				s = tmp_species["lower"][s_index]
-				output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (std)\"\n")
+				output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \"lower" + str(s) + " (std)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(tmp_species["lower"])):
 				s = tmp_species["lower"][s_index]
-				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (nb)\"\n")
+				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \"lower" + str(s) + " (nb)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#captions: upper leaflet
 			for s_index in range(0,len(tmp_species["upper"])):
 				s = tmp_species["upper"][s_index]
-				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (avg)\"\n")
+				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + s_index) + " legend \"upper" + str(s) + " (avg)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(tmp_species["upper"])):
 				s = tmp_species["upper"][s_index]
-				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (std)\"\n")
+				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \"upper" + str(s) + " (std)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(tmp_species["upper"])):
 				s = tmp_species["upper"][s_index]
-				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
+				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index) + " legend \"upper" + str(s) + " (nb)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 
