@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.27"
+version_nb="0.1.28"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1955,8 +1955,8 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 
 						#update density: get the number of atoms in each bin
 						tmp_bins_nb = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1))[0]
-						tmp_bins_nb_div = np.copy(tmp_bins_nb)
-						tmp_bins_nb_div[tmp_bins_nb_div == 0] = 1
+						tmp_bins_nb_div = np.copy(tmp_bins_nb)						
+						tmp_bins_nb_div[tmp_bins_nb_div == 0] = 1						
 						for f_t in ["current","all frames"]:
 							radial_density[l][s][c_size]["nb"][f_t] += tmp_bins_nb
 							radial_density[l][s]["all sizes"]["nb"][f_t] += tmp_bins_nb
@@ -1965,7 +1965,7 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 							if args.cluster_groups_file != "no":
 								radial_density[l][s]["groups"][g_index]["nb"][f_t] += tmp_bins_nb
 								radial_density[l]["all species"]["groups"][g_index]["nb"][f_t] += tmp_bins_nb
-						
+												
 						#update thickness: get the thickness for each bin (avg and std)
 						if args.perturb == 1 or args.perturb == 3:
 							tmp_thick_avg = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1), weights = lipids_thick_nff[l][s][tmp_within])[0] / tmp_bins_nb_div
@@ -1974,20 +1974,20 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 								if s in leaflet_species["lower"] and s in leaflet_species["upper"]:
 									#current specie, current size: Chang algorithm
 									delta =  tmp_thick_avg - radial_thick[s]["avg"][c_size][f_t]
-									tmp_div_nb = radial_density["lower"][s][c_size]["nb"][f_t] + radial_density["upper"][s][c_size]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density["lower"][s][c_size]["nb"][f_t] + radial_density["upper"][s][c_size]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_thick[s]["std"][c_size][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"][s][c_size]["nb"][f_t] + radial_density["upper"][s][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_thick[s]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
 									if args.cluster_groups_file != "no":
 										delta =  tmp_thick_avg - radial_thick[s]["avg"]["groups"][g_index][f_t]
-										tmp_div_nb = radial_density["lower"][s]["groups"][g_index]["nb"][f_t] + radial_density["upper"][s]["groups"][g_index]["nb"][f_t]
+										tmp_div_nb = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_t] + radial_density["upper"][s]["groups"][g_index]["nb"][f_t])
 										tmp_div_nb[tmp_div_nb == 0] = 1
 										radial_thick[s]["std"]["groups"][g_index][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"][s]["groups"][g_index]["nb"][f_t] + radial_density["upper"][s]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 										radial_thick[s]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
 									
 									#current specie, all sizes: Chang algorithm
 									delta =  tmp_thick_avg - radial_thick[s]["avg"]["all sizes"][f_t]
-									tmp_div_nb = radial_density["lower"][s]["all sizes"]["nb"][f_t] + radial_density["upper"][s]["all sizes"]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density["lower"][s]["all sizes"]["nb"][f_t] + radial_density["upper"][s]["all sizes"]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_thick[s]["std"]["all sizes"][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"][s]["all sizes"]["nb"][f_t] + radial_density["upper"][s]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_thick[s]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
@@ -1995,45 +1995,44 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 								else:
 									#current specie, current size: Chang algorithm
 									delta =  tmp_thick_avg - radial_thick[s]["avg"][c_size][f_t]
-									tmp_div_nb = radial_density[l][s][c_size]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density[l][s][c_size]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_thick[s]["std"][c_size][f_t] += tmp_thick_var + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_thick[s]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
 									if args.cluster_groups_file != "no":
 										delta =  tmp_thick_avg - radial_thick[s]["avg"]["groups"][g_index][f_t]
-										tmp_div_nb = radial_density[l][s]["groups"][g_index]["nb"][f_t]
+										tmp_div_nb = np.copy(radial_density[l][s]["groups"][g_index]["nb"][f_t])
 										tmp_div_nb[tmp_div_nb == 0] = 1
 										radial_thick[s]["std"]["groups"][g_index][f_t] += tmp_thick_var + (delta**2) * (radial_density[l][s]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 										radial_thick[s]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
 									
 									#current specie, all sizes: Chang algorithm
 									delta =  tmp_thick_avg - radial_thick[s]["avg"]["all sizes"][f_t]
-									tmp_div_nb = radial_density[l][s]["all sizes"]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density[l][s]["all sizes"]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_thick[s]["std"]["all sizes"][f_t] += tmp_thick_var + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_thick[s]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
 		
 								#all species, current size: Chang algorithm
 								delta =  tmp_thick_avg - radial_thick["all species"]["avg"][c_size][f_t]
-								tmp_div_nb = radial_density["lower"]["all species"][c_size]["nb"][f_t] + radial_density["upper"]["all species"][c_size]["nb"][f_t]
+								tmp_div_nb = np.copy(radial_density["lower"]["all species"][c_size]["nb"][f_t] + radial_density["upper"]["all species"][c_size]["nb"][f_t])
 								tmp_div_nb[tmp_div_nb == 0] = 1
 								radial_thick["all species"]["std"][c_size][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"]["all species"][c_size]["nb"][f_t] + radial_density["upper"]["all species"][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 								radial_thick["all species"]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
 								if args.cluster_groups_file != "no":
 									delta =  tmp_thick_avg - radial_thick["all species"]["avg"]["groups"][g_index][f_t]
-									tmp_div_nb = radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_t] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_t] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_thick["all species"]["std"]["groups"][g_index][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_t] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_thick["all species"]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
 		
 								#all species, all sizes: Chang algorithm
 								delta =  tmp_thick_avg - radial_thick["all species"]["avg"]["all sizes"][f_t]
-								tmp_div_nb = radial_density["lower"]["all species"]["all sizes"]["nb"][f_t] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t]
+								tmp_div_nb = np.copy(radial_density["lower"]["all species"]["all sizes"]["nb"][f_t] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t])
 								tmp_div_nb[tmp_div_nb == 0] = 1
 								radial_thick["all species"]["std"]["all sizes"][f_t] += tmp_thick_var + (delta**2) * (radial_density["lower"]["all species"]["all sizes"]["nb"][f_t] + radial_density["upper"]["all species"]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 								radial_thick["all species"]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
 
-						
 						#update order parameter: get the order parameter for each bin (avg and std)
 						if s in op_lipids_handled[l] and (args.perturb == 2 or args.perturb == 3):
 							tmp_op_avg = np.histogram(tmp_res2bin, np.arange(radial_nb_bins + 1), weights = lipids_op_nff[l][s]["current"][tmp_within])[0] / tmp_bins_nb_div
@@ -2041,28 +2040,28 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 							for f_t in ["current","all frames"]:
 								#all frames: current specie, current size: Chang algorithm
 								delta =  tmp_op_avg - radial_op[l][s]["avg"][c_size][f_t]
-								tmp_div_nb = radial_density[l][s][c_size]["nb"][f_t]
+								tmp_div_nb = np.copy(radial_density[l][s][c_size]["nb"][f_t])
 								tmp_div_nb[tmp_div_nb == 0] = 1
 								radial_op[l][s]["std"][c_size][f_t] += tmp_op_var + (delta**2) * (radial_density[l][s][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 								radial_op[l][s]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
 
 								#current specie, all sizes: Chang algorithm
 								delta =  tmp_op_avg - radial_op[l][s]["avg"]["all sizes"][f_t]
-								tmp_div_nb = radial_density[l][s]["all sizes"]["nb"][f_t]
+								tmp_div_nb = np.copy(radial_density[l][s]["all sizes"]["nb"][f_t])
 								tmp_div_nb[tmp_div_nb == 0] = 1
 								radial_op[l][s]["std"]["all sizes"][f_t] += tmp_op_var + (delta**2) * (radial_density[l][s]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 								radial_op[l][s]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
 		
 								#all species, current size: Chang algorithm
 								delta =  tmp_op_avg - radial_op[l]["all species"]["avg"][c_size][f_t]
-								tmp_div_nb = radial_density[l]["all species"][c_size]["nb"][f_t]
+								tmp_div_nb = np.copy(radial_density[l]["all species"][c_size]["nb"][f_t])
 								tmp_div_nb[tmp_div_nb == 0] = 1
 								radial_op[l]["all species"]["std"][c_size][f_t] += tmp_op_var + (delta**2) * (radial_density[l]["all species"][c_size]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 								radial_op[l]["all species"]["avg"][c_size][f_t] += delta * tmp_bins_nb / tmp_div_nb
 		
 								#all species, all sizes: Chang algorithm
 								delta =  tmp_op_avg - radial_op[l]["all species"]["avg"]["all sizes"][f_t]
-								tmp_div_nb = radial_density[l]["all species"]["all sizes"]["nb"][f_t]
+								tmp_div_nb = np.copy(radial_density[l]["all species"]["all sizes"]["nb"][f_t])
 								tmp_div_nb[tmp_div_nb == 0] = 1
 								radial_op[l]["all species"]["std"]["all sizes"][f_t] += tmp_op_var + (delta**2) * (radial_density[l]["all species"]["all sizes"]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 								radial_op[l]["all species"]["avg"]["all sizes"][f_t] += delta * tmp_bins_nb / tmp_div_nb
@@ -2070,18 +2069,17 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 								if args.cluster_groups_file != "no":
 									#all frames: current specie, current size: Chang algorithm
 									delta =  tmp_op_avg - radial_op[l][s]["avg"]["groups"][g_index][f_t]
-									tmp_div_nb = radial_density[l][s]["groups"][g_index]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density[l][s]["groups"][g_index]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_op[l][s]["std"]["groups"][g_index][f_t] += tmp_op_var + (delta**2) * (radial_density[l][s]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_op[l][s]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
 						
 									#all species, current size: Chang algorithm
 									delta =  tmp_op_avg - radial_op[l]["all species"]["avg"]["groups"][g_index][f_t]
-									tmp_div_nb = radial_density[l]["all species"]["groups"][g_index]["nb"][f_t]
+									tmp_div_nb = np.copy(radial_density[l]["all species"]["groups"][g_index]["nb"][f_t])
 									tmp_div_nb[tmp_div_nb == 0] = 1
 									radial_op[l]["all species"]["std"]["groups"][g_index][f_t] += tmp_op_var + (delta**2) * (radial_density[l]["all species"]["groups"][g_index]["nb"][f_t] - tmp_bins_nb) * tmp_bins_nb / tmp_div_nb
 									radial_op[l]["all species"]["avg"]["groups"][g_index][f_t] += delta * tmp_bins_nb / tmp_div_nb
-
 
 	#produce outputs if necessary
 	#============================
@@ -2101,7 +2099,8 @@ def calculate_radial_data(f_type):
 	
 	#NB:
 	# 1. f_type is either set to "current" (for on the fly outputting) or to "all frames" (for post-processing statistics)
-
+	# 2. we calculate the unbiased standard deviation (division by n-1), that's why bin for which there is only one data point do not have a std dev defined
+	
 	radial_sizes[f_type] = sorted(radial_sizes[f_type])
 
 	#sizes
@@ -2115,43 +2114,50 @@ def calculate_radial_data(f_type):
 			radial_density["CHOL"]["sizes"][c_size]["pc"][f_type] = radial_density["CHOL"]["sizes"][c_size]["nb"][f_type] / tmp_tot_nb_lip_radius_div * 100
 			radial_density["CHOL"]["sizes"][c_size]["pc"][f_type][tmp_tot_nb_lip_radius == 0] = np.nan
 		
-	#density and order parameter
+	#density and order parameter	
 	for l in ["lower","upper"]:
 		for s in leaflet_species[l] + ["all species"]:
 			for c_size in radial_sizes[f_type] + ["all sizes"]:
 				tmp_div = np.copy(radial_density[l]["all species"][c_size]["nb"][f_type])
 				tmp_div[tmp_div == 0] = 1
-				radial_density[l][s][c_size]["pc"][f_type] = radial_density[l][s][c_size]["nb"][f_type] / tmp_div *100
+				radial_density[l][s][c_size]["pc"][f_type] = radial_density[l][s][c_size]["nb"][f_type] / tmp_div * 100
 				radial_density[l][s][c_size]["pc"][f_type][radial_density[l][s][c_size]["nb"][f_type] == 0] = np.nan
 				if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-					tmp_div = np.copy(radial_density[l][s][c_size]["nb"][f_type])
+					tmp_div = np.copy(radial_density[l][s][c_size]["nb"][f_type]) - 1
 					tmp_div[tmp_div == 0] = 1
-					
+					tmp_div[tmp_div == -1] = 1
 					radial_op[l][s]["std"][c_size][f_type] = np.sqrt(radial_op[l][s]["std"][c_size][f_type] / tmp_div)
 					radial_op[l][s]["std"][c_size][f_type][radial_density[l][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_op[l][s]["std"][c_size][f_type][radial_density[l][s][c_size]["nb"][f_type] == 1] = np.nan
 					radial_op[l][s]["avg"][c_size][f_type][radial_density[l][s][c_size]["nb"][f_type] == 0] = np.nan
-										
+
 	#thickness
 	if args.perturb == 1 or args.perturb == 3:			
 		for s in leaflet_species["both"] + ["all species"]:
 			for c_size in radial_sizes[f_type] + ["all sizes"]:
 				if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
-					tmp_div = np.copy(radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type])
+					tmp_div = np.copy(radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type]) - 1
 					tmp_div[tmp_div == 0] = 1
+					tmp_div[tmp_div == -1] = 1
 					radial_thick[s]["std"][c_size][f_type] = np.sqrt(radial_thick[s]["std"][c_size][f_type] / tmp_div)
 					radial_thick[s]["std"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_thick[s]["std"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type] == 1] = np.nan
 					radial_thick[s]["avg"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] + radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
 				elif s in leaflet_species["upper"]:
-					tmp_div = np.copy(radial_density["upper"][s][c_size]["nb"][f_type])
+					tmp_div = np.copy(radial_density["upper"][s][c_size]["nb"][f_type]) - 1
 					tmp_div[tmp_div == 0] = 1
+					tmp_div[tmp_div == -1] = 1
 					radial_thick[s]["std"][c_size][f_type] = np.sqrt(radial_thick[s]["std"][c_size][f_type] / tmp_div)
 					radial_thick[s]["std"][c_size][f_type][radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_thick[s]["std"][c_size][f_type][radial_density["upper"][s][c_size]["nb"][f_type] == 1] = np.nan
 					radial_thick[s]["avg"][c_size][f_type][radial_density["upper"][s][c_size]["nb"][f_type] == 0] = np.nan
 				elif s in leaflet_species["lower"]:
-					tmp_div = np.copy(radial_density["lower"][s][c_size]["nb"][f_type])
+					tmp_div = np.copy(radial_density["lower"][s][c_size]["nb"][f_type]) - 1
 					tmp_div[tmp_div == 0] = 1
+					tmp_div[tmp_div == -1] = 1
 					radial_thick[s]["std"][c_size][f_type] = np.sqrt(radial_thick[s]["std"][c_size][f_type] / tmp_div)
 					radial_thick[s]["std"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] == 0] = np.nan
+					radial_thick[s]["std"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] == 1] = np.nan
 					radial_thick[s]["avg"][c_size][f_type][radial_density["lower"][s][c_size]["nb"][f_type] == 0] = np.nan
 
 	#size groups
@@ -2159,7 +2165,7 @@ def calculate_radial_data(f_type):
 	if args.cluster_groups_file != "no":
 		radial_groups[f_type] = sorted(radial_groups[f_type])
 		
-		#cholesterol density (we can't associate a leaflet to cholesterol so we have to things a little different for it)
+		#cholesterol density (we can't associate a leaflet to cholesterol so we have to do things a little differently for it)
 		if chol_pres:
 			for g_index in radial_groups[f_type]:
 				tmp_tot_nb_lip_radius = radial_density["lower"]["all species"]["groups"][g_index]["nb"][f_type] + radial_density["upper"]["all species"]["groups"][g_index]["nb"][f_type] + radial_density["CHOL"]["groups"][g_index]["nb"][f_type]
@@ -2177,10 +2183,12 @@ def calculate_radial_data(f_type):
 					radial_density[l][s]["groups"][g_index]["pc"][f_type] = radial_density[l][s]["groups"][g_index]["nb"][f_type] / tmp_div *100
 					radial_density[l][s]["groups"][g_index]["pc"][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 					if (s in op_lipids_handled[l] or s == "all species") and (args.perturb == 2 or args.perturb == 3):
-						tmp_div = np.copy(radial_density[l][s]["groups"][g_index]["nb"][f_type])
+						tmp_div = np.copy(radial_density[l][s]["groups"][g_index]["nb"][f_type]) - 1
 						tmp_div[tmp_div == 0] = 1
+						tmp_div[tmp_div == -1] = 1
 						radial_op[l][s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_op[l][s]["std"]["groups"][g_index][f_type] / tmp_div)
 						radial_op[l][s]["std"]["groups"][g_index][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_op[l][s]["std"]["groups"][g_index][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 1] = np.nan
 						radial_op[l][s]["avg"]["groups"][g_index][f_type][radial_density[l][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 											
 		#thickness
@@ -2188,22 +2196,28 @@ def calculate_radial_data(f_type):
 			for s in leaflet_species["both"] + ["all species"]:
 				for g_index in radial_groups[f_type]:
 					if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
-						tmp_div = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type])
+						tmp_div = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type]) - 1
 						tmp_div[tmp_div == 0] = 1
+						tmp_div[tmp_div == -1] = 1
 						radial_thick[s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_thick[s]["std"]["groups"][g_index][f_type] / tmp_div)
 						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 1] = np.nan
 						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 					elif s in leaflet_species["upper"]:
-						tmp_div = np.copy(radial_density["upper"][s]["groups"][g_index]["nb"][f_type])
+						tmp_div = np.copy(radial_density["upper"][s]["groups"][g_index]["nb"][f_type]) - 1
 						tmp_div[tmp_div == 0] = 1
+						tmp_div[tmp_div == -1] = 1
 						radial_thick[s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_thick[s]["std"]["groups"][g_index][f_type] / tmp_div)
 						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 1] = np.nan
 						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["upper"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 					elif s in leaflet_species["lower"]:
-						tmp_div = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_type])
+						tmp_div = np.copy(radial_density["lower"][s]["groups"][g_index]["nb"][f_type]) - 1
 						tmp_div[tmp_div == 0] = 1
+						tmp_div[tmp_div == -1] = 1
 						radial_thick[s]["std"]["groups"][g_index][f_type] = np.sqrt(radial_thick[s]["std"]["groups"][g_index][f_type] / tmp_div)
 						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
+						radial_thick[s]["std"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 1] = np.nan
 						radial_thick[s]["avg"]["groups"][g_index][f_type][radial_density["lower"][s]["groups"][g_index]["nb"][f_type] == 0] = np.nan
 
 	return
@@ -4708,7 +4722,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(tmp_sizes)) + "\n")
+		output_xvg.write("@ legend length " + str(3*len(tmp_sizes)) + "\n")
 		#average
 		for c_index in range(0,len(tmp_sizes)):
 			c_size = tmp_sizes[c_index]
@@ -4719,6 +4733,11 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			c_size = tmp_sizes[c_index]
 			output_xvg.write("@ s" +  str(len(tmp_sizes) + c_index) + " legend \"" + str(c_size) + " (std)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_sizes) + c_index + 1) + "," + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+		#nb (to get back to variance from std)
+		for c_index in range(0,len(tmp_sizes)):
+			c_size = tmp_sizes[c_index]
+			output_xvg.write("@ s" +  str(2*len(tmp_sizes) + c_index) + " legend \"" + str(c_size) + " (nb)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_sizes) + c_index + 1) + "," + str(c_size) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 		output_txt.close()
 		
 		#data
@@ -4732,6 +4751,22 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			for c_index in range(0,len(tmp_sizes)):
 				c_size = tmp_sizes[c_index]
 				results += "	" + str(radial_thick[s]["std"][c_size][f_type][n])
+			#nb
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+					tmp_div = radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+				elif s in leaflet_species["upper"]:
+					tmp_div = radial_density["upper"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+				elif s in leaflet_species["lower"]:
+					tmp_div = radial_density["lower"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+				results += "	" + str(tmp_div)			
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
@@ -4794,7 +4829,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(tmp_species)) + "\n")
+		output_xvg.write("@ legend length " + str(3*len(tmp_species)) + "\n")
 		#avg
 		for s_index in range(0,len(tmp_species)):
 			s = tmp_species[s_index]
@@ -4805,6 +4840,11 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			s = tmp_species[s_index]
 			output_xvg.write("@ s" + str(len(tmp_species) + s_index) + " legend \"" + str(s) + " (std)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+		#nb (to get back to variance from std)
+		for s_index in range(0,len(tmp_species)):
+			s = tmp_species[s_index]
+			output_xvg.write("@ s" + str(2*len(tmp_species) + s_index) + " legend \"" + str(s) + " (nb)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species) + s_index + 1) + "," + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		
 		#data
@@ -4818,6 +4858,22 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			for s_index in range(0,len(tmp_species)):
 				s = tmp_species[s_index]
 				results += "	" + str(radial_thick[s]["std"][c_size][f_type][n])
+			#nb
+			for s_index in range(0,len(tmp_species)):
+				s = tmp_species[s_index]
+				if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+					tmp_div = radial_density["lower"][s][c_size]["nb"][f_type][n] + radial_density["upper"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+				elif s in leaflet_species["upper"]:
+					tmp_div = radial_density["upper"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+				elif s in leaflet_species["lower"]:
+					tmp_div = radial_density["lower"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+				results += "	" + str(tmp_div)
 			output_xvg.write(results + "\n")
 		output_xvg.close()	
 	
@@ -4889,7 +4945,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(2*len(radial_groups[f_type])) + "\n")
+			output_xvg.write("@ legend length " + str(3*len(radial_groups[f_type])) + "\n")
 			#average 
 			for g in range(0,len(radial_groups[f_type])):
 				g_index = radial_groups[f_type][g]
@@ -4900,23 +4956,47 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 				g_index = radial_groups[f_type][g]
 				output_xvg.write("@ s" + str(len(radial_groups[f_type]) + g) + " legend \"" + str(groups_labels[g_index]) + " (std)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(len(radial_groups[f_type]) + g + 1) + "," + str(groups_labels[g_index]) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
+			#nb (to get back to variance from std)
+			for g in range(0,len(radial_groups[f_type])):
+				g_index = radial_groups[f_type][g]
+				output_xvg.write("@ s" + str(2*len(radial_groups[f_type]) + g) + " legend \"" + str(groups_labels[g_index]) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(radial_groups[f_type]) + g + 1) + "," + str(groups_labels[g_index]) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
 			output_txt.close()
 			
 			#data
 			for n in range(0,radial_nb_bins):
 				results = str(n*args.radial_step)
-				#average values
+				#avg
 				for g in range(0,len(radial_groups[f_type])):
 					g_index = radial_groups[f_type][g]
 					if f_type in radial_thick[s]["avg"]["groups"][g_index].keys():
 						results += "	" + str(radial_thick[s]["avg"]["groups"][g_index][f_type][n])
 					else:
 						results += "	0"
-				#std values
+				#std
 				for g in range(0,len(radial_groups[f_type])):
 					g_index = radial_groups[f_type][g]
 					if f_type in radial_thick[s]["std"]["groups"][g_index].keys():
 						results += "	" + str(radial_thick[s]["std"]["groups"][g_index][f_type][n])
+					else:
+						results += "	0"
+				#nb
+				for g in range(0,len(radial_groups[f_type])):
+					g_index = radial_groups[f_type][g]
+					if f_type in radial_thick[s]["std"]["groups"][g_index].keys():
+						if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+							tmp_div = radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] - 1
+							if tmp_div == -1:
+								tmp_div = 0
+						elif s in leaflet_species["upper"]:
+							tmp_div = radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] - 1
+							if tmp_div == -1:
+								tmp_div = 0
+						elif s in leaflet_species["lower"]:
+							tmp_div = radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] - 1
+							if tmp_div == -1:
+								tmp_div = 0
+						results += "	" + str(tmp_div)
 					else:
 						results += "	0"
 				output_xvg.write(results + "\n")
@@ -4976,7 +5056,7 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(2*len(tmp_species)) + "\n")
+			output_xvg.write("@ legend length " + str(3*len(tmp_species)) + "\n")
 			#avg
 			for s_index in range(0,len(tmp_species)):
 				s = tmp_species[s_index]
@@ -4987,6 +5067,11 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 				s = tmp_species[s_index]
 				output_xvg.write("@ s" + str(len(tmp_species) + s_index) + " legend \"" + str(s) + " (std)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species) + s_index + 1) + "," + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+			#nb (to get back to variance from std)
+			for s_index in range(0,len(tmp_species)):
+				s = tmp_species[s_index]
+				output_xvg.write("@ s" + str(2*len(tmp_species) + s_index) + " legend \"" + str(s) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species) + s_index + 1) + "," + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 			
 			#data
@@ -5000,6 +5085,22 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 				for s_index in range(0,len(tmp_species)):
 					s = tmp_species[s_index]
 					results += "	" + str(radial_thick[s]["std"]["groups"][g_index][f_type][n])
+				#nb
+				for s_index in range(0,len(tmp_species)):
+					s = tmp_species[s_index]
+					if (s in leaflet_species["lower"] and s in leaflet_species["upper"]) or s == "all species":
+						tmp_div = radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] + radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] - 1
+						if tmp_div == -1:
+							tmp_div = 0
+					elif s in leaflet_species["upper"]:
+						tmp_div = radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] - 1
+						if tmp_div == -1:
+							tmp_div = 0
+					elif s in leaflet_species["lower"]:
+						tmp_div = radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] - 1
+						if tmp_div == -1:
+							tmp_div = 0					
+					results += "	" + str(tmp_div)
 				output_xvg.write(results + "\n")
 			output_xvg.close()	
 	
@@ -5382,25 +5483,30 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(tmp_sizes)) + "\n")
+		output_xvg.write("@ legend length " + str(len(tmp_leaflets) * 3 * len(tmp_sizes)) + "\n")
 		for leaflet_index in range(0,len(tmp_leaflets)):
-			#average
+			#avg
 			for c_index in range(0,len(tmp_sizes)):
 				c_size = tmp_sizes[c_index]
-				output_xvg.write("@ s" + str(leaflet_index*2*len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+				output_xvg.write("@ s" + str(leaflet_index*3*len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*3*len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 			#std 
 			for c_index in range(0,len(tmp_sizes)):
 				c_size = tmp_sizes[c_index]
-				output_xvg.write("@ s" + str(leaflet_index*2*len(tmp_sizes) + len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(tmp_sizes) + len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+				output_xvg.write("@ s" + str(leaflet_index*3*len(tmp_sizes) + len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*3*len(tmp_sizes) + len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
+			#nb (to get back to variance from std)
+			for c_index in range(0,len(tmp_sizes)):
+				c_size = tmp_sizes[c_index]
+				output_xvg.write("@ s" + str(leaflet_index*3*len(tmp_sizes) + 2*len(tmp_sizes) + c_index) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*3*len(tmp_sizes) + 2*len(tmp_sizes) + c_index + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(c_size) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(get_size_colour(c_size))) + "\n")
 		output_txt.close()
 		
 		#data
 		for n in range(0,radial_nb_bins):
 			results = str(n*args.radial_step)
 			for leaflet_index in range(0,len(tmp_leaflets)):
-				#average 
+				#avg
 				for c_index in range(0,len(tmp_sizes)):
 					c_size = tmp_sizes[c_index]
 					if f_type in radial_op[tmp_leaflets[leaflet_index]][s]["avg"][c_size].keys():
@@ -5414,6 +5520,17 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["std"][c_size][f_type][n])
 					else:
 						results += "	0"
+				#nb
+				for c_index in range(0,len(tmp_sizes)):
+					c_size = tmp_sizes[c_index]
+					if f_type in radial_op[tmp_leaflets[leaflet_index]][s]["std"][c_size].keys():
+						tmp_div = radial_density[tmp_leaflets[leaflet_index]][s][c_size]["nb"][f_type][n] - 1
+						if tmp_div == -1:
+							tmp_div = 0
+						results += "	" + str(tmp_div)
+					else:
+						results += "	0"
+			
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
@@ -5475,7 +5592,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(2*len(tmp_species["lower"]) + 2*len(tmp_species["upper"])) + "\n")
+		output_xvg.write("@ legend length " + str(3*len(tmp_species["lower"]) + 3*len(tmp_species["upper"])) + "\n")
 		#captions: lower leaflet
 		for s_index in range(0,len(tmp_species["lower"])):
 			s = tmp_species["lower"][s_index]
@@ -5485,15 +5602,23 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			s = tmp_species["lower"][s_index]
 			output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \" lower " + str(s) + " (std)\"\n")
 			output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species["lower"]) + s_index + 1) + ",lower " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+		for s_index in range(0,len(tmp_species["lower"])):
+			s = tmp_species["lower"][s_index]
+			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" lower " + str(s) + " (nb)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",lower " + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		#captions: upper leaflet
 		for s_index in range(0,len(tmp_species["upper"])):
 			s = tmp_species["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" upper " + str(s) + " (avg)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",upper " + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + s_index) + " legend \" upper " + str(s) + " (avg)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + s_index + 1) + ",upper " + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		for s_index in range(0,len(tmp_species["upper"])):
 			s = tmp_species["upper"][s_index]
-			output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \" upper " + str(s) + " (std)\"\n")
-			output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index + 1) + ",upper " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \" upper " + str(s) + " (std)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index + 1) + ",upper " + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+		for s_index in range(0,len(tmp_species["upper"])):
+			s = tmp_species["upper"][s_index]
+			output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index) + " legend \" upper " + str(s) + " (nb)\"\n")
+			output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index + 1) + ",upper " + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 		output_txt.close()
 		
 		#data
@@ -5512,6 +5637,16 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 					results += "	" + str(radial_op["lower"][s]["std"][c_size][f_type][n])
 				else:
 					results += "	0"
+			for s_index in range(0,len(tmp_species["lower"])):
+				s = tmp_species["lower"][s_index]
+				if f_type in radial_op["lower"][s]["std"][c_size].keys():
+					tmp_div = radial_density["lower"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+					results += "	" + str(tmp_div)
+				else:
+					results += "	0"		
+			
 			#upper leaflet
 			for s_index in range(0,len(tmp_species["upper"])):
 				s = tmp_species["upper"][s_index]
@@ -5525,6 +5660,15 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 					results += "	" + str(radial_op["upper"][s]["std"][c_size][f_type][n])
 				else:
 					results += "	0"
+			for s_index in range(0,len(tmp_species["upper"])):
+				s = tmp_species["upper"][s_index]
+				if f_type in radial_op["upper"][s]["std"][c_size].keys():
+					tmp_div = radial_density["upper"][s][c_size]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+					results += "	" + str(tmp_div)
+				else:
+					results += "	0"		
 			output_xvg.write(results + "\n")
 		output_xvg.close()	
 	
@@ -5606,25 +5750,30 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(2*len(tmp_leaflets)*len(radial_groups[f_type])) + "\n")
+			output_xvg.write("@ legend length " + str(len(tmp_leaflets) * 3 * len(radial_groups[f_type])) + "\n")
 			for leaflet_index in range(0,len(tmp_leaflets)):
-				#average
+				#avg
 				for g in range(0,len(radial_groups[f_type])):
 					g_index = radial_groups[f_type][g]
-					output_xvg.write("@ s" + str(leaflet_index*2*len(radial_groups[f_type]) + g) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (avg)\"\n")
-					output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(radial_groups[f_type]) + g + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
+					output_xvg.write("@ s" + str(leaflet_index*3*len(radial_groups[f_type]) + g) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (avg)\"\n")
+					output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*3*len(radial_groups[f_type]) + g + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
 				#std
 				for g in range(0,len(radial_groups[f_type])):
 					g_index = radial_groups[f_type][g]
-					output_xvg.write("@ s" + str(leaflet_index*2*len(radial_groups[f_type]) + len(radial_groups[f_type]) + g) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (std)\"\n")
-					output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*2*len(radial_groups[f_type]) + len(radial_groups[f_type]) + g + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
+					output_xvg.write("@ s" + str(leaflet_index*3*len(radial_groups[f_type]) + len(radial_groups[f_type]) + g) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (std)\"\n")
+					output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*3*len(radial_groups[f_type]) + len(radial_groups[f_type]) + g + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
+				#nb (to get back to variance from std)
+				for g in range(0,len(radial_groups[f_type])):
+					g_index = radial_groups[f_type][g]
+					output_xvg.write("@ s" + str(leaflet_index*3*len(radial_groups[f_type]) + 2*len(radial_groups[f_type]) + g) + " legend \"" + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (nb)\"\n")
+					output_txt.write(str(tmp_filename) + ".xvg," + str(leaflet_index*3*len(radial_groups[f_type]) + 2*len(radial_groups[f_type]) + g + 1) + "," + str(tmp_leaflets[leaflet_index]) + " " + str(groups_labels[g_index]) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_groups[g_index])) + "\n")
 			output_txt.close()
 			
 			#data
 			for n in range(0,radial_nb_bins):
 				results = str(n*args.radial_step)
 				for leaflet_index in range(0,len(tmp_leaflets)):
-					#average
+					#avg
 					for g in range(0,len(radial_groups[f_type])):
 						g_index = radial_groups[f_type][g]
 						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["avg"]["groups"][g_index][f_type][n])
@@ -5632,6 +5781,13 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 					for g in range(0,len(radial_groups[f_type])):
 						g_index = radial_groups[f_type][g]
 						results += "	" + str(radial_op[tmp_leaflets[leaflet_index]][s]["std"]["groups"][g_index][f_type][n])
+					#nb
+					for g in range(0,len(radial_groups[f_type])):
+						g_index = radial_groups[f_type][g]
+						tmp_div = radial_density[tmp_leaflets[leaflet_index]][s]["groups"][g_index]["nb"][f_type][n] - 1
+						if tmp_div == -1:
+							tmp_div = 0
+						results += "	" + str(tmp_div)
 				output_xvg.write(results + "\n")
 			output_xvg.close()
 
@@ -5689,7 +5845,7 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			output_xvg.write("@ legend box on\n")
 			output_xvg.write("@ legend loctype view\n")
 			output_xvg.write("@ legend 0.98, 0.8\n")
-			output_xvg.write("@ legend length " + str(2*len(tmp_species["lower"]) + 2*len(tmp_species["upper"])) + "\n")
+			output_xvg.write("@ legend length " + str(3 * len(tmp_species["lower"]) + 3 * len(tmp_species["upper"])) + "\n")
 			#captions: lower leaflet
 			for s_index in range(0,len(tmp_species["lower"])):
 				s = tmp_species["lower"][s_index]
@@ -5699,15 +5855,23 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 				s = tmp_species["lower"][s_index]
 				output_xvg.write("@ s" + str(len(tmp_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (std)\"\n")
 				output_txt.write(str(tmp_filename) + ".xvg," + str(len(tmp_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+			for s_index in range(0,len(tmp_species["lower"])):
+				s = tmp_species["lower"][s_index]
+				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" lower" + str(s) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",lower" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			#captions: upper leaflet
 			for s_index in range(0,len(tmp_species["upper"])):
 				s = tmp_species["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (avg)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (avg)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (avg)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			for s_index in range(0,len(tmp_species["upper"])):
 				s = tmp_species["upper"][s_index]
-				output_xvg.write("@ s" + str(2*len(tmp_species["lower"]) + len(tmp_species["lower"]) + s_index) + " legend \" upper" + str(s) + " (std)\"\n")
-				output_txt.write(str(tmp_filename) + ".xvg," + str(2*len(tmp_species["lower"]) + len(tmp_species["lower"]) + s_index + 1) + ",upper" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (std)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + len(tmp_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (std)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
+			for s_index in range(0,len(tmp_species["upper"])):
+				s = tmp_species["upper"][s_index]
+				output_xvg.write("@ s" + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index) + " legend \" upper" + str(s) + " (nb)\"\n")
+				output_txt.write(str(tmp_filename) + ".xvg," + str(3*len(tmp_species["lower"]) + 2*len(tmp_species["upper"]) + s_index + 1) + ",upper" + str(s) + " (nb)," + mcolors.rgb2hex(mcolorconv.to_rgb(colours_lipids[s])) + "\n")
 			output_txt.close()
 
 			#data
@@ -5720,6 +5884,12 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 				for s_index in range(0,len(tmp_species["lower"])):
 					s = tmp_species["lower"][s_index]
 					results += "	" + str(radial_op["lower"][s]["std"]["groups"][g_index][f_type][n])
+				for s_index in range(0,len(tmp_species["lower"])):
+					s = tmp_species["lower"][s_index]
+					tmp_div = radial_density["lower"][s]["groups"][g_index]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+					results += "	" + str(tmp_div)
 				#upper leaflet
 				for s_index in range(0,len(tmp_species["upper"])):
 					s = tmp_species["upper"][s_index]
@@ -5727,6 +5897,12 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 				for s_index in range(0,len(tmp_species["upper"])):
 					s = tmp_species["upper"][s_index]
 					results += "	" + str(radial_op["upper"][s]["std"]["groups"][g_index][f_type][n])
+				for s_index in range(0,len(tmp_species["upper"])):
+					s = tmp_species["upper"][s_index]
+					tmp_div = radial_density["upper"][s]["groups"][g_index]["nb"][f_type][n] - 1
+					if tmp_div == -1:
+						tmp_div = 0
+					results += "	" + str(tmp_div)
 				output_xvg.write(results + "\n")
 			output_xvg.close()	
 
