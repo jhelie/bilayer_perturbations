@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.30"
+version_nb="0.1.31"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2357,7 +2357,7 @@ def calculate_order_parameters(f_type, f_time, f_write, f_index):		#DONE
 			#store data
 			lipids_op_ff[l_index]["tailA"]["raw"][f_index] = np.average(tmp_bond_array[0:tail_A_length])
 			lipids_op_ff[l_index]["tailB"]["raw"][f_index] = np.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length])
-			lipids_op_ff[l_index]["tails"]["raw"][f_index] = np.average(np.average(tmp_bond_array[0:tail_A_length]), np.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length]))
+			lipids_op_ff[l_index]["tails"]["raw"][f_index] = np.average([np.average(tmp_bond_array[0:tail_A_length]), np.average(tmp_bond_array[tail_A_length:tail_A_length+tail_B_length])])
 
 	#produce output if necessary
 	#===========================
