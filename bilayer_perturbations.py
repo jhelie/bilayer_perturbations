@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.29"
+version_nb="0.1.30"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2764,21 +2764,38 @@ def op_xvg_ff_write():													#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(len(lipids_ff_u2l_index)*3) + "\n")
+		output_xvg.write("@ legend length " + str(4 * len(lipids_ff_u2l_index)) + "\n")
 		for l_index in range(0,len(lipids_ff_u2l_index)):
 			l = lipids_ff_u2l_index[l_index]
-			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
-			output_xvg.write("@ s" + str(3*l_index+1) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B\"\n")
-			output_xvg.write("@ s" + str(3*l_index+2) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both\"\n")
-			output_txt.write("4_3_order_param_ff_u2l.xvg," + str((3*l_index)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A,auto\n")
-			output_txt.write("4_3_order_param_ff_u2l.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
-			output_txt.write("4_3_order_param_ff_u2l.xvg," + str((3*l_index+2)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
+			output_xvg.write("@ s" + str(l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z\"\n")
+			output_txt.write("4_3_order_param_ff_u2l.xvg," + str(l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z,auto\n")
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			output_xvg.write("@ s" + str(len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails\"\n")
+			output_txt.write("4_3_order_param_ff_u2l.xvg," + str(len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails,auto\n")
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			output_xvg.write("@ s" + str(2 * len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA\"\n")
+			output_txt.write("4_3_order_param_ff_u2l.xvg," + str(2 * len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA,auto\n")
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			output_xvg.write("@ s" + str(3 * len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
+			output_txt.write("4_3_order_param_ff_u2l.xvg," + str(3 * len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
 		for f_index in range(0,len(frames_time)):
 			results = str(frames_time[f_index])
-			for l in lipids_ff_u2l_index:
-				for tail in ["tailA", "tailB", "tails"]:
-					results += "	" + str(round(lipids_op_ff[l_index][tail]["raw"][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(z_ff[l][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tails"]["raw"][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailA"]["raw"][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailB"]["raw"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 	
@@ -2798,21 +2815,38 @@ def op_xvg_ff_write():													#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(len(lipids_ff_l2u_index)*3) + "\n")
+		output_xvg.write("@ legend length " + str(4 * len(lipids_ff_l2u_index)) + "\n")
 		for l_index in range(0,len(lipids_ff_l2u_index)):
 			l = lipids_ff_l2u_index[l_index]
-			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
-			output_xvg.write("@ s" + str(3*l_index+1) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B\"\n")
-			output_xvg.write("@ s" + str(3*l_index+2) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both\"\n")
-			output_txt.write("4_3_order_param_ff_l2u.xvg," + str((3*l_index)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A,auto\n")
-			output_txt.write("4_3_order_param_ff_l2u.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
-			output_txt.write("4_3_order_param_ff_l2u.xvg," + str((3*l_index+2)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
+			output_xvg.write("@ s" + str(l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z\"\n")
+			output_txt.write("4_3_order_param_ff_l2u.xvg," + str(l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z,auto\n")
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			output_xvg.write("@ s" + str(len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails\"\n")
+			output_txt.write("4_3_order_param_ff_l2u.xvg," + str(len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails,auto\n")
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			output_xvg.write("@ s" + str(2 * len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA\"\n")
+			output_txt.write("4_3_order_param_ff_l2u.xvg," + str(2 * len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA,auto\n")
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			output_xvg.write("@ s" + str(3 * len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
+			output_txt.write("4_3_order_param_ff_l2u.xvg," + str(3 * len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
 		for f_index in range(0,len(frames_time)):
 			results = str(frames_time[f_index])
-			for l in lipids_ff_u2l_index:
-				for tail in ["tailA", "tailB", "tails"]:
-					results += "	" + str(round(lipids_op_ff[l_index][tail]["raw"][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(z_ff[l][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tails"]["raw"][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailA"]["raw"][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailB"]["raw"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
@@ -2835,21 +2869,38 @@ def op_xvg_ff_write_smoothed():											#DONE
 		output_xvg.write("@ legend box on\n")
 		output_xvg.write("@ legend loctype view\n")
 		output_xvg.write("@ legend 0.98, 0.8\n")
-		output_xvg.write("@ legend length " + str(len(lipids_ff_u2l_index)*3) + "\n")
+		output_xvg.write("@ legend length " + str(4 * len(lipids_ff_u2l_index)) + "\n")
 		for l_index in range(0,len(lipids_ff_u2l_index)):
 			l = lipids_ff_u2l_index[l_index]
-			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
-			output_xvg.write("@ s" + str(3*l_index+1) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B\"\n")
-			output_xvg.write("@ s" + str(3*l_index+2) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both\"\n")
-			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str((3*l_index)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A,auto\n")
-			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
-			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str((3*l_index+2)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
+			output_xvg.write("@ s" + str(l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z\"\n")
+			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str(l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z,auto\n")
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			output_xvg.write("@ s" + str(len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails\"\n")
+			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str(len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails,auto\n")
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			output_xvg.write("@ s" + str(2 * len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA\"\n")
+			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str(2 * len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA,auto\n")
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			output_xvg.write("@ s" + str(3 * len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
+			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str(3 * len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
 		for f_index in range(0, len(frames_time_smoothed)):
 			results = str(frames_time_smoothed[f_index])
-			for l in lipids_ff_u2l_index:
-				for tail in ["tailA", "tailB", "tails"]:
-					results += "	" + str(round(lipids_op_ff[l_index][tail]["smoothed"][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(z_ff_smoothed[l][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tails"]["smoothed"][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailA"]["smoothed"][f_index],2))
+			for l_index in range(0,len(lipids_ff_u2l_index)):
+				l = lipids_ff_u2l_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailB"]["smoothed"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 	
@@ -2872,18 +2923,35 @@ def op_xvg_ff_write_smoothed():											#DONE
 		output_xvg.write("@ legend length " + str(len(lipids_ff_l2u_index)*3) + "\n")
 		for l_index in range(0,len(lipids_ff_l2u_index)):
 			l = lipids_ff_l2u_index[l_index]
-			output_xvg.write("@ s" + str(3*l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A\"\n")
-			output_xvg.write("@ s" + str(3*l_index+1) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B\"\n")
-			output_xvg.write("@ s" + str(3*l_index+2) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both\"\n")
-			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str((3*l_index)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail A,auto\n")
-			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str((3*l_index+1)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tail B,auto\n")
-			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str((3*l_index+2)+1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " both,auto\n")
+			output_xvg.write("@ s" + str(l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z\"\n")
+			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str(l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " z,auto\n")
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			output_xvg.write("@ s" + str(len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails\"\n")
+			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str(len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tails,auto\n")
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			output_xvg.write("@ s" + str(2 * len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA\"\n")
+			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str(2 * len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailA,auto\n")
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			output_xvg.write("@ s" + str(3 * len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
+			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str(3 * len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
 		for f_index in range(0, len(frames_time_smoothed)):
 			results = str(frames_time_smoothed[f_index])
-			for l in lipids_ff_u2l_index:
-				for tail in ["tailA", "tailB", "tails"]:
-					results += "	" + str(round(lipids_op_ff[l_index][tail]["smoothed"][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(z_ff_smoothed[l][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tails"]["smoothed"][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailA"]["smoothed"][f_index],2))
+			for l_index in range(0,len(lipids_ff_l2u_index)):
+				l = lipids_ff_l2u_index[l_index]
+				results += "	" + str(round(lipids_op_ff[l]["tailB"]["smoothed"][f_index],2))
 			output_xvg.write(results + "\n")
 		output_xvg.close()
 
@@ -2908,8 +2976,9 @@ def op_xvg_ff_graph():													#DONE
 		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
-		for l_index in lipids_ff_u2l_index:
-			p_upper[l_index] = plt.plot(frames_time, lipids_op_ff[l_index]["tails"]["raw"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			p_upper[l] = plt.plot(frames_time, lipids_op_ff[l]["tails"]["raw"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2921,8 +2990,9 @@ def op_xvg_ff_graph():													#DONE
 		p_lower = {}
 		p_lower["upper"] = plt.plot(frames_time, z_upper, linestyle='dashed', color='k')
 		p_lower["lower"] = plt.plot(frames_time, z_lower, linestyle='dashed', color='k')
-		for l_index in lipids_ff_u2l_index:
-			p_lower[l_index] = plt.plot(frames_time, z_ff[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			p_lower[l] = plt.plot(frames_time, z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2961,8 +3031,9 @@ def op_xvg_ff_graph():													#DONE
 		#-------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper={}
-		for l_index in lipids_ff_l2u_index:
-			p_upper[l_index] = plt.plot(frames_time, lipids_op_ff[l_index]["tails"]["raw"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			p_upper[l] = plt.plot(frames_time, lipids_op_ff[l]["tails"]["raw"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -2974,8 +3045,9 @@ def op_xvg_ff_graph():													#DONE
 		p_lower = {}
 		p_lower["upper"] = plt.plot(frames_time, z_upper, linestyle = 'dashed', color = 'k')
 		p_lower["lower"] = plt.plot(frames_time, z_lower, linestyle = 'dashed', color = 'k')
-		for l_index in lipids_ff_l2u_index:
-			p_lower[l_index] = plt.plot(frames_time, z_ff[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			p_lower[l] = plt.plot(frames_time, z_ff[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -3017,8 +3089,9 @@ def op_xvg_ff_graph_smoothed():											#DONE
 		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper = {}
-		for l_index in lipids_ff_u2l_index:
-			p_upper[l_index] = plt.plot(frames_time_smoothed, lipids_op_ff[l_index]["tails"]["smoothed"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			p_upper[l] = plt.plot(frames_time_smoothed, lipids_op_ff[l]["tails"]["smoothed"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -3030,8 +3103,9 @@ def op_xvg_ff_graph_smoothed():											#DONE
 		p_lower = {}
 		p_lower["upper"] = plt.plot(frames_time_smoothed, z_upper_smoothed, linestyle = 'dashed', color = 'k')
 		p_lower["lower"] = plt.plot(frames_time_smoothed, z_lower_smoothed, linestyle = 'dashed', color = 'k')
-		for l_index in lipids_ff_u2l_index:
-			p_lower[l_index] = plt.plot(frames_time_smoothed, z_ff_smoothed[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_u2l_index)):
+			l = lipids_ff_u2l_index[l_index]
+			p_lower[l] = plt.plot(frames_time_smoothed, z_ff_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -3070,8 +3144,9 @@ def op_xvg_ff_graph_smoothed():											#DONE
 		#--------------------------
 		ax1 = fig.add_subplot(211)
 		p_upper={}
-		for l_index in lipids_ff_l2u_index:
-			p_upper[l_index] = plt.plot(frames_time_smoothed, lipids_op_ff[l_index]["tails"]["smoothed"], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			p_upper[l] = plt.plot(frames_time_smoothed, lipids_op_ff[l]["tails"]["smoothed"], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax1.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
@@ -3083,8 +3158,9 @@ def op_xvg_ff_graph_smoothed():											#DONE
 		p_lower ={}
 		p_lower["upper"] = plt.plot(frames_time_smoothed, z_upper_smoothed, linestyle = 'dashed', color = 'k')
 		p_lower["lower"] = plt.plot(frames_time_smoothed, z_lower_smoothed, linestyle = 'dashed', color = 'k')
-		for l_index in lipids_ff_l2u_index:
-			p_lower[l_index] = plt.plot(frames_time_smoothed, z_ff_smoothed[l_index], label = str(lipids_ff_info[l_index][0]) + " " + str(lipids_ff_info[l_index][1]))
+		for l_index in range(0,len(lipids_ff_l2u_index)):
+			l = lipids_ff_l2u_index[l_index]
+			p_lower[l] = plt.plot(frames_time_smoothed, z_ff_smoothed[l], label = str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]))
 		fontP.set_size("small")
 		ax2.legend(prop=fontP)
 		plt.xlabel('time (ns)', fontsize="small")
