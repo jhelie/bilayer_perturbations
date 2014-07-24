@@ -2473,8 +2473,8 @@ def thick_xvg_write():													#DONE
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_2_thickness_species.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\"\n")
-	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-	output_xvg.write("@ yaxis  label \"thickness\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"thickness\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
 	output_xvg.write("@ TYPE XY\n")
 	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -2511,8 +2511,8 @@ def thick_xvg_write_smoothed():											#DONE
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_4_thickness_species_smoothed.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of bilayer thickness by lipid specie\"\n")
-	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-	output_xvg.write("@ yaxis  label \"thickness\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"thickness\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
 	output_xvg.write("@ TYPE XY\n")
 	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -2749,16 +2749,26 @@ def thick_xtc_write_annotation(action):									#DONE
 def op_xvg_ff_write():													#DONE
 	
 	#flipflops: upper to lower
+	#-------------------------
 	if np.size(lipids_ff_u2l_index) > 0:
+		#open files
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_u2l.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_u2l.xvg'
 		output_txt  =  open(filename_txt, 'w')
-		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
-		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_3_order_param_ff_u2l.xvg.\n")
 		output_xvg  =  open(filename_xvg, 'w')
-		output_xvg.write("@ title \"Evolution of the tail order parameters of flipflopping lipids\"\n")
-		output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+		
+		#general header
+		output_txt.write("@[evolution of flipflopping lipids z coord and tails order parameter - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_3_order_param_ff_u2l.xvg.\n")
+		output_xvg.write("# [evolution of flipflopping lipids z coord and tails order parameter - written by bilayer_perturbations v" + str(version_nb) + "]\n")		
+		output_xvg.write("# - nb flipflops: " + str(len(lipids_ff_u2l_index)) + "\n") 
+		output_xvg.write("# - upper leaflet: " + str(round(np.average(z_upper),2)) + "\n") 
+		output_xvg.write("# - lower leaflet: " + str(round(np.average(z_lower),2)) + "\n") 
+
+		#xvg and txt metadata
+		output_xvg.write("@ title \"Evolution of flipflopping lipids z coord and tails order parameter\"\n")
+		output_xvg.write("@ xaxis label \"time (ns)\"\n")
+		output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
 		output_xvg.write("@ legend on\n")
 		output_xvg.write("@ legend box on\n")
@@ -2782,6 +2792,8 @@ def op_xvg_ff_write():													#DONE
 			output_xvg.write("@ s" + str(3 * len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
 			output_txt.write("4_3_order_param_ff_u2l.xvg," + str(3 * len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
+		
+		#data
 		for f_index in range(0,len(frames_time)):
 			results = str(frames_time[f_index])
 			for l_index in range(0,len(lipids_ff_u2l_index)):
@@ -2800,16 +2812,26 @@ def op_xvg_ff_write():													#DONE
 		output_xvg.close()
 	
 	#flipflops: lower to upper
+	#-------------------------
 	if np.size(lipids_ff_l2u_index)>0:
+		#open files
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_l2u.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/xvg/4_3_order_param_ff_l2u.xvg'
 		output_txt  =  open(filename_txt, 'w')
-		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
-		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_3_order_param_ff_l2u.xvg.\n")
 		output_xvg  =  open(filename_xvg, 'w')
-		output_xvg.write("@ title \"Evolution of the tail order parameters of flipflopping lipids\"\n")
-		output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+		
+		#general header
+		output_txt.write("@[evolution of flipflopping lipids z coord and tails order parameter - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_3_order_param_ff_l2u.xvg.\n")
+		output_xvg.write("# [evolution of flipflopping lipids z coord and tails order parameter - written by bilayer_perturbations v" + str(version_nb) + "]\n")		
+		output_xvg.write("# - nb flipflops: " + str(len(lipids_ff_l2u_index)) + "\n") 
+		output_xvg.write("# - upper leaflet: " + str(round(np.average(z_upper),2)) + "\n") 
+		output_xvg.write("# - lower leaflet: " + str(round(np.average(z_lower),2)) + "\n") 
+
+		#xvg and txt metadata
+		output_xvg.write("@ title \"Evolution of flipflopping lipids z coord and tails order parameter\"\n")
+		output_xvg.write("@ xaxis label \"time (ns)\"\n")
+		output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
 		output_xvg.write("@ legend on\n")
 		output_xvg.write("@ legend box on\n")
@@ -2833,6 +2855,8 @@ def op_xvg_ff_write():													#DONE
 			output_xvg.write("@ s" + str(3 * len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
 			output_txt.write("4_3_order_param_ff_l2u.xvg," + str(3 * len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
+		
+		#data
 		for f_index in range(0,len(frames_time)):
 			results = str(frames_time[f_index])
 			for l_index in range(0,len(lipids_ff_l2u_index)):
@@ -2854,16 +2878,26 @@ def op_xvg_ff_write():													#DONE
 def op_xvg_ff_write_smoothed():											#DONE
 
 	#flipflops: upper to lower
+	#-------------------------
 	if np.size(lipids_ff_u2l_index)>0:
+		#open files
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_u2l_smoothed.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_u2l_smoothed.xvg'
 		output_txt  =  open(filename_txt, 'w')
-		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
-		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_5_order_param_ff_u2l_smoothed.xvg.\n")
 		output_xvg  =  open(filename_xvg, 'w')
-		output_xvg.write("@ title \"Evolution of the tail order parameters of flipflopping lipids\"\n")
-		output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+		
+		#general header
+		output_txt.write("@[evolution of flipflopping lipids z coord and tails order parameter (smoothed) - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_5_order_param_ff_u2l_smoothed.xvg.\n")
+		output_xvg.write("# [evolution of flipflopping lipids z coord and tails order parameter (smoothed) - written by bilayer_perturbations v" + str(version_nb) + "]\n")		
+		output_xvg.write("# - nb flipflops: " + str(len(lipids_ff_u2l_index)) + "\n") 
+		output_xvg.write("# - upper leaflet: " + str(round(np.average(z_upper),2)) + "\n") 
+		output_xvg.write("# - lower leaflet: " + str(round(np.average(z_lower),2)) + "\n") 
+
+		#xvg and txt metadata		
+		output_xvg.write("@ title \"Evolution of flipflopping lipids z coord and tails order parameter (smoothed)\"\n")
+		output_xvg.write("@ xaxis label \"time (ns)\"\n")
+		output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
 		output_xvg.write("@ legend on\n")
 		output_xvg.write("@ legend box on\n")
@@ -2887,6 +2921,8 @@ def op_xvg_ff_write_smoothed():											#DONE
 			output_xvg.write("@ s" + str(3 * len(lipids_ff_u2l_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
 			output_txt.write("4_3_order_param_ff_u2l_smoothed.xvg," + str(3 * len(lipids_ff_u2l_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
+		
+		#data
 		for f_index in range(0, len(frames_time_smoothed)):
 			results = str(frames_time_smoothed[f_index])
 			for l_index in range(0,len(lipids_ff_u2l_index)):
@@ -2905,16 +2941,26 @@ def op_xvg_ff_write_smoothed():											#DONE
 		output_xvg.close()
 	
 	#flipflops: lower to upper
+	#-------------------------
 	if np.size(lipids_ff_l2u_index)>0:
+		#open files
 		filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_l2u_smoothed.txt'
 		filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/order_param/4_ff/smoothed/xvg/4_5_order_param_ff_l2u_smoothed.xvg'
 		output_txt  =  open(filename_txt, 'w')
-		output_txt.write("@[lipid tail order parameters statistics - written by bilayer_perturbations v" + str(version_nb) + "]\n")
+		output_xvg  =  open(filename_xvg, 'w')		
+		
+		#general header
+		output_txt.write("@[evolution of flipflopping lipids z coord and tails order parameter (smoothed) - written by bilayer_perturbations v" + str(version_nb) + "]\n")
 		output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 4_5_order_param_ff_l2u_smoothed.xvg.\n")
-		output_xvg  =  open(filename_xvg, 'w')
-		output_xvg.write("@ title \"Evolution of the tail order parameters of flipflopping lipids\"\n")
-		output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+		output_xvg.write("# [evolution of flipflopping lipids z coord and tails order parameter (smoothed) - written by bilayer_perturbations v" + str(version_nb) + "]\n")		
+		output_xvg.write("# - nb flipflops: " + str(len(lipids_ff_l2u_index)) + "\n") 
+		output_xvg.write("# - upper leaflet: " + str(round(np.average(z_upper),2)) + "\n") 
+		output_xvg.write("# - lower leaflet: " + str(round(np.average(z_lower),2)) + "\n") 
+
+		#xvg and txt metadata
+		output_xvg.write("@ title \"Evolution of flipflopping lipids z coord and tails order parameter (smoothed)\"\n")
+		output_xvg.write("@ xaxis label \"time (ns)\"\n")
+		output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
 		output_xvg.write("@ legend on\n")
 		output_xvg.write("@ legend box on\n")
@@ -2938,6 +2984,8 @@ def op_xvg_ff_write_smoothed():											#DONE
 			output_xvg.write("@ s" + str(3 * len(lipids_ff_l2u_index) + l_index) + " legend \"" + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB\"\n")
 			output_txt.write("4_3_order_param_ff_l2u_smoothed.xvg," + str(3 * len(lipids_ff_l2u_index) + l_index + 1) + "," + str(lipids_ff_info[l][0]) + " " + str(lipids_ff_info[l][1]) + " tailB,auto\n")
 		output_txt.close()
+		
+		#data
 		for f_index in range(0, len(frames_time_smoothed)):
 			results = str(frames_time_smoothed[f_index])
 			for l_index in range(0,len(lipids_ff_l2u_index)):
@@ -3192,8 +3240,8 @@ def op_xvg_nff_write():													#DONE
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_3_order_param_nff_upper.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of lipid tails order parameters in upper leaflet\"\n")
-	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-	output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
 	output_xvg.write("@ TYPE XY\n")
 	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -3236,8 +3284,8 @@ def op_xvg_nff_write():													#DONE
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_3_order_param_nff_lower.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of lipid tails order parameters in lower leaflet\n")
-	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-	output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
 	output_xvg.write("@ TYPE XY\n")
 	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -3283,8 +3331,8 @@ def op_xvg_nff_write_smoothed():										#DONE
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_5_order_param_nff_upper_smoothed.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of lipid tails order parameters in upper leaflet\"\n")
-	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-	output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
 	output_xvg.write("@ TYPE XY\n")
 	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -3327,8 +3375,8 @@ def op_xvg_nff_write_smoothed():										#DONE
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in 1_5_order_param_nff_lower_smoothed.xvg.\n")
 	output_xvg = open(filename_xvg, 'w')
 	output_xvg.write("@ title \"Evolution of lipid tails order parameters in lower leaflet\n")
-	output_xvg.write("@ xaxis  label \"time (ns)\"\n")
-	output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 	output_xvg.write("@ autoscale ONREAD xaxes\n")
 	output_xvg.write("@ TYPE XY\n")
 	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -3803,8 +3851,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipids density\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -3883,8 +3931,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipids density\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -3970,8 +4018,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipids density\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"lipids density (%)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -4075,8 +4123,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipids density\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -4154,8 +4202,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipids density\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -4236,8 +4284,8 @@ def radial_density_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipids density\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"lipids density (%)\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"lipids density (%)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -4789,8 +4837,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"bilayer thickness (Angstrom)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -4896,8 +4944,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"bilayer thickness (Angstrom)\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -5012,8 +5060,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"bilayer thickness (Angstrom)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -5123,8 +5171,8 @@ def radial_thick_frame_xvg_write(f_type, f_time, f_display):
 
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of bilayer thickness\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"bilayer thickness (Angstrom)\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"bilayer thickness (Angstrom)\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -5550,8 +5598,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -5659,8 +5707,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 		
 		#xvg and txt metadata
 		output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
-		output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-		output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+		output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+		output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 		output_xvg.write("@ autoscale ONREAD xaxes\n")
 		output_xvg.write("@ TYPE XY\n")
 		output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -5817,8 +5865,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 			
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
@@ -5912,8 +5960,8 @@ def radial_op_frame_xvg_write(f_type, f_time, f_display):
 
 			#xvg and txt metadata
 			output_xvg.write("@ title \"radial evolution of lipid order parameters\"\n")
-			output_xvg.write("@ xaxis  label \"distance from cluster z axis (Angstrom)\"\n")
-			output_xvg.write("@ yaxis  label \"order parameter P2\"\n")
+			output_xvg.write("@ xaxis label \"distance from cluster z axis (Angstrom)\"\n")
+			output_xvg.write("@ yaxis label \"order parameter P2\"\n")
 			output_xvg.write("@ autoscale ONREAD xaxes\n")
 			output_xvg.write("@ TYPE XY\n")
 			output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
