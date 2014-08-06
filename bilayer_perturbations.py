@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.31"
+version_nb="0.1.32"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -942,7 +942,7 @@ def load_MDA_universe():												#DONE
 		nb_frames_xtc = U.trajectory.numframes
 		U.trajectory.rewind()
 		#sanity check
-		if U.trajectory.time/float(1000) < args.t_start:
+		if U.trajectory[nb_frames_xtc-1].time/float(1000) < args.t_start:
 			print "Error: the trajectory duration (" + str(U.trajectory.time/float(1000)) + "ns) is shorted than the starting stime specified (" + str(args.t_start) + "ns)."
 			sys.exit(1)
 		if U.trajectory.numframes < args.frames_dt:
