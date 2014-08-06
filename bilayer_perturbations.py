@@ -951,14 +951,13 @@ def load_MDA_universe():												#DONE
 		#create list of index of frames to process
 		if args.t_start > 0:
 			for ts in U.trajectory:
-				#debug
-				print ts.frame
 				progress = '\r -skipping frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '        '
 				sys.stdout.flush()
 				sys.stdout.write(progress)
-				if ts.time/float(1000) < args.t_start:
+				if ts.time/float(1000) > args.t_start:
 					f_start = ts.frame-1
 					break
+			print ''
 		if (nb_frames_xtc - f_start)%args.frames_dt == 0:
 			tmp_offset = 0
 		else:
