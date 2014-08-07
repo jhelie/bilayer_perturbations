@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.32"
+version_nb="0.1.33"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2624,8 +2624,8 @@ def thick_frame_write_stat(f_type, f_time, f_index):					#DONE
 	
 	#general info
 	output_stat.write("1. membrane composition: \n")
-	output_stat.write(membrane_comp["upper"][:-1] + "\n")
-	output_stat.write(membrane_comp["lower"][:-1] + "\n")	
+	output_stat.write(membrane_comp["upper"] + "\n")
+	output_stat.write(membrane_comp["lower"] + "\n")	
 	if args.xtcfilename != "no":
 		output_stat.write("\n")
 		output_stat.write("2. nb frames processed:	" + str(nb_frames_to_process) + " (" + str(nb_frames_xtc) + " frames in xtc, step=" + str(args.frames_dt) + ")\n")
