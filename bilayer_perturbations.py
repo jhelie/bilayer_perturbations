@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.33"
+version_nb="0.1.34"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -282,7 +282,7 @@ Radial perturbations and protein clusters identification
 --radial_radius 50	: max radius to which represent the radial perturbations (Angstrom)
 --radial_step 	1	: width of the bins (Angstrom)
 --algorithm	min	: 'cog','min' or 'density', see 'DESCRIPTION'
---nx_cutoff 	8	: networkX cutoff distance for lipid-lipid contact (Angstrom)
+--nx_cutoff 	8	: networkX cutoff distance for protein-protein contact (Angstrom)
 --db_radius 	20	: DBSCAN search radius (Angstrom)
 --db_neighbours	3	: DBSCAN minimum number of neighbours within a circle of radius --db_radius	
  
