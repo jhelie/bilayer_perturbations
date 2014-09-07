@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.34"
+version_nb="0.1.35"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -300,7 +300,7 @@ parser.add_argument('-f', nargs=1, dest='grofilename', default=['no'], help=argp
 parser.add_argument('-x', nargs=1, dest='xtcfilename', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('-o', nargs=1, dest='output_folder', default=['no'], help=argparse.SUPPRESS)
 parser.add_argument('-b', nargs=1, dest='t_start', default=[-1], type=int, help=argparse.SUPPRESS)
-parser.add_argument('-e', nargs=1, dest='t_end', default=[10000000000000], type=int, help=argparse.SUPPRESS)
+parser.add_argument('-e', nargs=1, dest='t_end', default=[-1], type=int, help=argparse.SUPPRESS)
 parser.add_argument('-t', nargs=1, dest='frames_dt', default=[10], type=int, help=argparse.SUPPRESS)
 parser.add_argument('-w', nargs='?', dest='frames_write_dt', const=1000000000000000, default="no", help=argparse.SUPPRESS)
 parser.add_argument('--radial', dest='radial', action='store_true', help=argparse.SUPPRESS)
@@ -921,6 +921,7 @@ def load_MDA_universe():												#DONE
 	global frames_to_write
 	global nb_frames_to_process
 	global f_start
+	global f_end
 	global radial_bins
 	global radial_bin_max
 	global radial_radius_max
@@ -940,6 +941,7 @@ def load_MDA_universe():												#DONE
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
+		f_end = nb_frames_xtc - 1
 		U.trajectory.rewind()
 		#sanity check
 		if U.trajectory[nb_frames_xtc-1].time/float(1000) < args.t_start:
@@ -949,20 +951,21 @@ def load_MDA_universe():												#DONE
 			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) + ") than the frame step specified (" + str(args.frames_dt) + ")."
 
 		#create list of index of frames to process
-		if args.t_start > 0:
-			for ts in U.trajectory:
-				progress = '\r -skipping frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '        '
-				sys.stdout.flush()
-				sys.stdout.write(progress)
-				if ts.time/float(1000) > args.t_start:
-					f_start = ts.frame-1
-					break
-			print ''
-		if (nb_frames_xtc - f_start)%args.frames_dt == 0:
+		if args.t_start != -1:
+			f_start = int((args.t_start*1000 - U.trajectory[0].time) / float(U.trajectory.dt))
+			if f_start > f_end:
+				print "Error: the starting time specified is after the end of the xtc."
+				sys.exit(1)
+		if args.t_end != -1:
+			f_end = int((U.trajectory[-1].time-args.t_end*1000) / float(U.trajectory.dt))
+			if f_end < 0:
+				print "Error: the starting time specified is before the beginning of the xtc."
+				sys.exit(1)
+		if (f_end - f_start)%args.frames_dt == 0:
 			tmp_offset = 0
 		else:
 			tmp_offset = 1
-		frames_to_process = map(lambda f:f_start + args.frames_dt*f, range(0,(nb_frames_xtc - f_start)//args.frames_dt+tmp_offset))
+		frames_to_process = map(lambda f:f_start + args.frames_dt*f, range(0,(f_end - f_start)//args.frames_dt+tmp_offset))
 		nb_frames_to_process = len(frames_to_process)
 		if args.nb_smoothing > nb_frames_to_process:
 			print "Error: the number of frames to process (" + str(nb_frames_to_process) + ") is smaller than the number  of frames to use for smoothing (" + str(args.nb_smoothing) + "). Check the -t and --smooth options."
@@ -972,7 +975,7 @@ def load_MDA_universe():												#DONE
 		if args.frames_write_dt == "no":
 			frames_to_write = [False for f_index in range(0, nb_frames_to_process)]
 		else:
-			frames_to_write = [True if (f_index % args.frames_write_dt == 0 or f_index == (nb_frames_xtc - f_start)//args.frames_dt) else False for f_index in range(0, nb_frames_to_process)]
+			frames_to_write = [True if (f_index % args.frames_write_dt == 0 or f_index == (f_end - f_start)//args.frames_dt) else False for f_index in range(0, nb_frames_to_process)]
 		
 	#check the leaflet selection string is valid
 	test_beads = U.selectAtoms(leaflet_sele_string)
