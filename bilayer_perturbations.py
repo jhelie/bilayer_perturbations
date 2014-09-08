@@ -939,10 +939,6 @@ def load_MDA_universe():												#DONE
 		print "\nLoading trajectory..."
 		U = Universe(args.grofilename, args.xtcfilename)
 		U_timestep = U.trajectory.dt
-		#debug
-		#print "delta", U.trajectory.delta, float(U.trajectory.delta)
-		#print "dt", U.trajectory.dt, float(U.trajectory.dt)
-
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
