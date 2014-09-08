@@ -942,7 +942,6 @@ def load_MDA_universe():												#DONE
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
-		f_end = nb_frames_xtc - 1
 		U.trajectory.rewind()
 		#sanity check
 		if U.trajectory[nb_frames_xtc-1].time/float(1000) < args.t_start:
@@ -952,17 +951,17 @@ def load_MDA_universe():												#DONE
 			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) + ") than the frame step specified (" + str(args.frames_dt) + ")."
 
 		#create list of index of frames to process
+		if args.t_end != -1:
+			f_end = int((args.t_end*1000 - U.trajectory[0].time) / float(U_timestep))
+			if f_end < 0:
+				print "Error: the starting time specified is before the beginning of the xtc."
+				sys.exit(1)
+		else:
+			f_end = nb_frames_xtc - 1
 		if args.t_start != -1:
 			f_start = int((args.t_start*1000 - U.trajectory[0].time) / float(U_timestep))
 			if f_start > f_end:
 				print "Error: the starting time specified is after the end of the xtc."
-				sys.exit(1)
-		if args.t_end != -1:
-			#debug
-			print float(U.trajectory.dt)
-			f_end = int((args.t_end*1000 - U.trajectory[0].time) / float(U_timestep))
-			if f_end < 0:
-				print "Error: the starting time specified is before the beginning of the xtc."
 				sys.exit(1)
 		if (f_end - f_start)%args.frames_dt == 0:
 			tmp_offset = 0
@@ -6510,8 +6509,6 @@ if args.xtcfilename == "no":
 else:
 	for f_index in range(0,nb_frames_to_process):
 		ts = U.trajectory[frames_to_process[f_index]]
-		if ts.time/float(1000) > args.t_end:
-			break
 		progress = '\r -processing frame ' + str(f_index+1) + '/' + str(nb_frames_to_process) + ' (every ' + str(args.frames_dt) + ' frame(s) from frame ' + str(f_start) + ' to frame ' + str(f_end) + ' out of ' + str(nb_frames_xtc) + ')      '  
 		sys.stdout.flush()
 		sys.stdout.write(progress)
