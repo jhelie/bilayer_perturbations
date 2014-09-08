@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.35"
+version_nb="0.1.36"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -938,6 +938,11 @@ def load_MDA_universe():												#DONE
 	else:
 		print "\nLoading trajectory..."
 		U = Universe(args.grofilename, args.xtcfilename)
+		U_timestep = U.trajectory.dt
+		#debug
+		#print "delta", U.trajectory.delta, float(U.trajectory.delta)
+		#print "dt", U.trajectory.dt, float(U.trajectory.dt)
+
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
@@ -952,12 +957,14 @@ def load_MDA_universe():												#DONE
 
 		#create list of index of frames to process
 		if args.t_start != -1:
-			f_start = int((args.t_start*1000 - U.trajectory[0].time) / float(U.trajectory.dt))
+			f_start = int((args.t_start*1000 - U.trajectory[0].time) / float(U_timestep))
 			if f_start > f_end:
 				print "Error: the starting time specified is after the end of the xtc."
 				sys.exit(1)
 		if args.t_end != -1:
-			f_end = int((U.trajectory[-1].time-args.t_end*1000) / float(U.trajectory.dt))
+			#debug
+			print float(U.trajectory.dt)
+			f_end = int((args.t_end*1000 - U.trajectory[0].time) / float(U_timestep))
 			if f_end < 0:
 				print "Error: the starting time specified is before the beginning of the xtc."
 				sys.exit(1)
@@ -6509,7 +6516,7 @@ else:
 		ts = U.trajectory[frames_to_process[f_index]]
 		if ts.time/float(1000) > args.t_end:
 			break
-		progress = '\r -processing frame ' + str(ts.frame) + '/' + str(nb_frames_xtc) + '                      '  
+		progress = '\r -processing frame ' + str(f_index+1) + '/' + str(nb_frames_to_process) + ' (every ' + str(args.frames_dt) + ' frame(s) from frame ' + str(f_start) + ' to frame ' + str(f_end) + ' out of ' + str(nb_frames_xtc) + ')      '  
 		sys.stdout.flush()
 		sys.stdout.write(progress)
 				
