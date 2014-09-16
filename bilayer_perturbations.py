@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.36"
+version_nb="0.1.37"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -2264,9 +2264,9 @@ def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):		#DONE
 		elif s in leaflet_species["upper"]:
 			lipids_thick_nff[s]["raw"]["avg"][f_index] = np.average(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
 			lipids_thick_nff[s]["raw"]["std"][f_index] = np.std(tmp_dist_t2b_avg[lipids_specie2rindex["upper"][s]])
-		elif s in leaflet_species["lower"]:
-			lipids_thick_nff[s]["raw"]["avg"][f_index] = np.average(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
-			lipids_thick_nff[s]["raw"]["std"][f_index] = np.std(tmp_dist_t2b_avg[lipids_specie2rindex["lower"][s]])
+		elif s in leaflet_species["lower"]:			
+			lipids_thick_nff[s]["raw"]["avg"][f_index] = np.average(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]])
+			lipids_thick_nff[s]["raw"]["std"][f_index] = np.std(tmp_dist_b2t_avg[lipids_specie2rindex["lower"][s]])
 	
 	#produce output if necessary
 	if f_write:
