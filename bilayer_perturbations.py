@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.37"
+version_nb="0.1.4"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1109,7 +1109,7 @@ def identify_proteins():
 	proteins_boundaries = {}
 	
 	#check for protein presence
-	if U.selectAtoms("protein").numberOfAtoms() == 0:
+	if U.selectAtoms("protein or nucleic").numberOfAtoms() == 0:
 		print "Error: no protein detected."
 		sys.exit(1)
 	
@@ -1129,7 +1129,7 @@ def identify_proteins():
 			sys.stdout.write(progress)
 			try:
 				print " p[" + str(p_index) + "]=U.selectAtoms(" + line + ")"
-				proteins_sele[p_index] = U.selectAtoms(line[1:-2])
+				proteins_sele[p_index] = U.selectAtoms(line[1:-1])
 				proteins_sele["all"] += proteins_sele[p_index]
 				proteins_boundaries[p_index] = [proteins_sele[p_index].indices()[0] + 1, proteins_sele[p_index].indices()[proteins_sele[p_index].numberOfAtoms()]+1]
 				proteins_sele_string[p_index] = "bynum " + str(proteins_boundaries[p_index][0]) + ":" + str(proteins_boundaries[p_index][1])
