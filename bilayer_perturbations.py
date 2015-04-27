@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb="0.1.4"
+version_nb="0.1.5"
 parser = argparse.ArgumentParser(prog='bilayer_perturbations', usage='', add_help=False, formatter_class=argparse.RawDescriptionHelpFormatter, description=\
 '''
 ****************************************************
@@ -1743,7 +1743,7 @@ def get_distances(box_dim):
 		#pre-process: get protein coordinates
 		tmp_proteins_coords = np.zeros((proteins_nb, nb_atom_per_protein, 3))
 		for p_index in range(0, proteins_nb):
-			tmp_proteins_coords[p_index,:] = proteins_sele[p_index].coordinates()
+			tmp_proteins_coords[p_index,:] = fit_coords_into_box(proteins_sele[p_index].coordinates(), box_dim)
 
 		#store min distance between each proteins
 		dist_matrix = 100000 * np.ones((proteins_nb,proteins_nb))
@@ -1754,10 +1754,16 @@ def get_distances(box_dim):
 	#method: use distance between cog
 	#--------------------------------
 	else:
-		tmp_proteins_cogs = np.asarray(map(lambda p_index: calculate_cog(proteins_sele[p_index].coordinates(), box_dim), range(0,proteins_nb)))
+		tmp_proteins_cogs = np.asarray(map(lambda p_index: calculate_cog(fit_coords_into_box(proteins_sele[p_index].coordinates(), box_dim), box_dim), range(0,proteins_nb)))
 		dist_matrix = MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_cogs), np.float32(tmp_proteins_cogs), box_dim)
 
 	return dist_matrix
+def fit_coords_into_box(coords, box_dim):
+	
+	coords[:,0] -= np.floor(coords[:,0]/float(box_size[0])) * box_dim[0]
+	coords[:,1] -= np.floor(coords[:,1]/float(box_size[1])) * box_dim[1]
+	
+	return coords
 def calculate_cog(tmp_coords, box_dim):										
 	
 	#this method allows to take pbc into account when calculcating the center of geometry 
@@ -1777,9 +1783,9 @@ def calculate_cog(tmp_coords, box_dim):
 def calculate_radial(f_type, f_time, f_write, box_dim):							
 	
 	#retrieve coordinates arrays (pre-processing saves time as MDAnalysis functions are quite slow and we need to make such calls a few times)
-	tmp_lip_coords = {l: {s: leaflet_sele[l][s].coordinates() for s in leaflet_species[l] + ["all species"]} for l in ["lower","upper"]}
+	tmp_lip_coords = {l: {s: fit_coords_into_box(leaflet_sele[l][s].coordinates(), box_dim) for s in leaflet_species[l] + ["all species"]} for l in ["lower","upper"]}
 	if chol_pres:
-		tmp_chol_coords = chol_sele.coordinates()
+		tmp_chol_coords = fit_coords_into_box(chol_sele.coordinates(), box_dim)
 	
 	#identify clusters
 	#=================
@@ -1817,7 +1823,7 @@ def calculate_radial(f_type, f_time, f_write, box_dim):
 		c_sele = MDAnalysis.core.AtomGroup.AtomGroup([])
 		for p_index in cluster:
 			c_sele += proteins_sele[p_index]
-		tmp_c_sele_coordinates = c_sele.coordinates()
+		tmp_c_sele_coordinates = fit_coords_into_box(c_sele.coordinates(), box_dim)
 		dist_min_lower = np.min(MDAnalysis.analysis.distances.distance_array(tmp_c_sele_coordinates, tmp_lip_coords["lower"]["all species"], box_dim), axis = 1)
 		dist_min_upper = np.min(MDAnalysis.analysis.distances.distance_array(tmp_c_sele_coordinates, tmp_lip_coords["upper"]["all species"], box_dim), axis = 1)
 		dist = dist_min_upper - dist_min_lower
@@ -2232,7 +2238,7 @@ def calculate_thickness(f_type, f_time, f_write, f_index, box_dim):		#DONE
 	global vmd_thick_max
 
 	#retrieve coordinates arrays (pre-processing saves time as MDAnalysis functions are quite slow and we need to make such calls a few times)
-	tmp_lip_coords = {l: leaflet_sele[l]["all species"].coordinates() for l in ["lower","upper"]}
+	tmp_lip_coords = {l: fit_coords_into_box(leaflet_sele[l]["all species"].coordinates(), box_dim) for l in ["lower","upper"]}
 	
 	#array of associated thickness
 	tmp_dist_t2b_dist = MDAnalysis.analysis.distances.distance_array(tmp_lip_coords["upper"], tmp_lip_coords["lower"], box_dim)
