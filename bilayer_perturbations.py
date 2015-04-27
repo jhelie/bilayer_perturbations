@@ -1760,8 +1760,8 @@ def get_distances(box_dim):
 	return dist_matrix
 def fit_coords_into_box(coords, box_dim):
 	
-	coords[:,0] -= np.floor(coords[:,0]/float(box_size[0])) * box_dim[0]
-	coords[:,1] -= np.floor(coords[:,1]/float(box_size[1])) * box_dim[1]
+	coords[:,0] -= np.floor(coords[:,0]/float(box_dim[0])) * box_dim[0]
+	coords[:,1] -= np.floor(coords[:,1]/float(box_dim[1])) * box_dim[1]
 	
 	return coords
 def calculate_cog(tmp_coords, box_dim):										
